@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Project 1 – HO2 Analysis</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="styles1.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h2 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h3 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h4 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h5 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h6 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Financial Analytics</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="overview.html">Overview</a>
+</li>
+<li>
+  <a href="topics.html">Topics</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Project 1 – HO2 Analysis</h1>
+<h3 class="subtitle">Live Sessions: weeks 1 and 2</h3>
+
+</div>
+
+
+
+<div id="purpose-process-product" class="section level2">
+<h2>Purpose, Process, Product</h2>
+<p>With this project we will practice reading, cleaning, and exploring data, building data frames, pivot tables, and plots. We will also use functions to perform repeatable tasks. We will fit a distribution to data. Throughout we will visualize results with plots using <code>ggplot2</code> in this project to explore the data and gain further insight into the results of our analysis. We will summarize our findings in a report documented with an <code>R markdown</code> file and output.</p>
+</div>
+<div id="assignment" class="section level2">
+<h2>Assignment</h2>
+<p>Submit into <strong>Coursework &gt; Assignments and Grading &gt; Project 1 &gt; Submission</strong> an <code>RMD</code> file with filename <strong>lastname-firstname_Project1.Rmd</strong>. If you have difficulties submitting a <code>.Rmd</code> file, then submit a <code>.txt</code> file.</p>
+<ol style="list-style-type: decimal">
+<li><p>Use headers (##), r-chunks for code, and text to build a report that addresses the two parts of this project.</p></li>
+<li><p>List in the text the ‘R’ skills needed to complete this project.</p></li>
+<li><p>Explain each of the functions (e.g., <code>ggplot()</code>) used to compute and visualize results.</p></li>
+<li><p>Discuss how well did the results begin to answer the business questions posed at the beginning of each part of the project.</p></li>
+</ol>
+</div>
+<div id="r-markdown-set-up" class="section level2">
+<h2>R Markdown set up</h2>
+<ol style="list-style-type: decimal">
+<li><p>Open a new <code>R Markdown</code> html document file and save it with file name <strong>lastname-firstname_Project1</strong> to your working directory. The <code>Rmd</code> file extension will automatically be appended to the file name. Create a new folder called <code>data</code> in this working directory and deposit the <code>.csv</code> file for Project #2 to this directory.</p></li>
+<li><p>Modify the <code>YAML</code> header in the <code>Rmd</code> file to reflect the name of this project, your name, and date.</p></li>
+<li>Replace the <code>R Markdown</code> example in the new file with the following script. Modify this script to reflect the parts and questions in the project. The ones below are illlustrative only.</li>
+</ol>
+<pre><code># Part 1: HO2 data preparation and exploration
+(INSERT explanatory text here)
+(INSERT r chunks here)
+## Question 1 - title
+(INSERT explanatory text here)
+(INSERT r chunks here)
+## Question 2 - title
+(INSERT explanatory text here)
+(INSERT r chunks here)
+# Part 2: HO2 analysis
+(INSERT explanatory text here)
+## Further questions as needed
+(INSERT explanatory text here)
+(INSERT r chunks here)</code></pre>
+<ol start="4" style="list-style-type: decimal">
+<li>Click <code>knit</code> in the <code>Rstudio</code> command bar to produce the <code>pdf</code> or <code>Word</code> document.</li>
+</ol>
+</div>
+<div id="part-1" class="section level2">
+<h2>Part 1</h2>
+<p>In this set we will build a data set using filters and <code>if</code> and <code>diff</code> statements. We will then answer some questions using plots and a pivot table report. We will then write a function to house our approach in case we would like to run the same analysis on other data sets.</p>
+<div id="problem" class="section level3">
+<h3>Problem</h3>
+<p>Supply chain managers at our company continue to note we have a significant exposure to heating oil prices (Heating Oil No. 2, or HO2), specifically New York Harbor. The exposure hits the variable cost of producing several products. When HO2 is volatile, so is earnings. Our company has missed earnings forecasts for five straight quarters. To get a handle on HO2 we download this data set and review some basic aspects of the prices.</p>
+<pre class="r"><code># Read in data
+# package EIAdata
+#
+HO2 &lt;- read.csv(&quot;nyhh02.csv&quot;, header = T, stringsAsFactors = F)
+# stringsAsFactors sets dates as character type
+head(HO2)
+HO2 &lt;- na.omit(HO2) ## to clean up any missing data
+# use na.approx() as well
+str(HO2) # review the structure of the data so far</code></pre>
+</div>
+<div id="questions" class="section level3">
+<h3>Questions</h3>
+<ol style="list-style-type: decimal">
+<li>What is the nature of HO2 returns? We want to reflect the ups and downs of price movements, something of prime interest to management. First, we calculate percentage changes as log returns. Our interest is in the ups and downs. To look at that we use <code>if</code> and <code>else</code> statements to define a new column called <code>direction</code>. We will build a data frame to house this analysis.</li>
+</ol>
+<pre class="r"><code># Construct expanded data frame
+return &lt;- as.numeric(diff(log(HO2$DHOILNYH))) * 100 # Euler 
+size &lt;- as.numeric(abs(return)) # size is indicator of volatility
+direction &lt;- ifelse(return &gt; 0, &quot;up&quot;, ifelse(return &lt; 0, &quot;down&quot;, &quot;same&quot;)) # another indicator of volatility
+# =if(return &gt; 0, &quot;up&quot;, if(return &lt; 0, &quot;down&quot;, &quot;same&quot;))
+date &lt;- as.Date(HO2$DATE[-1], &quot;%m/%d/%Y&quot;) # length of DATE is length of return +1: omit 1st observation
+price &lt;- as.numeric(HO2$DHOILNYH[-1]) # length of DHOILNYH is length of return +1: omit first observation
+HO2.df &lt;- na.omit(data.frame(date = date, price = price, return = return, size = size, direction = direction)) # clean up data frame by omitting NAs
+str(HO2.df)</code></pre>
+<p>We can plot with the <code>ggplot2</code> package. In the <code>ggplot</code> statements we use <code>aes</code>, “aesthetics”, to pick <code>x</code> (horizontal) and <code>y</code> (vertical) axes. Use <code>group =1</code> to ensure that all data is plotted. The added (<code>+</code>) <code>geom_line</code> is the geometrical method that builds the line plot.</p>
+<pre class="r"><code>library(ggplot2)
+p &lt;- ggplot(HO2.df, aes(x = date, y = return, group = 1)) + geom_line(colour = &quot;blue&quot;)
+p</code></pre>
+<p>Let’s try a bar graph of the absolute value of price rates. We use <code>geom_bar</code> to build this picture.</p>
+<pre class="r"><code># library(ggplot2)
+p &lt;- ggplot(HO2.df, aes(x = date, y = size, group = 1)) + geom_bar(stat = &quot;identity&quot;, colour = &quot;green&quot;)
+p</code></pre>
+<p>Now let’s build an overlay of <code>return</code> on <code>size</code>.</p>
+<pre class="r"><code>p &lt;- ggplot(HO2.df, aes(date, size)) + geom_bar(stat = &quot;identity&quot;, colour = &quot;darkorange&quot;) + geom_line(data = HO2.df, aes(date, return), colour = &quot;blue&quot;)
+p</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li>Let’s dig deeper and compute mean, standard deviation, etc. Load the <code>data_moments()</code> function. Run the function using the <code>HO2.df$return</code> subset of the data and write a <code>knitr::kable()</code> report.</li>
+</ol>
+<pre class="r"><code># Load the data_moments() function
+## data_moments function
+## INPUTS: vector
+## OUTPUTS: list of scalars (mean, sd, median, skewness, kurtosis)
+data_moments &lt;- function(data){
+  library(moments)
+  mean.r &lt;- mean(data)
+  sd.r &lt;- sd(data)
+  median.r &lt;- median(data)
+  skewness.r &lt;- skewness(data)
+  kurtosis.r &lt;- kurtosis(data)
+  result &lt;- data.frame(mean = mean.r, std_dev = sd.r, median = median.r, skewness = skewness.r, kurtosis = kurtosis.r)
+  return(result)
+}
+# Run data_moments()
+answer &lt;- data_moments(HO2.df$return)
+# Build pretty table
+answer &lt;- round(answer, 4)
+knitr::kable(answer)</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li>Let’s pivot <code>size</code> and <code>return</code> on <code>direction</code>. What is the average and range of returns by direction? How often might we view positive or negative movements in HO2?</li>
+</ol>
+<pre class="r"><code># Counting
+table(HO2.df$return &lt; 0) # one way
+table(HO2.df$return &gt; 0)
+table(HO2.df$direction) # this counts 0 returns as negative
+table(HO2.df$return == 0)
+# Pivoting
+library(dplyr)
+## 1: filter to those houses with fairly high prices
+# pivot.table &lt;-  filter(HO2.df, size &gt; 0.5*max(size))
+## 2: set up data frame for by-group processing
+pivot.table &lt;-  group_by(HO2.df, direction)
+## 3: calculate the summary metrics
+options(dplyr.width = Inf) ## to display all columns
+HO2.count &lt;- length(HO2.df$return)
+pivot.table &lt;-  summarise(pivot.table, return.avg = round(mean(return), 4), return.sd = round(sd(return), 4), quantile.5 = round(quantile(return, 0.05), 4), quantile.95 = round(quantile(return, 0.95), 4), percent = round((length(return)/HO2.count)*100, 2))
+# Build visual
+knitr::kable(pivot.table, digits = 2)
+# Here is how we can produce a LaTeX formatted and rendered table
+# 
+library(xtable)
+HO2.caption &lt;- &quot;Heating Oil No. 2: 1986-2016&quot;
+print(xtable(t(pivot.table), digits = 2, caption = HO2.caption, align=rep(&quot;r&quot;, 4), table.placement=&quot;V&quot;))
+print(xtable(answer), digits = 2)</code></pre>
+</div>
+</div>
+<div id="part-2" class="section level2">
+<h2>Part 2</h2>
+<p>We will use the data from Part 1 to investigate the distribution of returns we generated. This will entail fitting the data to some parametric distributions as well as</p>
+<div id="problem-1" class="section level3">
+<h3>Problem</h3>
+<p>We want to further characterize the distribution of up and down movements visually. Also we would like to repeat the analysis periodically for inclusion in management reports.</p>
+</div>
+<div id="questions-1" class="section level3">
+<h3>Questions</h3>
+<ol style="list-style-type: decimal">
+<li>How can we show the differences in the shape of ups and downs in HO2, especially given our tolerance for risk? We can use the <code>HO2.df</code> data frame with <code>ggplot2</code> and the cumulative relative frequency function <code>stat_ecdf</code> to begin to understand this data.</li>
+</ol>
+<pre class="r"><code>HO2.tol.pct &lt;- 0.95
+HO2.tol &lt;- quantile(HO2.df$return, HO2.tol.pct)
+HO2.tol.label &lt;- paste(&quot;Tolerable Rate = &quot;, round(HO2.tol, 2), sep = &quot;&quot;)
+ggplot(HO2.df, aes(return, fill = direction)) + stat_ecdf(colour = &quot;blue&quot;, size = 0.75) + geom_vline(xintercept = HO2.tol, colour = &quot;red&quot;, size = 1.5) + annotate(&quot;text&quot;, x = HO2.tol+5 , y = 0.75, label = HO2.tol.label, colour = &quot;darkred&quot;)</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li>How can we regularly, and reliably, analyze HO2 price movements? For this requirement, let’s write a function similar to <code>data_moments</code>. Name this new function <code>HO2_movement()</code>.</li>
+</ol>
+<pre class="r"><code>## HO2_movement(file, caption)
+## input: HO2 csv file from /data directory
+## output: result for input to kable in $table and xtable in $xtable; 
+##         data frame for plotting and further analysis in $df.
+## Example: HO2.data &lt;- HO2_movement(file = &quot;data/nyhh02.csv&quot;, caption = &quot;HO2 NYH&quot;)
+HO2_movement &lt;- function(file = &quot;data/nyhh02.csv&quot;, caption = &quot;Heating Oil No. 2: 1986-2016&quot;){
+  # Read file and deposit into variable
+  HO2 &lt;- read.csv(file, header = T, stringsAsFactors = F)
+  # stringsAsFactors sets dates as character type
+  HO2 &lt;- na.omit(HO2) ## to clean up any missing data
+  # Construct expanded data frame
+  return &lt;- as.numeric(diff(log(HO2$DHOILNYH))) * 100
+  size &lt;- as.numeric(abs(return)) # size is indicator of volatility
+  direction &lt;- ifelse(return &gt; 0, &quot;up&quot;, ifelse(return &lt; 0, &quot;down&quot;, &quot;same&quot;)) # another indicator of volatility
+  date &lt;- as.Date(HO2$DATE[-1], &quot;%m/%d/%Y&quot;) # length of DATE is length of return +1: omit 1st observation
+  price &lt;- as.numeric(HO2$DHOILNYH[-1]) # length of DHOILNYH is length of return +1: omit first observation
+  HO2.df &lt;- na.omit(data.frame(date = date, price = price, return = return, size = size, direction = direction)) # clean up data frame by omitting NAs
+  require(dplyr)
+  ## 1: filter if necessary
+  # pivot.table &lt;-  filter(HO2.df, size &gt; 0.5*max(size))
+  ## 2: set up data frame for by-group processing
+  pivot.table &lt;-  group_by(HO2.df, direction)
+  ## 3: calculate the summary metrics
+  options(dplyr.width = Inf) ## to display all columns
+  HO2.count &lt;- length(HO2.df$return)
+  pivot.table &lt;-  summarise(pivot.table, return.avg = mean(return), return.sd = sd(return), quantile.5 = quantile(return, 0.05), quantile.95 = quantile(return, 0.95), percent = (length(return)/HO2.count)*100)
+  # Construct transpose of pivot table with xtable()
+  require(xtable)
+  pivot.xtable &lt;- xtable(t(pivot.table), digits = 2, caption = caption, align=rep(&quot;r&quot;, 4), table.placement=&quot;V&quot;)
+  HO2.caption &lt;- &quot;Heating Oil No. 2: 1986-2016&quot;
+  output.list &lt;- list(table = pivot.table, xtable = pivot.xtable, df = HO2.df)
+return(output.list)
+}</code></pre>
+<p>Test <code>HO2_movement()</code> with data and display results in a table with <code>2</code> decimal places.</p>
+<pre class="r"><code>knitr::kable(HO2_movement(file = &quot;data/nyhh02.csv&quot;)$table, digits = 2)</code></pre>
+<p>Morale: more work today (build the function) means less work tomorrow (write yet another report).</p>
+<ol start="3" style="list-style-type: decimal">
+<li>Suppose we wanted to simulate future movements in HO2 returns. What distribution might we use to run those scenarios? Here, let’s use the <code>MASS</code> package’s <code>fitdistr()</code> function to find the optimal fit of the HO2 data to a parametric distribution. We will use the <code>gamma</code> distribution to simulate future heating oil #2 price scenarios.</li>
+</ol>
+<pre class="r"><code>library(MASS)
+HO2.data &lt;- HO2_movement(file = &quot;data/nyhh02.csv&quot;, caption = &quot;HO2 NYH&quot;)$df
+str(HO2.data)
+fit.gamma.up &lt;- fitdistr(HO2.data[HO2.data$direction == &quot;up&quot;, &quot;return&quot;], &quot;gamma&quot;, hessian = TRUE)
+fit.gamma.up
+# fit.t.same &lt;- fitdistr(HO2.data[HO2.data$direction == &quot;same&quot;, &quot;return&quot;], &quot;gamma&quot;, hessian = TRUE) # a problem here is all observations = 0
+fit.t.down &lt;- fitdistr(HO2.data[HO2.data$direction == &quot;down&quot;, &quot;return&quot;], &quot;t&quot;, hessian = TRUE)
+fit.t.down
+fit.gamma.down &lt;- fitdistr(-HO2.data[HO2.data$direction == &quot;down&quot;, &quot;return&quot;], &quot;gamma&quot;, hessian = TRUE) # gamma distribution defined for data &gt;= 0
+fit.gamma.down</code></pre>
+</div>
+</div>
+
+<p>Copyright &copy; 2018 William G. Foote. All rights reserved.</p>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

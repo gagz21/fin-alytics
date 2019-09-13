@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="William G. Foote and Andrew W. Foote" />
+
+
+<title>Take a ducat …: The story of e</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="styles1.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h2 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h3 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h4 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h5 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h6 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Financial Analytics</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="overview.html">Overview</a>
+</li>
+<li>
+  <a href="topics.html">Topics</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Take a ducat …: The story of e</h1>
+<h4 class="author">William G. Foote and Andrew W. Foote</h4>
+<h4 class="date">7/17/2019</h4>
+
+</div>
+
+
+<div id="a-question-is-raised" class="section level2">
+<h2>A question is raised</h2>
+<blockquote>
+<p>Why do we take differences of logarithms to calculate returns?</p>
+</blockquote>
+<p>A great question deserves a story.</p>
+<p>You can find the <a href="https://turing.manhattan.edu/~wfoote01/finalytics/_site/RMD/e-ln-returns.Rmd">source code here.</a></p>
+</div>
+<div id="jacob-bernoulli-has-a-story-to-tell" class="section level2">
+<h2>Jacob Bernoulli has a story to tell</h2>
+<p>In 1683, Jacob Bernoulli posed this problem in compound interest:</p>
+<ol style="list-style-type: decimal">
+<li>Invest 1 ducat for 1 year at 100% interest. This yields</li>
+</ol>
+<p><span class="math display">\[ 
+I = I ( 1 + r) ^t = 1 (1 + 1)^1 = 2
+\]</span> where <span class="math inline">\(I =\)</span> investment at the beginning of the year, <span class="math inline">\(r =\)</span> the return in one year, and <span class="math inline">\(t =\)</span> the number of years (in this case simply 1 year).</p>
+<ol start="2" style="list-style-type: decimal">
+<li>Invest 1 ducat for one-half a year at annual rate $r = $ 1 and semi-annual equivalent $r/2 = $0.5. Reinvest what you earn in one-half a year for another one-half a year. This yields</li>
+</ol>
+<p><span class="math display">\[ 
+I = I ( 1 + r/2) (1 + r/2) = 1 (1 + 0.5)^2 = 2.25
+\]</span> 3. Invest 1 ducat for one-quarter of a year at annual rate $r = $ 1 and quarterly equivalent $r/4 = $0.25. Reinvest what you earn in a quarter for another quarter. Invest the two quarter balance for the third. Invest the three quarter balance for the fourth and final quarter. This yields</p>
+<p><span class="math display">\[ 
+I = I ( 1 + r/4) (1 + r/4) (1 + r/4) (1 + r/4) = 1 (1 + 0.25)^4 = 2.4414062
+\]</span></p>
+<ol start="4" style="list-style-type: decimal">
+<li>Cut up the quarter into smaller and smaller time units, also known as <strong>compounding periods</strong>. Say we are now at an investment period of only one day. There are 365 days in this year. There are thus 365 compounding periods. Using the same logic we get</li>
+</ol>
+<p><span class="math display">\[ 
+I = I ( 1 + r/365) (1 + r/365) ... (1 + r/365) = 1 (1 + 0.0027397)^{365} = 2.7145675
+\]</span></p>
+<p>In general, Bernoulli was calculating the expression</p>
+<p><span class="math display">\[
+\left(1 + \frac{1}{n}\right)^n
+\]</span> as <span class="math inline">\(n \rightarrow \infty\)</span>, that is, as the number of compounding periods <span class="math inline">\(n\)</span> got ever larger. In the limit, this expression converges to the transcendental number <span class="math inline">\(e=\)</span> 2.7182818.</p>
+<p><em>In finance, this is the equivalent of earning 2.7182818 ducats in a year for an investment of 1 ducat at the beginning of the year at 100% rate of return per year compounded continuously.</em></p>
+<p>Here is a picture of the calculated approximation of <span class="math inline">\(e\)</span> versus the number of compounding periods <span class="math inline">\(n\)</span>.</p>
+<pre class="r"><code>library(ggplot2) # to plot e approximation versus number of compounding periods
+library(latex2exp) # to build latex math expressions in ggplot using TeX to generatelatex string
+options(digits = 5) # overall rounding
+r &lt;- 1 # 100% annual rate of return as in Bernoulli (1683)
+t &lt;- 1 # one year as in Bernoullil (1683)
+n &lt;- 1:365 # number of compounding periods
+e_approx &lt;- (1 + r/n)^n # vector of e approximations
+e_asymptote &lt;- round(exp(r*t), 5) # need to round result for ggplot
+e_label &lt;- paste0(&quot;e = &quot;, e_asymptote) # horizontal label for asymptote
+e_title &lt;- &quot;Jacob Bernoulli&#39;s 1683 compound interest experiment&quot; # graph title
+y_label &lt;- TeX(&#39;$(1 + 1/n)^n$&#39;) # rmarkdown needs \\ for latex escape
+e_df &lt;- data.frame(e_approx = e_approx, n = n) # data frame needed for ggplot
+ggplot(e_df, aes(x = n, y = e_approx)) + 
+  ylab(y_label) + 
+  xlab(&quot;n compounding periods&quot;) +
+  geom_line(color = &quot;blue&quot;, size = 1.5) +
+  geom_hline(yintercept = e_asymptote, color = &quot;red&quot;) +
+  annotate(&quot;text&quot;, label = e_label, x = 10, y = e_asymptote + 0.04, color = &quot;darkred&quot; ) +
+  ggtitle(e_title)</code></pre>
+<p><img src="example-demo-html_files/figure-html/experiment-1.png" width="672" /> Calculations are rounded to 5 decimal places.</p>
+</div>
+<div id="wheres-the-finance" class="section level2">
+<h2>Where’s the finance?</h2>
+<p>In finance, and in Bernoulli’s example, <span class="math inline">\(r =\)</span> 1.00, or an annual return of 100%. For a duration of <span class="math inline">\(t=\)</span> 1 year, an investor would earn</p>
+<p><span class="math display">\[
+Ie^{rt} = 1 \times e^{1.00 \times 1} = 2.71828
+\]</span> if the investor could earn continuously through every minute, every second of every day in the year.</p>
+<p>For example, let the investor earn <span class="math inline">\(r=\)</span> 5% per year on a $1,000 investment for one month. The number of years in a single month is a fraction <span class="math inline">\(t=1/12\)</span> 0.08333. The investor would have at the end of a month</p>
+<p><span class="math display">\[
+Ie^{rt} = 1000 \times e^{0.05 \times (1/12)} = 1004.17536
+\]</span></p>
+<p>We calculate the inverse of <span class="math inline">\(e^{rt}\)</span> to calculate, isolate <span class="math inline">\(r\)</span>. This <span class="math inline">\(r\)</span> is the annually continuously compounded rate of return. In algebra, <span class="math inline">\(e\)</span> is the base and <span class="math inline">\(rt\)</span> is the exponent.</p>
+<p>The inverse of any exponential term is the logarithm. The natural logarithm, <span class="math inline">\(ln()\)</span>, is the logarithm to the base <span class="math inline">\(e\)</span>. For any base raised to a power, the logarithm answers the question: “What is the power?” In finance, we have a future value. With continuous compounding, we ask: “What is the corresponding rate of return?”</p>
+<p>Here date 0 is the beginning of the month and date 1 is the end of the month. Let’s name the result at the end of one month <span class="math inline">\(I_1\)</span> and the investment at the beginning of the month <span class="math inline">\(I_0\)</span>. Then we have with continuous compounding</p>
+<p><span class="math display">\[
+I_1 = I_0 e^{rt}
+\]</span> Divide both sides of the this equation by <span class="math inline">\(I_0\)</span> to get <span class="math display">\[
+\frac{I_1}{I_0} = e^{rt}
+\]</span> Then take logarithms of both sides to isolate <span class="math inline">\(rt\)</span> to get <span class="math display">\[
+ln \left(\frac{I_1}{I_0}\right) = ln(e^{rt}) = rt
+\]</span> From algebra we know that the log of a ratio is the same as the difference of the logs of the numerator and denominator. Then also dividing both sides by <span class="math inline">\(t\)</span>, the holding period, we have <span class="math display">\[
+r = \frac{ln(I_1)-ln(I_0)}{t} = \frac{6.91192 - 6.90776}{0.08333} = 0.05
+\]</span> We must remember that this is the annual rate of return continuously compounded over a one month holding period.</p>
+</div>
+<div id="the-answer-please" class="section level2">
+<h2>The answer please?</h2>
+<blockquote>
+<p>The difference in logarithms is equivalent to the logarithms of the ratio of future to present value. The difference must be divided by the fraction (or multiple) of the annual holding period.</p>
+</blockquote>
+<p>Subtract one and it looks a lot like a percentage change in value, also known as the rate of return.</p>
+</div>
+
+<p>Copyright &copy; 2018 William G. Foote. All rights reserved.</p>
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

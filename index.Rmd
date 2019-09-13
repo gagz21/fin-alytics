@@ -1,0 +1,127 @@
+---
+title: "Welcome to Financial Analytics"
+---
+
+# Market-based and Decision-centric Financial Analytics {.tabset}
+
+## Build a Financial App
+
+### Does nickel market volatility depend on copper market movements?
+
+```{r echo = FALSE, fig.height = 3, fig.width = 5, fig.align = "center", message = FALSE, warning = FALSE, include = FALSE}
+library(magick)
+library(matrixStats)
+library(ggplot2)
+library(xts)
+library(zoo)
+
+# PAGE: Exploratory Analysis
+data <- na.omit(read.csv("data/metaldata.csv", header = TRUE))
+prices <- data
+# Compute log differences percent using as.matrix to force numeric type
+data.r <- diff(log(as.matrix(data[, -1]))) * 100
+# Create size and direction
+size <- na.omit(abs(data.r)) # size is indicator of volatility
+#head(size)
+colnames(size) <- paste(colnames(size),".size", sep = "") # Teetor
+direction <- ifelse(data.r > 0, 1, ifelse(data.r < 0, -1, 0)) # another indicator of volatility
+colnames(direction) <- paste(colnames(direction),".dir", sep = "")
+# Convert into a time series object: 
+# 1. Split into date and rates
+dates <- as.Date(data$DATE[-1], "%m/%d/%Y")
+dates.chr <- as.character(data$DATE[-1])
+#str(dates.chr)
+values <- cbind(data.r, size, direction)
+# for dplyr pivoting and ggplot2 need a data frame also known as "tidy data"
+data.df <- data.frame(dates = dates, returns = data.r, size = size, direction = direction)
+data.df.nd <- data.frame(dates = dates.chr, returns = data.r, size = size, direction = direction, stringsAsFactors = FALSE) 
+#non-coerced dates for subsetting on non-date columns
+# 2. Make an xts object with row names equal to the dates
+data.xts <- na.omit(as.xts(values, dates)) #order.by=as.Date(dates, "%d/%m/%Y")))
+#str(data.xts)
+#data.zr <- as.zooreg(data.xts)
+returns <- data.xts # watch for this data below!
+
+# Market risk 
+corr_rolling <- function(x) {	
+  dim <- ncol(x)	
+  corr_r <- cor(x)[lower.tri(diag(dim), diag = FALSE)]	
+  return(corr_r)	
+}
+vol_rolling <- function(x){
+  library(matrixStats)
+  vol_r <- colSds(x)
+  return(vol_r)
+}
+ALL.r <- data.xts[, 1:3]
+window <- 90 #reactive({input$window})
+corr_r <- rollapply(ALL.r, width = window, corr_rolling, align = "right", by.column = FALSE)
+colnames(corr_r) <- c("nickel.copper", "nickel.aluminium", "copper.aluminium")
+vol_r <- rollapply(ALL.r, width = window, vol_rolling, align = "right", by.column = FALSE)
+colnames(vol_r) <- c("nickel.vol", "copper.vol", "aluminium.vol")
+year <- format(index(corr_r), "%Y")
+r_corr_vol <- merge(ALL.r, corr_r, vol_r, year)
+
+# Animating the lot
+suppressMessages(img <- image_graph(res = 96))
+datalist <- split(r_corr_vol, r_corr_vol$year)
+suppressMessages(out <- lapply(datalist, function(data){
+  p <- ggplot(data, aes(copper.vol, nickel.copper)) +
+    geom_point() + 
+    ggtitle(data$year) + 
+    geom_quantile(quantiles = c(0.05, 0.95)) + 
+    geom_quantile(quantiles = 0.5, linetype = "longdash") +
+    geom_density_2d(colour = "red")  
+  print(p)
+}))
+suppressMessages(dev.off())
+#img <- image_background(image_trim(img), 'white')
+suppressMessages(animation <- image_animate(img, fps = .5))
+#animation
+```
+
+```{r echo = FALSE, warning = FALSE, message = FALSE, fig.height = 3, fig.width = 5, fig.align = "center"}
+animation
+```
+
+[Source: LME historical non-ferrous metals prices](https://www.lme.com/en-GB/Metals/Non-ferrous#tabIndex=0) percentage returns 90-day rolling correlation (vertical axis) and 90-day rolling volatility (horizontal axis).
+
+View an [example of a financial web application](https://wgfoote.shinyapps.io/extreme-4/) built with the tools developed here.
+
+- Financial models: extreme value, market spillover, market risk measurement, portfolio analytics
+
+- `R`: flexdashboard and shiny for application development; kable, ggplot2 and plotly for visualization, and many other packages to support statistical, optimization, graphics, and financial modeling needs.
+
+Here are the scripts, data, images, and animation you need to build this application:
+
+- [CSV](data/metaldata.csv)
+
+- [RMD](RMD/ExtremeFinance-3.Rmd)
+
+- [ImageMagick animation installation](https://www.imagemagick.org/script/index.php) and be sure to install the [magick r package](https://cran.r-project.org/web/packages/magick/index.html) and you might also view this useful [ropensci magick tutorial](https://ropensci.org/blog/2017/08/15/magick-10/).
+
+## What is Financial Analytics? 
+
+Financial analytics combines statistics, probability, operations research, data science, and computational technologies to analyze various types of financial data sets, and to make meaningful decisions based on analyses obtained from the data. 
+
+The topics here covers various areas in the financial industry, from analyzing transactional data (credit card receivables) to studying global relations between macroeconomic events to managing risk and return in multi-asset portfolios, and the calculation of risk-based capital. 
+
+Analyses deploy a wide range of techniques including quantile estimation, portfolio analytics, risk measurement, extreme value analysis, forecasting and predictive techniques, and financial modeling. 
+
+## What is Analytics?
+
+> _Science alone of all the subjects contains within itself the lesson of the danger of belief in the infallibility of the greatest teachers of the preceding generation._ - Richard Feynman
+
+By its very nature the science of data analytics is disruptive. That means, among many other things, that much attention should be paid to the scale, range, invalid, at yet not understand, outlying, and emerging trends. This is as true within the finance domain of knowledge as any other.
+
+Financial analytics combines software development to implement financial analyses (functions, objects, data structures, flow control, input and output, debugging, logical design and abstraction) through writing code. Analysts can then set up stochastic simulations, manage data analyses, employ numerical optimization algorithms, diagnose their limitations, and work with and filter large data sets. Since programming code is also an important form of communication among analysts, a key feature of financial analytics is to learn how to comment and organize code, as well as document work product.
+
+## Financial Analytics with `R` and `RStudio`
+
+All of the financial topics use the `R` programming language with the `RStudio` integrated development environment. 
+
+- The official introduction to `R` from the [CRAN website](https://cran.r-project.org/), _An Introduction to R_, is available [here](https://cran.r-project.org/doc/manuals/R-intro.pdf).
+
+- Here is the [R Studio website](https://www.rstudio.com).
+
+- Each year the [R in Finance conference](https://www.rinfinance.com/) brings practitioners from industry and academia together to share the latest developments in financial analytics all using the `R` platform.
