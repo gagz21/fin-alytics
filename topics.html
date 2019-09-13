@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Topics in Financial Analytics</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="styles1.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h2 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h3 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h4 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h5 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h6 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Financial Analytics</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="overview.html">Overview</a>
+</li>
+<li>
+  <a href="topics.html">Topics</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Topics in Financial Analytics</h1>
+
+</div>
+
+
+<div id="data" class="section level1">
+<h1>Data</h1>
+<p>All of the data in the topics comes from R packages or from the zipped file you can <a href="data/data.zip">download from here</a>.</p>
+<ol style="list-style-type: decimal">
+<li><p>Set up a working directory on your computer. Typically this is located in the user’s documents directory. In this working directory you will save *.Rmd files.</p></li>
+<li><p>Within the working directory, set up a data directory called <code>data</code>. This is a subdirectory of your working directory.</p></li>
+<li><p>Download all of the data into the <code>/data</code> directory on your computer. You will be accessing this data, for the most part <code>CSV</code> (comma separated values) files using, as an example, the following code.</p></li>
+</ol>
+<p>Be sure to set up your files in a directory, then set the working directory as the source file location. In that way your call to <code>/data/metals.csv</code> (for example) will connect. Otherwise you will get the following error:</p>
+<pre><code>Error in file(file, &quot;rt&quot;) : cannot open the connection
+In addition: Warning message:
+In file(file, &quot;rt&quot;) :
+  cannot open file &#39;data/metals.csv&#39;: No such file or directory</code></pre>
+<p>The <strong>fix</strong> is to properly set your working directory. In Rstudio on the tool bar go to <strong>Session &gt; Set Working Directory &gt; Source File Location</strong>. If you have set up the <code>data/</code> folder with the data as a sub-direcctory of the directory which is your source file location, <code>read.csv()</code> will be able to connect to your data set.</p>
+</div>
+<div id="finance-tutorials" class="section level1">
+<h1>Finance tutorials</h1>
+<p>Here are several short tutorials in financial analysis.</p>
+<ul>
+<li><p><a href="HTML/npv-1.html">Net present value</a></p></li>
+<li><p><a href="HTML/irr-1.html">Internal rate of return</a></p></li>
+<li><p><a href="HTML/exchange-rates-1.html">Exchange rate</a></p></li>
+<li><p><a href="HTML/sampling-ES-1.html">Expected Shortfall confidence interval estimation</a></p></li>
+<li><p><a href="HTML/private-placement-1.html">Private placement of capital: deal structure (IRR, PV, option pricing, strategy ROI)</a></p></li>
+<li><p><a href="PDF/equityvaluation-1.pdf">Equity valuation using the binomial option pricing model</a></p></li>
+</ul>
+</div>
+<div id="topic-1-r-warmups-for-finance" class="section level1 tabset">
+<h1>Topic 1: R warmups for finance</h1>
+<div id="week-1" class="section level2">
+<h2>Week 1</h2>
+<div id="view-asynchronous-material-for-unit-1-r-warmups-for-finance" class="section level3">
+<h3>View asynchronous material for Unit 1 – R Warmups for Finance</h3>
+<p>Supporting files are in</p>
+<ul>
+<li><p><a href="RMD/W1-RWarmUps.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W1-RWarmUps.pdf">PDF</a></p></li>
+</ul>
+<ol start="2" style="list-style-type: decimal">
+<li><p>Bring specific issues to the Live Session for discussion and resolution</p></li>
+<li><p>Note that <strong>cookbook-r.com</strong> no longer has a <code>package</code> page. Revised directions are included in the week 1 RMD file above.</p></li>
+<li><p>Before the Live Session, be sure to have a working directory set up with a <code>data</code> subdirectory. Be sure to have downloaded and extracted the data for the course into the the <code>data</code> subdirectory.</p></li>
+</ol>
+</div>
+<div id="workbook-session" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>In the <code>R</code> console type <code>install.packages(c("shiny", "learnr", "GGally"))</code>. We will use these packages and the following <code>Rmd</code> file in workbook sessions. The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-livesession-1/">deployed here</a>. Copy these files into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><p><a href="RMD/work-1.mp4">Video introduction to workbook #1</a></p></li>
+<li><p><a href="RMD/live-1.Rmd">Workbook #1 learnr RMD file</a></p></li>
+<li><p><a href="RMD/HousePrices.csv">Housing price data CSV file</a></p></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Break-out #1: Review <code>summary()</code> assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Break-out #2: Review <code>ggplot()</code> assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review the next week’s asynchronous material. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="week-2" class="section level2">
+<h2>Week 2</h2>
+<div id="view-asynchronous-material-for-unit-2-r-data-model" class="section level3">
+<h3>View asynchronous material for Unit 2 – R Data Model</h3>
+<p>In this “learn R on the job” week you will</p>
+<ol style="list-style-type: decimal">
+<li>Build on plotting and computational aspects of R</li>
+</ol>
+<ul>
+<li><p>Making log differences (returns and growth rates)</p></li>
+<li><p>Using ggplot2 to make production grade graphics with layering techniques</p></li>
+<li><p>Fitting distributions to data using the <code>gamma</code> distribution</p></li>
+</ul>
+<ol start="2" style="list-style-type: decimal">
+<li><p>Learn to control data flow using <code>if</code> and functions</p></li>
+<li><p>Build two financial functions.</p></li>
+</ol>
+<ul>
+<li>Net Present Value and Internal Rate of Return</li>
+</ul>
+<p>Supporting files are in</p>
+<ul>
+<li><p><a href="RMD/W2-RMore.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W2-RMore.pdf">PDF</a></p></li>
+</ul>
+</div>
+<div id="workbook-session-1" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-2/">deployed here</a>. Copy these files into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><p><a href="RMD/live-2.Rmd">Live Session #2 learnr RMD file</a></p></li>
+<li><p><a href="RMD/power-gas-ne.csv">Power and natural gas price data CSV file</a></p></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review pivot and lookup assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review simulation function assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review the Heating Oil No. 2 and next week’s asynchronous material. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="project-1-heating-oil-no.-2-analysis" class="section level2">
+<h2>Project 1: Heating Oil No. 2 Analysis</h2>
+<p>Here is your first graded project for formal feedback. You can use this project to practice the many aspects of R we covered these past two weeks.</p>
+<div id="project-1-ho2-analysis" class="section level3">
+<h3>Project 1: HO2 Analysis</h3>
+<p>HO2 = NY Harbor No. 2 Heating Oil prices</p>
+<ul>
+<li><p>Here is a <a href="http://www.cmegroup.com/trading/energy/refined-products/heating-oil_contract_specifications.html">description of the contract</a> at the NYMEX (CME Group)</p></li>
+<li><p>More information on HO2 is deposited <a href="https://en.wikipedia.org/wiki/Heating_oil">here</a></p></li>
+<li><p>Fuel oil is used to hedge a variety of refined oil products including Jet-A (Kerosene) and propane.</p></li>
+</ul>
+<p>View <strong>Project 1: HO2 Analysis</strong> <a href="HTML/PR01-Rstartup-HO2.html">here</a>. The code for this project is in the following RMD file. Data can be found in the data zip file <a href="data/data.zip">download from here</a>.</p>
+<ul>
+<li><p><a href="RMD/PR01-Rstartup-HO2.Rmd">RMD</a></p></li>
+<li><p><a href="data/nyhh02.csv">CSV</a></p></li>
+</ul>
+</div>
+</div>
+</div>
+<div id="topic-2-macro-financial-analysis" class="section level1 tabset">
+<h1>Topic 2: Macro Financial Analysis</h1>
+<div id="week-3" class="section level2">
+<h2>Week 3</h2>
+<div id="view-asynchronous-material-for-unit-3-macrofinancial-analysis" class="section level3">
+<h3>View asynchronous material for Unit 3 – Macrofinancial Analysis</h3>
+<p>We build on many of the finance concepts we covered in weeks 1 and 2. Here we begin to build out the</p>
+<ul>
+<li><p>Stylized facts of the market including volatility clustering, leverage, and the persistence of returns and volatility</p></li>
+<li><p>Visualize risk and return</p></li>
+</ul>
+<p>Supporting files are in</p>
+<ul>
+<li><p><a href="RMD/W3-Macrofinancial.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W3-Macrofinancial.pdf">PDF</a></p></li>
+</ul>
+</div>
+<div id="practice" class="section level3">
+<h3>Practice</h3>
+<p>For the adventurous among you try out the code used in the macro-financial asynch using data from the Fama and French market returns data set.</p>
+<ul>
+<li><p><a href="data/F-F_Research_Data_5_Factors_2x3_daily.csv">Fama and French stock market factors data set: fama-french-daily.csv</a></p></li>
+<li><p>The factors in each column are defined <a href="http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/Data_Library/f-f_5developed.html">here</a></p></li>
+<li><p>You can read more about this influential model from Fama and French <a href="https://www8.gsb.columbia.edu/programs/sites/programs/files/finance/Finance%20Seminar/spring%202014/ken%20french.pdf">here</a></p></li>
+</ul>
+</div>
+<div id="workbook-session-2" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-3/">deployed here</a>. Copy these files into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><p><a href="RMD/live-3.Rmd">Live Session #3 learnr RMD file</a></p></li>
+<li><p><a href="RMD/IYM.csv">IYM data CSV file</a></p></li>
+<li><p><a href="RMD/USO.csv">USO data CSV file</a></p></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Break-out #1: Review data inspection and exploration assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Break-out #2: Review autocorrelation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review next week’s asynchronous materials. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="week-4" class="section level2">
+<h2>Week 4</h2>
+<div id="view-asynchronous-material-for-unit-3---macrofinancial-analysis-again" class="section level3">
+<h3>View asynchronous material for Unit 3 - Macrofinancial Analysis again</h3>
+<p>We build on many of the finance concepts we covered in week 3. Here we begin to</p>
+<ul>
+<li><p>Relate markets to one another</p></li>
+<li><p>Visualize risk and return and correlation impacts</p></li>
+<li><p>Attempt to forecast GNP!</p></li>
+<li><p>Try to make our own inferential statistics using bootstrapping techniques</p></li>
+</ul>
+<p>Supporting files continue to be in the <code>Unit 3</code> materials (even though we are in Week 4!)</p>
+<ul>
+<li><p><a href="RMD/W3-Macrofinancial.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W3-Macrofinancial.pdf">PDF</a></p></li>
+</ul>
+<p>View a primer on <a href="HTML/primer-quantile-regression.html">quantile regression here</a>.</p>
+</div>
+<div id="workbook-session-3" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-4/">deployed here</a>. Copy this file into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><a href="RMD/live-4.Rmd">Workbook Session #4 learnr RMD file</a></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review cross correlation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review market spillover assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review next week’s asynchronous materials. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="project-2-foreign-exchange-markets" class="section level2 tabset">
+<h2>Project 2: Foreign Exchange Markets</h2>
+<p>Live Sessions 3 and 4 will cover material to help successfully complete Project 2.</p>
+<p>View a tutorial on <strong>foreign exchange markets</strong> <a href="HTML/exchange-rates-1.html">here</a>.</p>
+<p>View <strong>Project 2: foreign exchange market analysis</strong> <a href="HTML/PR02_exrates-solution.html">here</a></p>
+<ul>
+<li><a href="RMD/PR02_exrates-solution.Rmd">RMD</a></li>
+</ul>
+</div>
+</div>
+<div id="topic-3-market-risk" class="section level1 tabset">
+<h1>Topic 3: Market Risk</h1>
+<div id="week-5" class="section level2">
+<h2>Week 5</h2>
+<div id="view-market-risk-asynchronous-material-deposited-in-unit-4-market-risk" class="section level3">
+<h3>View Market Risk asynchronous material deposited in Unit 4 – Market Risk</h3>
+<p>Yes, we are in Week 5 by the calendar, and you will need to go to the Market Risk material that is located in Week 5. We happen to “synch” up!</p>
+<ul>
+<li><p>We will wander into various markets and repeat our macrofinancial data analysis.</p></li>
+<li><p>Building on this, we will begin to look at the tails of the returns distributions and define risk measures</p></li>
+<li><p>You can practice this, and next week’s, modeling efforts using the exchange rates, HO2, and other data sets you have already become very familiar with.</p></li>
+</ul>
+<p>Supporting files (<code>Unit 4</code> materials)</p>
+<ul>
+<li><p><a href="RMD/W5-MarketRisk.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W5-MarketRisk.pdf">PDF</a></p></li>
+</ul>
+</div>
+<div id="workbook-session-4" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-5/">deployed here</a>. Copy this file into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><a href="RMD/live-5.Rmd">Workbook Session #5 learnr RMD file</a></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review GARCH simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review historical simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review next week’s asynchronous materials. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="week-6" class="section level2">
+<h2>Week 6</h2>
+<p>This week we continue with</p>
+<ul>
+<li><p>Value at Risk (VaR) is a quantile and more importantly, the VaR of a combined portfolio can be larger than the sum of the VaRs of its components (sub-additivity). This makes VaR not very useful in developing estimates of capital needed to manage the risk of a business.</p></li>
+<li><p>Expected Shortfal (ES) is the loss in excess of a threshold. Thresholds are often the VaR quantile of loss in the tail of a loss distribution. The ESof a combined portfolio is indeed the sum of the ES of the components of portfolio. They are additive – a very useful metric property for estimating capital, especially NPV changes.</p></li>
+<li><p>Again, for practice, use these metrics on prior weeks’ data sets.</p></li>
+</ul>
+<p>Supporting files continue to be (<code>Unit 4</code> materials)</p>
+<ul>
+<li><p><a href="RMD/W5-MarketRisk.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W5-MarketRisk.pdf">PDF</a></p></li>
+</ul>
+<div id="workbook-session-5" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-6/">deployed here</a>. Copy this file into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><a href="RMD/live-6.Rmd">Workbook Session #6 learnr RMD file</a></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review expected shortfall estimation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review loss tail estimation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review next week’s asynchronous materials. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="project-3-metals-risk-and-capital" class="section level2 tabset">
+<h2>Project 3: Metals Risk and Capital</h2>
+<p>Heavy metals</p>
+<ul>
+<li><p>Go to <a href="https://minerals.usgs.gov/minerals/pubs/commodity/">this site to get some rock hard information</a> about nickel, copper, and aluminum (aka aluminium).</p></li>
+<li><p>The London Metals Exchange (LME) has a great <a href="http://www.metalbulletin.com/events/download.ashx/document/speaker/7273/a0ID000000X0k1JMAR/Presentation">introductory presentation on metals hedging here</a> and <a href="https://www.lme.com/en-GB/Trading/Physical-market-services/Hedging#tabIndex=1">more general hedging information here</a>.</p></li>
+</ul>
+<p>View these two versions of Project 3: Escapades in market risk analysis and a <code>flexdashboard</code> project example:</p>
+<ul>
+<li><p><a href="HTML/PR03_market-risk.html">This version closely follows the R notation used in the asynchronous portion of the course.</a> with <a href="RMD/PR03_market-risk.Rmd">RMD file</a></p></li>
+<li><p><a href="HTML/PR03_market-risk-rev.html">This version follows the development of the same analysis using tidyverse techniques from the synchronous workbook sessions</a> with <a href="RMD/PR03_market-risk-rev.Rmd">RMD file</a></p></li>
+<li><p>Here is an <a href="HTML/ofcourse-42.html">example</a> of the use of <code>flexdashboard</code> for this project with <a href="RMD/ofcourse-42.Rmd">RMD file</a>.</p></li>
+</ul>
+</div>
+</div>
+<div id="topic-4-portfolio-analytics" class="section level1 tabset">
+<h1>Topic 4: Portfolio Analytics</h1>
+<div id="week-7" class="section level2">
+<h2>Week 7</h2>
+<div id="view-asynchronous-material-assigned-to-unit-5-portfolio-analytics" class="section level3">
+<h3>View asynchronous material assigned to Unit 5 – Portfolio Analytics</h3>
+<p>This week we travel into the 2 asset case</p>
+<ul>
+<li><p>We define risk tolerance (remember our extreme value work) and a threshold for loss</p></li>
+<li><p>We then specify a statistical confidence interval to build upper and lower bounds on our choices</p></li>
+<li><p>Then we use some very interesting math to solve for the optimal allocation of cash and risky asset.</p></li>
+</ul>
+<p>Supporting files are in</p>
+<p>Supporting files (<code>Unit 5</code> materials for use in this week 7)</p>
+<ul>
+<li><p><a href="RMD/W9-PortfolioAnalytics.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W9-PortfolioAnalytics.pdf">PDF</a></p></li>
+</ul>
+</div>
+<div id="workbook-session-6" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-7/">deployed here</a>. Copy this file into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><a href="RMD/live-7.Rmd">Workbook Session #7 learnr RMD file</a></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review portfolio construcion assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review risky asset-cash decision simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review next week’s asynchronous materials. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="week-8" class="section level2">
+<h2>Week 8</h2>
+<p>This week we continue into the multiple risky asset case</p>
+<ul>
+<li><p>Some matrix math helps us with describing and specifying portfolios</p></li>
+<li><p>We use a <a href="https://cran.r-project.org/web/packages/quadprog/quadprog.pdf">quadratic programming solver</a> in R very similar to the capability of Frontline’s Excel add-in solver.</p></li>
+<li><p>We then try to run the analysis full circle to use the optimal (tangency) risk asseet portfolio in the Week 7 model of cash and risky asset.</p></li>
+<li><p>The <strong>risky asset</strong> is really a portfolio that might be traded. In fact, this is what an <a href="https://www.nasdaq.com/etfs/what-are-ETFs.aspx">ETF (exchange-traded fund)</a> is.</p></li>
+</ul>
+<p>Supporting files (<code>Unit 5</code> materials) continue to be</p>
+<ul>
+<li><p><a href="RMD/W9-PortfolioAnalytics.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W9-PortfolioAnalytics.pdf">PDF</a></p></li>
+</ul>
+<div id="workbook-session-7" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-8/">deployed here</a>. Copy this file into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><a href="RMD/live-8.Rmd">Workbook Session #8 learnr RMD file</a></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review risky portfolio allocation together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review risky asset-cash decision (again) simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review next week’s asynchronous materials. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="project-4-metals-risk-return-allocation" class="section level2">
+<h2>Project 4: Metals Risk-Return Allocation</h2>
+<p>We continue the Ni-Cu-Al metals discussion with the computation and interpretation of the optimal allocation of these metals in a revenue portfolio.</p>
+<ul>
+<li><p>Be sure to note how we insert (slyly!) extreme value finance and confidence intervals through the use of a subsetting of the data by quantile (VaR) threshold and by sampling returns.</p></li>
+<li><p>The last question is of great import: what is the optimal allocation of optimal risk assets (Ni-Cu-Al) and cash (and high quality marketable securities)? The answer relies on the first part of the asynchronous material about the Iberian contract.</p></li>
+</ul>
+<p>View <a href="HTML/PR04_portfolio-analytics-rev.html">Project 4: metals portfolio analysis here</a></p>
+<ul>
+<li><a href="RMD/PR04_portfolio-analytics-rev.Rmd">RMD</a></li>
+</ul>
+</div>
+</div>
+<div id="topic-5-enterprise-risk-analytics" class="section level1 tabset">
+<h1>Topic 5: Enterprise Risk Analytics</h1>
+<div id="week-9" class="section level2">
+<h2>Week 9</h2>
+<div id="view-asynchronous-material-for-unit-6-enterprise-risk-analytics" class="section level3">
+<h3>View asynchronous material for Unit 6 – Enterprise Risk Analytics</h3>
+<ul>
+<li><p>This is a capstone chunk of material that forces us to simulate loss for a portfolio</p></li>
+<li><p>We use a monte carlo technique called a copula to jointly generate portfolio returns</p></li>
+<li><p>We also allow ourselves the luxury of using non-normal distributions, like our old friend the <code>gamma</code> distribution.</p></li>
+<li><p>Applying this material to the metals data might prove very useful in understanding the level and the confidence intervals surrounding loss and capital.</p></li>
+</ul>
+<p>Supporting files (<code>Unit 6</code> materials) are</p>
+<ul>
+<li><p><a href="RMD/W10-Aggregation.Rmd">RMD</a></p></li>
+<li><p><a href="PDF/W10-Aggregation.pdf">PDF</a></p></li>
+<li><p><a href="RMD/W10-ERM_appSHINY.R">R</a> file for the Shiny app in the asynchronous material</p></li>
+</ul>
+</div>
+<div id="workbook-session-8" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The interactive workbook is <a href="https://wgfoote.shinyapps.io/finalytics-live-9/">deployed here</a>. Copy this file into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><a href="RMD/live-9.Rmd">Workbook Session #9 learnr RMD file</a></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review monte carlo simulation of correlated innovations together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review margin simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session and review next week’s asynchronous materials. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="week-10" class="section level2">
+<h2>Week 10</h2>
+<p>This last week finishes your preparation for your individual final project.</p>
+<ul>
+<li><p>You can use this <a href="https://wgfoote.shinyapps.io/extreme-4/">example of a financial web application</a> built with the tools learned in this course as a template</p></li>
+<li><p>To answer all of the questions in the final project, you might need to increment the features of the example application.</p></li>
+</ul>
+<div id="workbook-session-9" class="section level3">
+<h3>Workbook session</h3>
+<ol style="list-style-type: decimal">
+<li><p>Welcome: meet and greet, respond to polls, list course highs and lows in chat room. (5 minutes)</p></li>
+<li><p>The workbook is <a href="RMD/live-10.html">deployed here</a>. Copy this file into your working directory to render your local version of this session:</p></li>
+</ol>
+<ul>
+<li><a href="RMD/live-10.Rmd">Workbook Session #10 flexdashboard RMD file</a></li>
+</ul>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Review and discuss final project questions and issues. Record solutions on the wall. (15 minutes)</p></li>
+<li><p>Assignment #1: Review choices of business contexts, data, analytical approach together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Assignment #2: Review sample flexdashboard final project template together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)</p></li>
+<li><p>Debrief this session. (10 minutes)</p></li>
+</ol>
+</div>
+</div>
+<div id="project-5-final" class="section level2">
+<h2>Project 5 – FINAL</h2>
+<div id="this-is-it-the-finale" class="section level3">
+<h3>This is it – the FINALE</h3>
+<p>We have built everything from net present value and internal rate of return calculators to extreme market event indicators, optimal portfolios: all set against market risk and return stylized facts. The final project puts it all together for a business context and data set of your choice.</p>
+</div>
+<div id="assignment" class="section level3">
+<h3>Assignment</h3>
+<p>This assignment will be the focus of Live Session 10. The final project is due at the Final Project Session in week 11. Submit into <strong>Coursework &gt; Assignments and Grading &gt; Project 5 &gt; Submission</strong> an <code>RMD</code> file with filename <strong>lastname-firstname_Final-Project.Rmd</strong> and associated <code>csv</code> or other relevant files.</p>
+<ol style="list-style-type: decimal">
+<li><p>Choose a business decision and context. Based on that decision and context choose at least three (3) <strong>daily</strong> time series of sufficient length to help (often not completely) answer the key business questions that arise out of the business context and decision.</p></li>
+<li><p>Build a flexdashboard application that addresses the business context you have chosen. The following outline is a guideline for the work flow in the web application. Populate the application with appropriate models, descriptive, explanatory, and predictive text, tables, and plots.</p></li>
+<li><p>List in the text the <code>R</code> packages and skills needed to complete this project along with references used, including data sources.</p></li>
+<li><p>Discuss how well did the results begin to answer the business questions posed for the project.</p></li>
+</ol>
+<p>View <a href="HTML/PR05-FINAL.html">Project 5: FINAL here</a></p>
+<ul>
+<li><a href="RMD/PR05-FINAL.Rmd">RMD</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+<p>Copyright &copy; 2018 William G. Foote. All rights reserved.</p>
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

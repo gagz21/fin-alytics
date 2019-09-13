@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+
+
+<title>Course Overview</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="styles1.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h2 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h3 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h4 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h5 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h6 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Financial Analytics</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="overview.html">Overview</a>
+</li>
+<li>
+  <a href="topics.html">Topics</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Course Overview</h1>
+
+</div>
+
+
+<div id="overview" class="section level1 tabset">
+<h1>Overview</h1>
+<div id="welcome-video" class="section level2">
+<h2>Welcome Video</h2>
+<p>Here is a video to welcome you to the course. We will walk through course components, expectations, the final deliverable and various course policies. All of this material is included here on the site.</p>
+<p><a href="https://turing.manhattan.edu/~wfoote01/finalytics/welcome-jul2019.mp4">Welcome Video – July 2019</a></p>
+</div>
+<div id="syllabus" class="section level2">
+<h2>Syllabus</h2>
+<div id="audience" class="section level3">
+<h3>Audience</h3>
+<p>This course is designed for analysts interested in pursuing a career in financial services with an emphasis on business analytics. Financial services traditionally includes banking, insurance, securities markets, and regulators. However, financial services are also found in organizational treasuries, departments of finance, CFO offices, investor relations, and any project where budgets, valuations, road maps, planning, and process efficiency require future projections of cash flows, growth rates, risk, and return.</p>
+</div>
+<div id="description" class="section level3">
+<h3>Description</h3>
+<p>An introduction to methods and tools useful in decision-making in the financial industry, which may from time to time include: macroeconomic event studies, analysis of term structures, equity data analysis, style analysis, credit risk, extreme value analytics, trading analytics, volatility measurement, portfolio management, and enterprise risk management.</p>
+</div>
+<div id="course-credits" class="section level3">
+<h3>Course credits</h3>
+<p>The successful completion of this course will earn 3 credit-hours.</p>
+</div>
+<div id="pre-requisites" class="section level3">
+<h3>Pre-requisites</h3>
+<p>I strongly urge students to complete work in Data Analysis (data management, statistics, optimization, visualization) and Managerial Finance (cash flow, present value, risk and return, portfolios, markets) before attempting Financial Analytics.</p>
+<p>Linear algebra, calculus, Boolean logic, numerical methods, optimization, and programming languages are not strictly pre-requisites. However, work in these areas enhances one’s numeracy, that is, capability to abstract complex, ill-posed business problems into tractable systematic models of behavior often mathematically expressed.</p>
+<p>Throughout the course we will use technically accurate notions of simultaneous equations, optimization of single and multiple variable functions, cumulants (summation and aggregation), probability statements (for quantiles, confidence intervals, and hypothesis testing), linear model formulation and interpretation, random sampling, Monte Carlo simulation and bootstrapping. The course will introduce and review these areas as they emerge in financial analytic topics.</p>
+</div>
+<div id="resources" class="section level3">
+<h3>Resources</h3>
+<p>The main resources for the course are two books:</p>
+<ol style="list-style-type: decimal">
+<li><p>[Teetor] Paul Teetor. 2011. <em>R Cookbook</em>. O’Reilley: Sebastopol, CA..</p></li>
+<li><p>[Foote] William G. Foote. 2017. <em>Financial Engineering Analytics: A Topical Manual Using R</em>. Manuscript <a href="PDF/BOOK-Financial_Analytics.pdf">available here</a>.</p></li>
+</ol>
+<p>The live sessions will expand on key aspects of each chapter in Foote and prepare the student for the weekly assignment. R scripts, <code>RMarkdown</code> source files, and data sets accompany each week.</p>
+<p>The content and <code>R</code> implementation in Foote derive from several sources. Among the recommended sources are:</p>
+<ol style="list-style-type: decimal">
+<li><p>[Ruppert and Matteson] David Ruppert and David S. Matteson. 2014. <em>Statistics and Data Analysis for Financial Engineering, Second Edition</em>, Springer. The <a href="https://people.orie.cornell.edu/davidr/SDAFE2/index.html">book’s website is available here</a>.</p></li>
+<li><p>[Brealey, et al.] Richard Brealey, Stewart Myers, and Franklyn Allen, 2015. <em>Principles of Corporate Finance</em>, various editions, McGraw-Hill.</p></li>
+<li><p>[McNeil, et al.] Alexander McNeil, Rudiger Frey, and Paul Embrechts, 2015. <em>Quantitative Risk Management: concepts, Techniques, and Tools</em> Princeton, 2014.</p></li>
+<li><p>[Hastie, et al.] James Hastie, Robert Tibshirani, and Jerome Friedman. 2009. <em>Elements of Statistical Learning: Data Mining, Inference, and Prediction, Second Edition</em>, Springer Science &amp; Business Media, 2009. The <a href="https://web.stanford.edu/~hastie/ElemStatLearn/">book’s website is available here</a> where you can also download a pdf copy of the book.</p></li>
+<li><p><a href="https://turing.manhattan.edu/~wfoote01/finalytics/READINGS/">Numerous articles are available here</a> on various financial modeling topics.</p></li>
+</ol>
+<p>Ruppert and Matteson is a comprehensive text on the use of statistical and operational research techniques in financial engineering. McNeil, et al. is a far more rigorously mathematical treatment of the modern theory and practice of market, credit, and operational risk management. Brealey, et al. is a standard reference and course text in finance that has numerous worked examples and insightful explanations. Hastie, et al. is among the standards in statistical learning and data analytics.</p>
+<p>In addition to Teetor’s book, here are many <code>R</code> books useful for managing implementation of models in this course. Particularly useful <code>R</code> books include:</p>
+<ol style="list-style-type: decimal">
+<li>Phil Spector. <em>Data Manipulation with R</em>.</li>
+<li>Norman Matloff. <em>The Art of R Programming: A Tour of Statistical Software Design</em>.</li>
+<li>John Taveras. <em>R for Excel Users</em> at <a href="https://www.rforexcelusers.com/book/" class="uri">https://www.rforexcelusers.com/book/</a>.</li>
+<li>Winston Chang. 2014. <em>R Graphics Cookbook</em>. O’Reilley: Sebastopol, CA., with <a href="http://www.cookbook-r.com/Graphs/">website here</a>.</li>
+</ol>
+<p>You will ultimately need all three (and whatever else you can get your hands on) in your professional work. John Taveras’ book is an excellent bridge and compendium of Excel and R practices.</p>
+<p>Several excellent online statistics resources exist. Among them is <a href="https://www.openintro.org/stat/textbook.php?stat_book=isrs" class="uri">https://www.openintro.org/stat/textbook.php?stat_book=isrs</a> developed at Johns Hopkins University.</p>
+</div>
+<div id="r-and-rstudio" class="section level3">
+<h3><code>R</code> and <code>RStudio</code></h3>
+<p><code>R</code> is a free, open-source programming language for statistical computing. All of our work in this class can and will be done using <code>R</code>. You will need regular, reliable access to a computer running an up-to-date version of R. If this is a problem, let the professors know right away.</p>
+<p><code>RStudio</code> is a free, open-source R programming environment. It contains a built-in code editor, many features to make working with R easier, and works the same way across different operating systems. Use of RStudio is required for the course, and strongly recommended in general.</p>
+<p>There are many online resources for learning about it and working with R and RStudio, in addition to the texts:</p>
+<ul>
+<li><p>The official introduction to <code>R</code> from the CRAN website, <em>An Introduction to R</em>, available at <a href="https://cran.r-project.org/doc/manuals/R-intro.pdf" class="uri">https://cran.r-project.org/doc/manuals/R-intro.pdf</a>.</p></li>
+<li><p>John Verzani, <em>simpleR</em>, at <a href="https://cran.r-project.org/doc/contrib/Verzani-SimpleR.pdf" class="uri">https://cran.r-project.org/doc/contrib/Verzani-SimpleR.pdf</a>,</p></li>
+<li><p>The <em>Google</em> <code>R</code> <em>Style Guide</em>, at <a href="https://google.github.io/styleguide/Rguide.xml" class="uri">https://google.github.io/styleguide/Rguide.xml</a>, offers rules for naming, spacing, etc., which are generally good ideas for reproducability and dissemination of analytical products.</p></li>
+<li><p><em>Quick-R</em> at <a href="http://www.statmethods.net/" class="uri">http://www.statmethods.net/</a>. This site is primarily aimed at those who already know a commercial statistics package like SAS, SPSS or Stata, but it’s very clear and well-organized, and others may find it useful as well.</p></li>
+<li><p>Patrick Burns, <em>The R Inferno</em> at <a href="http://www.burns-stat.com/pages/Tutor/R_inferno.pdf" class="uri">http://www.burns-stat.com/pages/Tutor/R_inferno.pdf</a>. “If you are using R and you think you’re in hell, this is a map for you.” - <em>Patrick Burns</em> at <a href="http://www.burns-stat.com/documents/books/the-r-inferno/" class="uri">http://www.burns-stat.com/documents/books/the-r-inferno/</a></p></li>
+<li><p>Thomas Lumley, <em>R Fundamentals and Programming Techniques</em> (large PDF file at <a href="http://faculty.washington.edu/tlumley/Rcourse/R-fundamentals.pdf" class="uri">http://faculty.washington.edu/tlumley/Rcourse/R-fundamentals.pdf</a>)</p></li>
+<li><p>Rstudio, <em>Building Shiny Applications</em> at <a href="http://shiny.rstudio.com/" class="uri">http://shiny.rstudio.com/</a>, with tutorials, galleries, example code, and articles. We will be building basic applications with Shiny, a package that will embed your analytical implementations, allow for user interaction and graphical display.</p></li>
+</ul>
+</div>
+<div id="assignment-formatting" class="section level3">
+<h3>Assignment Formatting</h3>
+<p>All assignments must be turned in electronically, through the learning management system, by each student. All assignments will involve writing a combination of code and actual prose. You must submit your assignment in a format which allows for the combination of the two, and the automatic execution of all your code. The easiest way to do this is to use <code>R Markdown</code>. <code>R Markdown</code> also allows the use of interactive modeling through <code>Shiny</code> applications.</p>
+<p>Work submitted as Word files, unformatted plain text, etc., are not acceptable at any time during the course. Each assignment will require the submission of at least one <code>R Markdown</code> script file and the <code>html</code> file that the <code>R Markdown</code> script generates. When using data sets, this course will only use <code>csv</code> (comma separated variable files generated by Excel or in text files. If the submission uses a <code>csv</code> file, that file must also be submitted with the <code>R Markdown</code> script and generated <code>html</code> output files. The student may also submit a supplemental <code>R</code> script file, suitably commented, that represents the <code>R</code> code chunks in the <code>R Markdown</code> script.</p>
+<p>Managing the data base of submitted assignments throughout the course will be aided by standards including file name construction for assignment submission. To this end, every file submitted must have a file name which includes the student’s name, course identifier, and clearly indicates the type of assignment (project) and its number (week). Here is the format we will use: <code>yourName_courseidentifier_Assignment#.ext</code>, where # is the week number and ext is the file name extension. For example W.G. Foote would submit an <code>RMarkdown</code> file with this filename: <code>wgfoote_SectionNo_Assignment1.Rmd</code>, where the file extension <code>Rmd</code> is the extension that <code>RStudio</code> uses for <code>R Markdown</code> documents. File extensions <code>R</code>, <code>html</code>, and <code>csv</code> are the other three admissible file types.</p>
+</div>
+<div id="other-matters" class="section level3">
+<h3>Other Matters</h3>
+<div id="grading" class="section level4">
+<h4>Grading</h4>
+<p>Grades are A-F with A &gt; 95%, A- 90-95%, B+ 85-90%, B 80-85%, B- 75-80%, c+ 70-75%.</p>
+<p>Grades for work performed in this course are distributed as follows.</p>
+<ol style="list-style-type: decimal">
+<li><p>Four (4) team projects, equally weighted 15% each, constitute 60% of the final grade. These are “all or nothing” grades. Teams will submit projects; instructors will evaluate the projects for content and technical components. If the evaluation results in less than 100%, the team will have the opportunity through the final week of course to revise and resubmit the project to improve the grade. Whatever grade is achieved by that time will be the final project grade.</p></li>
+<li><p>Personal participation in the course, worth 15% of the final grade is measured by completing 6 asynchronous modules, each contributing 1% and totaling 6% of the final grade, and attending 9 live sessions (dropping lowest of the 10 live sessions), each contributing 1% and totaling 9% of the final grade. Participation includes attendance, completion of asynchchronous exercises, and contributions in the form of questions and provisional answers during the live sessions, especially in reports from break-out meetings during live sessions.</p></li>
+<li><p>One (1) team project that represents the accumulated skills and capabilities learned throughout the course with sections that have primary authorships assigned to each team member constitutes 25% of the final grade. The grade for this project, out of 100%, will effectively determine the final grade for the course.</p></li>
+</ol>
+<p>Students, in teams of two to four, will be given the same score for a completed team project. Individual final grades will be based on team, participation, and individual authorship of sections in the final project.</p>
+<p>Grading will be based, as appropriate to the exercise and student response, 50% on technical and 50% on business fulfillment of requirements expressed or implied in questions and issues raised in the projects.</p>
+<p>Grades for all assignments will follow this general rubric:</p>
+<ul>
+<li><p> The written content responds to technical and business issues thoroughly. By thoroughtly in meant that all relevant questions have been exhausted in the sense that there are no further questions, given assumptions and scope, to be faced in the analysis. The text is laid out cleanly, with clear divisions and transitions between sections and sub-sections. The writing itself is well-organized, free of grammatical and other mechanical errors, divided into complete sentences, logically grouped into paragraphs and sections, and easy to follow from the presumed level of knowledge and assumptions of the analysis.</p></li>
+<li><p> All numerical results or summaries are reported to suitable precision, and with appropriate measures of uncertainty attached when applicable.</p></li>
+<li><p> All figures and tables shown are relevant to the argument for ultimate conclusions. Figures and tables are easy to read, with informative captions, titles, axis labels and legends, and are placed near the relevant pieces of text.</p></li>
+<li><p> The code is formatted and organized so that it is easy for others to read and understand. It is indented, commented, and uses meaningful names. It only includes computations which are actually needed to answer the analytical questions, and avoids redundancy. Code borrowed from the notes, from books, or from resources found online is explicitly acknowledged and sourced in the comments. Functions or procedures not directly taken from the notes have accompanying tests which check whether the code does what it is supposed to. All code runs, and the <code>R Markdown</code> file <code>knits</code> to <code>pdf_document</code> output, or other output agreed with the instructor.</p></li>
+<li><p> Model specifications are described clearly and in appropriate detail. There are clear explanations of how estimating the model helps to answer the analytical questions, and rationales for all modeling choices. If multiple models are compared, they are all clearly described, along with the rationale for considering multiple models, and the reasons for selecting one model over another, or for using multiple models simultaneously.</p></li>
+<li><p> The actual estimation and simulation of model parameters or estimated functions is technically correct. All calculations based on estimates are clearly explained, and also technically correct. All estimates or derived quantities are accompanied with appropriate measures of uncertainty.</p></li>
+<li><p> The substantive, analytical questions are all answered as precisely as the data and the model allow. The chain of reasoning from estimation results about the model, or derived quantities, to substantive conclusions is both clear and convincing. Contingent answers (for example, “if X, then Y, but if A, then B, else C”) are likewise described as warranted by the model and data. If uncertainties in the data and model mean the answers to some questions must be imprecise, this too is reflected in the conclusions.</p></li>
+<li><p> All sources used, whether in conversation, print, online, or otherwise, are listed and acknowledged where they used in code, words, pictures, and any other components of the analysis.</p></li>
+</ul>
+</div>
+<div id="course-specific-policies" class="section level4">
+<h4>Course Specific Policies</h4>
+<p>Students are expected to behave in a professional and courteous manner at all times when interacting with all members of the course learning community. Respect for others is demonstrated through attendance, meaningful participation, and punctuality. Every effort should be made to be present for the entirety of each session especially since weekly assignments will be made conditional on content in live sessions.</p>
+<p>All projects must be completed and submitted by the due dates and times set out. This will allow the entire class to review and revise submissions in a timely fashion. Submissions to the 2SU learning management system are based on eastern time. Late submissions will result in student inability to accumulate the knowledge needed to advance to the next week’s coverage of course topics. Late submission will also delay necessary instructor feedback to the student in a timely fashion. As the course continues to layer on more skills and capabilities, a late submission with inaccurate or incorrect implementations of financial applications will only deprecate the student’s ability to successfully complete future assignments.</p>
+</div>
+<div id="academic-integrity" class="section level4">
+<h4>Academic Integrity</h4>
+<p>Our Academic Integrity Policy holds students accountable for the integrity of the work they submit. Students should be familiar with the policy and know that it is their responsibility to learn about course-specific expectations, as well as about overall governing policy.</p>
+<p>Our policy governs appropriate citation and use of sources, the integrity of work submitted in exams and assignments, and the veracity of signatures on attendance sheets and other verification of participation in class activities. The policy also prohibits students from submitting the same written work in more than one class without receiving written authorization in advance from both instructors.</p>
+<p>In this course, all sources, whether verbal, online, in print, or other, must be cited following prevailing business and academic requirements and practice.</p>
+</div>
+<div id="disability-related-accommodations" class="section level4">
+<h4>Disability-Related Accommodations</h4>
+<p>If you believe that you need accommodations for a disability, please contact us as soon as possible. Since accommodation may require early planning and services might not be available retroactively, please contact us as soon as possible.</p>
+</div>
+</div>
+<div id="topical-outline" class="section level3">
+<h3>Topical Outline</h3>
+<p>Detailed weekly topical coverage and assignments are found in a separate document.</p>
+<p><strong>1A. R Warm-Ups for Finance.</strong> <code>R</code> computations, data structures, financial, probability, and statistics calculations, visualization. Documentation with <code>R Markdown</code>.</p>
+<p><strong>2B. More R Warm-Ups.</strong> Functions, loops, control bootstrapping, simulation, and more visualization.</p>
+<p><strong>2. Macrofinancial Analysis.</strong> Data from FRED, Yahoo, and other sources. Empirical characteristics of economic and financial time series. Boostrapping confidence intervals.</p>
+<p><strong>3. Market Risk.</strong> Quantile (i.e., Value at Risk) and coherent (i.e., Expected Shortfall) risk measures.</p>
+<p><strong>4. Portfolio Analytics.</strong> Combining risk management with portfolio allocations. Optimizing allocations. Simulating the efficient frontier.</p>
+<p><strong>5. Aggregating Enterprise Risks.</strong> Enterprise risk management analytics and application. Workflow to build an online application. Introduction to <code>shiny</code> and <code>flexdashboard</code>. Building a simple web application Using <code>R Markdown</code> with <code>shiny</code> and <code>flexdashboard</code>.</p>
+</div>
+</div>
+<div id="weekly-schedule" class="section level2">
+<h2>Weekly Schedule</h2>
+<p>Weeks by topics for Summer 2019. For specific details on each topic, weekly work flow, and projects see the <strong>Topics</strong> section of this site.</p>
+<div id="topic-1-r-in-finance" class="section level3">
+<h3>Topic 1: R in Finance</h3>
+<div id="week-1-r-warm-ups-for-finance." class="section level4">
+<h4>Week 1: R Warm-Ups for Finance.</h4>
+<ul>
+<li><code>R</code> computations, data structures, financial, probability, and statistics calculations, visualization. Documentation with <code>R Markdown</code>.</li>
+</ul>
+</div>
+<div id="week-2-more-r-warm-ups." class="section level4">
+<h4>Week 2: More R Warm-Ups.</h4>
+<ul>
+<li>Functions, loops, control bootstrapping, simulation, and more visualization.</li>
+</ul>
+</div>
+</div>
+<div id="topic-2.-macrofinancial-analysis." class="section level3">
+<h3>Topic 2. Macrofinancial Analysis.</h3>
+<div id="week-3-descriptive-analytics" class="section level4">
+<h4>Week 3: Descriptive Analytics</h4>
+<ul>
+<li>Data from FRED, Yahoo, and other sources.</li>
+</ul>
+</div>
+<div id="week-4-inferential-analytics" class="section level4">
+<h4>Week 4: Inferential Analytics</h4>
+<ul>
+<li><p>Empirical characteristics of economic and financial time series. Boostrapping confidence intervals.</p></li>
+<li><p>Team project 1 due</p></li>
+</ul>
+</div>
+</div>
+<div id="topic-3-market-risk." class="section level3">
+<h3>Topic 3: Market Risk.</h3>
+<div id="week-5-risk-measures" class="section level4">
+<h4>Week 5: Risk Measures</h4>
+<ul>
+<li><p>Quantile (i.e., Value at Risk) and coherent (i.e., Expected Shortfall) risk measures.</p></li>
+<li><p>Final project one page synopsis due</p></li>
+</ul>
+</div>
+<div id="week-6-portfolio-loss-and-capital-requirements" class="section level4">
+<h4>Week 6: Portfolio Loss and Capital Requirements</h4>
+<ul>
+<li><p>Historical and General Pareto Distribution estimation and simulation for portfolio capital measurement.</p></li>
+<li><p>Team project 2 due</p></li>
+</ul>
+</div>
+</div>
+<div id="topic-4-portfolio-analytics" class="section level3">
+<h3>Topic 4: Portfolio Analytics</h3>
+<div id="week-7-cash-and-risky-asset" class="section level4">
+<h4>Week 7: Cash and Risky Asset</h4>
+<ul>
+<li><p>Risk tolerances, thresholds and the allocation of collateral and risky asset.</p></li>
+<li><p>Final project data sets exploration due</p></li>
+</ul>
+</div>
+<div id="week-8-tangency-portfolio" class="section level4">
+<h4>Week 8: Tangency Portfolio</h4>
+<ul>
+<li><p>Minimum variance, tangency, and optimal allocation with multiple risky assets and quadratic programming.</p></li>
+<li><p>Team project 3 due</p></li>
+</ul>
+</div>
+</div>
+<div id="topic-5-enterprise-risk-analytics" class="section level3">
+<h3>Topic 5: Enterprise Risk Analytics</h3>
+<div id="week-9-enteprise-risk-simulation" class="section level4">
+<h4>Week 9: Enteprise Risk Simulation</h4>
+<ul>
+<li><p>Specifying and simulating enterprise risk scenarios as a portfolio with quantile and coherent risk measures.</p></li>
+<li><p>Final project initial draft due</p></li>
+</ul>
+</div>
+<div id="week-10-build-the-financial-application" class="section level4">
+<h4>Week 10: Build the Financial Application</h4>
+<ul>
+<li><p>Build an interactive financial web application using all of the finance and <code>R</code> platform tools</p></li>
+<li><p>Team project 4 due</p></li>
+</ul>
+</div>
+<div id="week-11-final-project" class="section level4">
+<h4>Week 11: Final Project</h4>
+<ul>
+<li><p>Team and individaul final project due with portfolio analytics</p></li>
+<li><p>All team project updates due</p></li>
+</ul>
+</div>
+</div>
+</div>
+<div id="data" class="section level2">
+<h2>Data</h2>
+<p>All of the data in the topics comes from R packages or from the zipped file you can <a href="data/data.zip">download from here</a>.</p>
+<p>Here is a <a href="https://turing.manhattan.edu/~wfoote01/finalytics/qq/data-download.mp4">video that runs through the following data download work flow</a>.</p>
+<ol style="list-style-type: decimal">
+<li><p>Set up a working directory on your computer. Typically this is located in the user’s documents directory. In this working directory you will save *.Rmd files.</p></li>
+<li><p>Within the working directory, set up a data directory called <code>data</code>. This is a subdirectory of your working directory.</p></li>
+<li><p>Download all of the data into the <code>/data</code> directory on your computer. You will be accessing this data, for the most part <code>CSV</code> (comma separated values) files using, as an example, the following code.</p></li>
+</ol>
+<p>Be sure to set up your files in a directory, then set the working directory as the source file location. In that way your call to <code>/data/metals.csv</code> (for example) will connect. Otherwise you will get the following error:</p>
+<pre><code>Error in file(file, &quot;rt&quot;) : cannot open the connection
+In addition: Warning message:
+In file(file, &quot;rt&quot;) :
+  cannot open file &#39;data/metals.csv&#39;: No such file or directory</code></pre>
+<p>The <strong>fix</strong> is to properly set your working directory. In Rstudio on the tool bar go to <strong>Session &gt; Set Working Directory &gt; Source File Location</strong>. If you have set up the <code>data/</code> folder with the data as a sub-direcctory of the directory which is your source file location, <code>read.csv()</code> will be able to connect to your data set.</p>
+</div>
+<div id="r-documentation" class="section level2">
+<h2>R Documentation</h2>
+<p>Here is a <a href="HTML/Rdocumentation.html">set of directions, glossary, examples, and general advice for building an <code>R</code> infrastructure for financial analytics</a>.</p>
+<p>Here is a <a href="https://jjallaire.shinyapps.io/learnr-tutorial-00-setup/#section-welcome">tutorial produced by the RStudio team that helps you install <code>R</code>, <code>RStudio</code> and some useful packages</a>.</p>
+<p>It is expected that R, RStudio, and LaTeX will be installed on your computers in time for the first live session. If you are having difficulty with installations, please post your issue(s) on the course section’s wall. Others (including your instructors) may have had similar experiences and may have worked a solution already.</p>
+</div>
+<div id="the-book" class="section level2">
+<h2>The Book</h2>
+<p>Look (and download if you like) at this <a href="PDF/BOOK-Financial_Analytics.pdf">draft book</a> for additional information on the financial analytics methods, topics, and models.</p>
+<p>This book is a compendium of the modules from the asynchronous course. materials.</p>
+</div>
+</div>
+
+<p>Copyright &copy; 2018 William G. Foote. All rights reserved.</p>
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
