@@ -1,0 +1,512 @@
+plot(ni.cu.summary)
+##
+returns1 <- returns[,1]
+colnames(returns1) <- "Returns" #kluge to coerce column name for df
+returns1.df <- data.frame(Returns = returns1[,1], Distribution = rep("Historical", each = length(returns1)))
+alpha <- 0.95 # reactive({ifelse(input$alpha.q>1,0.99,ifelse(input$alpha.q<0,0.001,input$alpha.q))})
+# Value at Risk
+VaR.hist <- quantile(returns1,alpha)
+VaR.text <- paste("Value at Risk =", round(VaR.hist, 2))
+# Determine the max y value of the desity plot.
+# This will be used to place the text above the plot
+VaR.y <- max(density(returns1.df$Returns)$y)
+# Expected Shortfall
+ES.hist <- median(returns1[returns1 > VaR.hist])
+ES.text <- paste("Expected Shortfall =", round(ES.hist, 2))
+p <- ggplot(returns1.df, aes(x = Returns, fill = Distribution)) + geom_density(alpha = 0.5) +
+geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "firebrick1") +
+geom_vline(aes(xintercept = ES.hist), size = 1, color = "firebrick1") +
+annotate("text", x = 2+ VaR.hist, y = VaR.y*1.05, label = VaR.text) +
+annotate("text", x = 1.5+ ES.hist, y = VaR.y*1.1, label = ES.text) + scale_fill_manual( values = "dodgerblue4")
+p
+head(data)
+alpha <- 0.95 # reactive({ifelse(input$alpha.q>1,0.99,ifelse(input$alpha.q<0,0.001,input$alpha.q))})
+# Value at Risk
+VaR.hist <- quantile(returns1,alpha)
+VaR.text <- paste("Value at Risk =", round(VaR.hist, 2))
+# Determine the max y value of the desity plot.
+# This will be used to place the text above the plot
+VaR.y <- max(density(returns1.df$Returns)$y)
+# Expected Shortfall
+ES.hist <- median(returns1[returns1 > VaR.hist])
+ES.text <- paste("Expected Shortfall =", round(ES.hist, 2))
+p <- ggplot(returns1.df, aes(x = Returns, fill = Distribution)) + geom_density(alpha = 0.5) +
+geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "firebrick1") +
+geom_vline(aes(xintercept = ES.hist), size = 1, color = "firebrick1") +
+annotate("text", x = 2+ VaR.hist, y = VaR.y*1.05, label = VaR.text) +
+annotate("text", x = 1.5+ ES.hist, y = VaR.y*1.1, label = ES.text) + scale_fill_manual( values = "dodgerblue4")
+p
+p
+# Do the same for returns 2 aand 3
+##
+## Now for Loss Analysis
+# Get last prices
+price.last <- as.numeric(head(data[, -1], n=1))
+head(price.last)
+head(price)
+head(data)
+# Do the same for returns 2 aand 3
+##
+## Now for Loss Analysis
+# Get last prices
+price.last <- as.numeric(head(data[, -1], n=1))
+# Specify the positions
+position.rf <- c(1, 1, 1)
+# And compute the position weights
+w <- position.rf * price.last
+w
+rowSums(w)
+rowSums(as.vector(w))
+sum(w)
+# Fan these  the length and breadth of the risk factor series
+weights.rf <- matrix(w, nrow=nrow(data.r), ncol=ncol(data.r), byrow=TRUE)
+weights.rf
+dim(weights.rf)
+head(exp(data.r/100))
+head(exp(data.r/100) - 1)
+head((exp(data.r/100) - 1)* weights.rf)
+head(rowSums((exp(data.r/100) - 1)* weights.rf))
+head(-rowSums((exp(data.r/100) - 1)* weights.rf))
+expm1
+#head(rowSums((exp(data.r/100)-1)*weights.rf), n=3)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+#head(rowSums((exp(data.r/100)-1)*weights.rf), n=4)
+loss.rf <- -rowSums(expm1(data.r/100) * weights.rf)
+loss.rf.df <- data.frame(Loss = loss.rf, Distribution = rep("Historical", each = length(loss.rf)))
+## Simple Value at Risk and Expected Shortfall
+alpha.tolerance <- .95
+VaR.hist <- quantile(loss.rf, probs=alpha.tolerance, names=FALSE)
+## Just as simple Expected shortfall
+ES.hist <- median(loss.rf[loss.rf > VaR.hist])
+VaR.text <- paste("Value at Risk =\n", round(VaR.hist, 2)) # ="VaR"&c12
+ES.text <- paste("Expected Shortfall \n=", round(ES.hist, 2))
+title.text <- paste(round(alpha.tolerance*100, 0), "% Loss Limits")
+# using histogram bars instead of the smooth density
+p <- ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_histogram(alpha = 0.8) + geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "blue") + geom_vline(aes(xintercept = ES.hist), size = 1, color = "blue") + annotate("text", x = VaR.hist, y = 40, label = VaR.text) + annotate("text", x = ES.hist, y = 20, label = ES.text) + xlim(0, 500) + ggtitle(title.text)
+p
+p
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss.rf) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid.0 <- numeric(nint)    # grid store
+e <- grid.0                # store mean exceedances e
+upper <- grid.0            # store upper confidence interval
+lower <- grid.0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+data <- data[data > u[i]]  # subset data above thresholds
+e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+sdev <- sqrt(var(data))    # standard deviation
+n <- length(data)          # sample size of subsetted data above thresholds
+upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+}
+u
+qnorm((1+alpha/2))
+qnorm((1+alpha)/2)
+n <- length(data)          # sample size of subsetted data above thresholds
+for (i in 1:nint) {
+data <- data[data > u[i]]  # subset data above thresholds
+e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+sdev <- sqrt(var(data))    # standard deviation
+n <- length(data)          # sample size of subsetted data above thresholds
+upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+}
+mep.df <- data.frame(threshold = u, threshold.exceedances = e, lower = lower, upper = upper)
+loss.excess <- loss.rf[loss.rf > u]
+# Voila the plot => you may need to tweak these limits!
+p <- ggplot(mep.df, aes( x= threshold, y = threshold.exceedances)) + geom_line() + geom_line(aes(x = threshold, y = lower), colour = "red") + geom_line(aes(x = threshold,  y = upper), colour = "red") + annotate("text", x = 400, y = 200, label = "upper 95%") + annotate("text", x = 200, y = 0, label = "lower 5%")
+p
+p
+mep.df <- data.frame(threshold = u, threshold.exceedances = e, lower = lower, upper = upper)
+loss.excess <- loss.rf[loss.rf > u]
+# Voila the plot => you may need to tweak these limits!
+p <- ggplot(mep.df, aes( x= threshold, y = threshold.exceedances)) + geom_line() + geom_line(aes(x = threshold, y = lower), colour = "red") + geom_line(aes(x = threshold,  y = upper), colour = "red") + annotate("text", x = 400, y = 200, label = "upper 95%") + annotate("text", x = 200, y = 0, label = "lower 5%")
+p
+p
+p
+p <- ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_histogram(alpha = 0.8) + geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "blue") + geom_vline(aes(xintercept = ES.hist), size = 1, color = "blue") + annotate("text", x = VaR.hist, y = 40, label = VaR.text) + annotate("text", x = ES.hist, y = 20, label = ES.text) + xlim(0, 500) + ggtitle(title.text)
+p <- ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_histogram(alpha = 0.8) + geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "blue") + geom_vline(aes(xintercept = ES.hist), size = 1, color = "blue") + annotate("text", x = VaR.hist, y = 40, label = VaR.text) + annotate("text", x = ES.hist, y = 20, label = ES.text) + xlim(0, 500) + ggtitle(title.text)
+p
+# Voila the plot => you may need to tweak these limits!
+plt <- ggplot(mep.df, aes( x= threshold, y = threshold.exceedances)) + geom_line() + geom_line(aes(x = threshold, y = lower), colour = "red") + geom_line(aes(x = threshold,  y = upper), colour = "red") + annotate("text", x = 400, y = 200, label = "upper 95%") + annotate("text", x = 200, y = 0, label = "lower 5%")
+plt
+##
+# GPD to describe and analyze the extremes
+#
+#library(QRM)
+alpha.tolerance <- 0.95
+u <- quantile(loss.rf, alpha.tolerance , names=FALSE)
+fit <- fit.GPD(loss.rf, threshold=u) # Fit GPD to the excesses
+xi.hat <- fit$par.ests[["xi"]] # fitted xi
+beta.hat <- fit$par.ests[["beta"]] # fitted beta
+data <- loss.rf
+n.relative.excess <- length(loss.excess) / length(loss.rf) # = N_u/n
+VaR.gpd <- u + (beta.hat/xi.hat)*(((1-alpha.tolerance) / n.relative.excess)^(-xi.hat)-1)
+VaR.gpd <- u + (beta.hat/xi.hat)*(((1-alpha.tolerance) / n.relative.excess)^(-xi.hat)-1)
+ES.gpd <- (VaR.gpd + beta.hat-xi.hat*u) / (1-xi.hat)
+VaR.gpd
+ES.gpd
+u
+#
+# Confidence in GPD
+#
+showRM(fit, alpha = 0.99, RM = "ES", method = "BFGS")
+install.packages("flexdashboard")
+library(flexdashboard)
+#########################################################
+#
+# Exploratory Analysis
+#
+#########################################################
+data <- na.omit(read.csv("data/metaldata.csv", header = TRUE))
+# Compute log differences percent using as.matrix to force numeric type
+data.r <- diff(log(as.matrix(data[, -1]))) * 100
+# Create size and direction
+size <- na.omit(abs(data.r)) # size is indicator of volatility
+#head(size)
+colnames(size) <- paste(colnames(size),".size", sep = "") # Teetor
+direction <- ifelse(data.r > 0, 1, ifelse(data.r < 0, -1, 0)) # another indicator of skewness
+colnames(direction) <- paste(colnames(direction),".dir", sep = "")
+# Convert into a time series object:
+# 1. Split into date and rates
+dates <- as.Date(data$DATE[-1], "%m/%d/%Y")
+dates.chr <- as.character(data$DATE[-1])
+str(dates.chr)
+values <- cbind(data.r, size, direction)
+# for dplyr pivoting and ggplot2 need a data frame also known as "tidy data"
+data.df <- data.frame(dates = dates, returns = data.r, size = size, direction = direction)
+data.df.nd <- data.frame(dates = dates.chr, returns = data.r, size = size, direction = direction, stringsAsFactors = FALSE)
+#non-coerced dates for subsetting on non-date columns
+# 2. Make an xts object with row names equal to the dates
+data.xts <- na.omit(as.xts(values, dates)) #order.by=as.Date(dates, "%d/%m/%Y")))
+#str(data.xts)
+data.zr <- as.zooreg(data.xts)
+returns <- data.xts
+knitr::opts_chunk$set(echo = TRUE)
+qnorm(0.05)
+-0.12/(0.25*(-1.64)+0.12)
+knitr::opts_chunk$set(echo = T, eval = F, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(tidy = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=36))
+knitr::opts_chunk$set(size = "small")
+knitr::opts_hooks$set(fig.width = function(options) {
+if (options$fig.width < options$fig.height) {
+options$fig.width = options$fig.height
+}
+options
+})
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+if (before)
+return(options$size)
+})
+#########################################################
+#
+# Exploratory Analysis
+#
+#########################################################
+data <- na.omit(read.csv("data/metaldata.csv", header = TRUE))
+# Compute log differences percent using as.matrix to force numeric type
+data.r <- diff(log(as.matrix(data[, -1]))) * 100
+# Create size and direction
+size <- na.omit(abs(data.r)) # size is indicator of volatility
+#head(size)
+colnames(size) <- paste(colnames(size),".size", sep = "") # Teetor
+direction <- ifelse(data.r > 0, 1, ifelse(data.r < 0, -1, 0)) # another indicator of skewness
+colnames(direction) <- paste(colnames(direction),".dir", sep = "")
+# Convert into a time series object:
+# 1. Split into date and rates
+dates <- as.Date(data$DATE[-1], "%m/%d/%Y")
+dates.chr <- as.character(data$DATE[-1])
+str(dates.chr)
+values <- cbind(data.r, size, direction)
+# for dplyr pivoting and ggplot2 need a data frame also known as "tidy data"
+data.df <- data.frame(dates = dates, returns = data.r, size = size, direction = direction)
+data.df.nd <- data.frame(dates = dates.chr, returns = data.r, size = size, direction = direction, stringsAsFactors = FALSE)
+#non-coerced dates for subsetting on non-date columns
+# 2. Make an xts object with row names equal to the dates
+data.xts <- na.omit(as.xts(values, dates)) #order.by=as.Date(dates, "%d/%m/%Y")))
+#str(data.xts)
+data.zr <- as.zooreg(data.xts)
+returns <- data.xts
+R <- returns[,1:3]/100
+quantile_R <- quantile(R[,1], 0.95) # look at tail of the nickel distribution
+R <- subset(R, nickel > quantile_R, select = nickel:aluminium)
+names.R <- colnames(R)
+mean.R <-  apply(R,2,mean)
+cov.R <-  cov(R)
+sd.R <-  sqrt(diag(cov.R)) ## remember these are in daily percentages
+#library(quadprog)
+Amat <-  cbind(rep(1,3),mean.R)  ## set the equality constraints matrix
+mu.P <- seq(0.5*min(mean.R), 1.5*max(mean.R), length = 300)  ## set of 300 possible target portfolio returns
+#mu.P <- seq(0.5*quantile_R, max(R), length = 100)  ## set of 300 possible target portfolio returns
+sigma.P <-  mu.P ## set up storage for std dev's of portfolio returns
+weights <-  matrix(0, nrow=300, ncol = ncol(R)) ## storage for portfolio weights
+colnames(weights) <- names.R
+for (i in 1:length(mu.P))
+{
+bvec <- c(1,mu.P[i])  ## constraint vector
+result <- solve.QP(Dmat=2*cov.R,dvec=rep(0,3),Amat=Amat,bvec=bvec,meq=2)
+sigma.P[i] <- sqrt(result$value)
+weights[i,] <- result$solution
+}
+sigma.mu.df <- data.frame(sigma.P = sigma.P, mu.P = mu.P )
+mu.free <-  .0000822 ## input value of daily risk-free interest rate
+## exp(0.03 / 365) - 1 TYX 30 year CBOE yield
+sharpe <- ( mu.P-mu.free) / sigma.P ## compute Sharpe's ratios
+ind <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind2 <-  (sigma.P == min(sigma.P)) ## find the minimum variance portfolio
+ind3 <-  (mu.P > mu.P[ind2]) ## finally the efficient frontier
+col.P <- ifelse(mu.P > mu.P[ind2], "blue", "grey")
+sigma.mu.df$col.P <- col.P
+#renderPlotly({
+p <- ggplot(sigma.mu.df, aes(x = sigma.P, y = mu.P, group = 1)) + geom_line(aes(colour=col.P, group = col.P)) + scale_colour_identity() # + xlim(0, max(sd.R*1.1))  + ylim(0, max(mean.R)*1.1) +
+p <- p + geom_point(aes(x = 0, y = mu.free), colour = "red")
+options(digits=4)
+p <- p + geom_abline(intercept = mu.free, slope = (mu.P[ind]-mu.free)/sigma.P[ind], colour = "red")
+p <- p + geom_point(aes(x = sigma.P[ind], y = mu.P[ind]))
+p <- p + geom_point(aes(x = sigma.P[ind2], y = mu.P[ind2])) ## show min var portfolio
+p <- p + annotate("text", x = sd.R[1], y = mean.R[1], label = names.R[1]) + annotate("text", x = sd.R[2], y = mean.R[2], label = names.R[2]) + annotate("text", x = sd.R[3], y = mean.R[3], label = names.R[3])
+p
+n <-  dim(R)[1]
+N <-  dim(R)[2]
+mufree <-  mu.free
+mean_vect_TRUE <-  apply(R,2,mean)
+cov_mat_TRUE <-  cov(R)
+nboot <-  250
+out <-  matrix(1,nrow=nboot,ncol=2)
+mean_out <-  matrix(1,nrow = nboot,ncol = dim(R)[2])
+set.seed(1016)
+for (iboot in (1:nboot))
+{
+un <-  ceiling((n-1)*runif(n-1))
+Rboot <-  R[un,]
+mean_vect <-  apply(Rboot,2,mean)
+mean_out[iboot,] <-  mean_vect
+cov_mat <-  cov(Rboot)
+sd_vect <-  sqrt(diag(cov_mat))
+Amat <-  cbind(rep(1,N),mean_vect) # short sales
+#   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+sdP <- muP
+mu.P <-  seq(min(mean.R)+.0001,max(mean.R)-.0001,length = length.P)
+weights <-  matrix(0,nrow=300,ncol=N)
+for (i in 1:length(muP))
+{
+bvec <-  c(1,muP[i])  # short sales
+#bvec = c(1,muP[i],rep(0,N)) # no short sales
+result <-
+solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+sdP[i] <-  sqrt(result$value)
+weights[i,] <-  result$solution
+}
+sharpe <- ( muP-mufree)/sdP
+ind <-  (sharpe == max(sharpe))
+out[iboot,1] <-  sharpe[ind]
+wT <-  weights[ind,]
+sharpe_TRUE <-  (wT %*% mean_vect_TRUE - mufree) / sqrt(wT %*% cov_mat_TRUE %*% wT)
+out[iboot,2] <-  sharpe_TRUE
+}
+#   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+mu.P <-  seq(min(mean.R)+.0001,max(mean.R)-.0001,length = length.P)
+N <-  dim(R)[2]
+n <-  dim(R)[1]
+mean_vect_TRUE <-  apply(R,2,mean)
+mean_vect_TRUE
+n <-  dim(R)[1]
+N <-  dim(R)[2]
+mu_free <-  mu.free
+mean_vect_TRUE <-  apply(R,2,mean)
+cov_mat_TRUE <-  cov(R)
+n_boot <-  1000
+out <-  matrix(1,nrow=nboot,ncol=2)
+length_P <-
+mean_out <-  matrix(1,nrow = n_boot,ncol = dim(R)[2])
+set.seed(1016)
+for (iboot in (1:n_boot))
+{
+un <-  ceiling((n-1)*runif(n-1))
+Rboot <-  R[un,]
+mean_vect <-  apply(R_boot,2,mean)
+mean_out[iboot,] <-  mean_vect
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+Amat <-  cbind(rep(1,N),mean_vect) # short sales
+#   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+mu_P <-  seq(min(mean__vect_TRUE)+.0001,max(mean_vect_TRUE)-.0001,length = length_P)
+sd_P <- mu_P
+weights <-  matrix(0, nrow=length_P, ncol=N)
+for (i in 1:length(mu_P))
+{
+bvec <-  c(1,mu_P[i])  # short sales
+#bvec = c(1,muP[i],rep(0,N)) # no short sales
+result <-
+solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+sd_P[i] <-  sqrt(result$value)
+weights[i,] <-  result$solution
+}
+sharpe <- ( mu_P-mu_free)/s_dP
+ind <-  (sharpe == max(sharpe))
+out[iboot,1] <-  sharpe[ind]
+w_T <-  weights[ind,]
+sharpe_TRUE <-  (w_T %*% mean_vect_TRUE - mu_free) / sqrt(w_T %*% cov_mat_TRUE %*% w_T)
+out[iboot,2] <-  sharpe_TRUE
+}
+for (iboot in (1:n_boot))
+{
+un <-  ceiling((n-1)*runif(n-1))
+R_boot <-  R[un,]
+mean_vect <-  apply(R_boot,2,mean)
+mean_out[iboot,] <-  mean_vect
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+Amat <-  cbind(rep(1,N),mean_vect) # short sales
+#   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+mu_P <-  seq(min(mean__vect_TRUE)+.0001,max(mean_vect_TRUE)-.0001,length = length_P)
+sd_P <- mu_P
+weights <-  matrix(0, nrow=length_P, ncol=N)
+for (i in 1:length(mu_P))
+{
+bvec <-  c(1,mu_P[i])  # short sales
+#bvec = c(1,muP[i],rep(0,N)) # no short sales
+result <-
+solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+sd_P[i] <-  sqrt(result$value)
+weights[i,] <-  result$solution
+}
+sharpe <- ( mu_P-mu_free)/s_dP
+ind <-  (sharpe == max(sharpe))
+out[iboot,1] <-  sharpe[ind]
+w_T <-  weights[ind,]
+sharpe_TRUE <-  (w_T %*% mean_vect_TRUE - mu_free) / sqrt(w_T %*% cov_mat_TRUE %*% w_T)
+out[iboot,2] <-  sharpe_TRUE
+}
+mean_vect_TRUE <-  apply(R,2,mean)
+set.seed(1016)
+for (iboot in (1:n_boot))
+{
+un <-  ceiling((n-1)*runif(n-1))
+R_boot <-  R[un,]
+mean_vect <-  apply(R_boot,2,mean)
+mean_out[iboot,] <-  mean_vect
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+Amat <-  cbind(rep(1,N),mean_vect) # short sales
+#   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+mu_P <-  seq(min(mean__vect_TRUE)+.0001,max(mean_vect_TRUE)-.0001,length = length_P)
+sd_P <- mu_P
+weights <-  matrix(0, nrow=length_P, ncol=N)
+for (i in 1:length(mu_P))
+{
+bvec <-  c(1,mu_P[i])  # short sales
+#bvec = c(1,muP[i],rep(0,N)) # no short sales
+result <-
+solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+sd_P[i] <-  sqrt(result$value)
+weights[i,] <-  result$solution
+}
+sharpe <- ( mu_P-mu_free)/s_dP
+ind <-  (sharpe == max(sharpe))
+out[iboot,1] <-  sharpe[ind]
+w_T <-  weights[ind,]
+sharpe_TRUE <-  (w_T %*% mean_vect_TRUE - mu_free) / sqrt(w_T %*% cov_mat_TRUE %*% w_T)
+out[iboot,2] <-  sharpe_TRUE
+}
+{
+un <-  ceiling((n-1)*runif(n-1))
+R_boot <-  R[un,]
+mean_vect <-  apply(R_boot,2,mean)
+mean_out[iboot,] <-  mean_vect
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+Amat <-  cbind(rep(1,N),mean_vect) # short sales
+#   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+mu_P <-  seq(min(mean_vect_TRUE)+.0001,max(mean_vect_TRUE)-.0001,length = length_P)
+sd_P <- mu_P
+weights <-  matrix(0, nrow=length_P, ncol=N)
+for (i in 1:length(mu_P))
+{
+bvec <-  c(1,mu_P[i])  # short sales
+#bvec = c(1,muP[i],rep(0,N)) # no short sales
+result <-
+solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+sd_P[i] <-  sqrt(result$value)
+weights[i,] <-  result$solution
+}
+sharpe <- ( mu_P-mu_free)/s_dP
+ind <-  (sharpe == max(sharpe))
+out[iboot,1] <-  sharpe[ind]
+w_T <-  weights[ind,]
+sharpe_TRUE <-  (w_T %*% mean_vect_TRUE - mu_free) / sqrt(w_T %*% cov_mat_TRUE %*% w_T)
+out[iboot,2] <-  sharpe_TRUE
+}
+for (iboot in (1:n_boot))
+{
+un <-  ceiling((n-1)*runif(n-1))
+R_boot <-  R[un,]
+mean_vect <-  apply(R_boot,2,mean)
+mean_out[iboot,] <-  mean_vect
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+Amat <-  cbind(rep(1,N),mean_vect) # short sales
+#   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+mu_P <-  seq(min(mean_vect_TRUE)+.0001,max(mean_vect_TRUE)-.0001,length = length_P)
+sd_P <- mu_P
+weights <-  matrix(0, nrow=length_P, ncol=N)
+for (i in 1:length(mu_P))
+{
+bvec <-  c(1,mu_P[i])  # short sales
+#bvec = c(1,muP[i],rep(0,N)) # no short sales
+result <-
+solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+sd_P[i] <-  sqrt(result$value)
+weights[i,] <-  result$solution
+}
+sharpe <- ( mu_P-mu_free)/sd_P
+ind <-  (sharpe == max(sharpe))
+out[iboot,1] <-  sharpe[ind]
+w_T <-  weights[ind,]
+sharpe_TRUE <-  (w_T %*% mean_vect_TRUE - mu_free) / sqrt(w_T %*% cov_mat_TRUE %*% w_T)
+out[iboot,2] <-  sharpe_TRUE
+}
+n <- dim(R)[1]
+N <- dim(R)[2]
+mufree <- mu.free
+mean_vect_TRUE <- apply(R,2,mean)
+cov_mat_TRUE <-  cov(R)
+nboot <-  250
+out <-  matrix(1,nrow=nboot,ncol=2)
+mean_out <-  matrix(1,nrow = nboot,ncol = dim(R)[2])
+set.seed(1016)
+for (iboot in (1:nboot))
+{
+un <-  ceiling((n-1)*runif(n-1))
+Rboot <-  R[un,]
+mean_vect <-  apply(Rboot,2,mean)
+mean_out[iboot,] <-  mean_vect
+cov_mat <-  cov(Rboot)
+sd_vect <-  sqrt(diag(cov_mat))
+#Amat <-  cbind(rep(1,N),mean_vect) # short sales
+Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+muP <-  seq(0,2.5,length=300)
+sdP <- muP
+weights <-  matrix(0,nrow=300,ncol=N)
+for (i in 1:length(muP))
+{
+#bvec <-  c(1,muP[i])  # short sales
+bvec = c(1,muP[i],rep(0,N)) # no short sales
+result <-
+solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+sdP[i] <-  sqrt(result$value)
+weights[i,] <-  result$solution
+}
+sharpe <- ( muP-mufree)/sdP
+ind <-  (sharpe == max(sharpe))
+out[iboot,1] <-  sharpe[ind]
+wT <-  weights[ind,]
+sharpe_TRUE <-  (wT %*% mean_vect_TRUE - mufree) / sqrt(wT %*% cov_mat_TRUE %*% wT)
+out[iboot,2] <-  sharpe_TRUE
+}

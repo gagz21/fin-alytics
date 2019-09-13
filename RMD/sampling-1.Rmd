@@ -1,0 +1,144 @@
+---
+title: "Simulation, For Fun And Profit: Notes"
+output:
+  html_document:
+    toc:true
+    toc_float: true
+---
+
+## Imagine
+
+Imagine if we surveyed our management team to guage their preferences and their opinions about the likelihood of events occuring
+
+- How often a customer segment tends to default and how large a default that might be
+
+- the minimum, most likely, maximum of on-time-in-full metrics for vendors by material and service category
+
+- The probability that a low, medium, or high price will occur for the market value of our refined vegetable oil
+
+- The priorities we place on serving (a triage!) customer complaints
+
+Each of these situations pairs outcomes with probabilities, in short a probability distribution. We can even feature priorities as probabilities if we define them the same way as a probability (always positive, all of them add up to one, etc.).
+
+## Tools
+  
+Tools and thought we will need
+
+- How to make draws from, and use random distributions
+
+- Writing functions with known run-times and verifiable results
+
+- Why we don't use `for` loops
+
+What we will do now
+
+- Write simulations using random number generation
+- Explore the jackknife and end up at the bootstrap
+- Simulate processes with memory
+- Finally, `for` loops!
+  
+  
+## `[d p q r]unif`
+  
+`runif()`: draws from the uniform distribution (others follow)
+
+  - Build a discrete distributions: Use `sample()`.
+  
+  - Assign some data to `values`, specify the number of samples to be drawn fromm `values` in `n_samples`, specify probabilities for low, medium, and high values in 'probs', and also direct that we will sample with replacement.
+  
+  - Count the draws from the three levels sampled using `table()`
+
+
+```{r}
+population_values <- 1:3
+n_samples <- 100000
+probs <- c(.5, .2, .3)
+my_draw <- sample (population_values, n_samples, probs, replace=TRUE)
+table(my_draw)
+```
+
+```
+my.draw
+    1     2     3 
+50064 20121 29815 
+```
+
+## Permutations with `sample()`
+
+`sample()` is powerful -- it works on any object that has a defined `length()`. 
+
+  - Permutations of `values`
+  
+```{r}
+  sample(5)
+  sample(1:6)
+```
+   - Use `replicate()` with each `sample()` in a vector
+   
+```{r }
+  replicate(3,sample(c("Curly","Larry","Moe","Shemp")))
+```
+  
+   - Or generate random lists
+  
+```{r }
+  sample(list("A",3,sum))
+```
+
+## Resampling with `sample()`
+
+When we resample from any existing distribution we generate the **bootstrap** family of estimators.
+  
+  
+```{r }
+bootstrap_resample <- function (data) sample(data, length(data), replace=TRUE) 
+replicate(5, bootstrap_resample (6:10))
+```
+
+The *jackknife* approach works by removing one point from the sample and recalculating the statistic of interest. In contract  the bootstrap resamples the same length with replacement.
+
+## Bootstrap test
+
+The 2-sample `t`-test checks for differences in means according to a known null distribution. Let's resample and generate the sampling distribution under the bootstrap assumption:
+
+
+```{r }
+library(MASS)
+diff_in_means <- function(df) {
+  mean(df[df$Sex=="M","Hwt"]) - mean(df[df$Sex=="F","Hwt"])
+  }
+resample_diffs <- replicate(1000, diff_in_means(cats[bootstrap_resample(1:nrow(cats)),]))
+
+
+hist(resample_diffs); abline(v=diff_in_means(cats), col=2, lwd=3)
+```
+
+## Expected shortfall
+
+Suppose management, or even more so wary investors, wanted to understand how much capital they could probably need to have to cover loss exposures. So far we have been using value at risk to set the threshold for the expected shortfall as a gross risk-informed measure of the amount of capital required against potential losses. To do this we would calculate an estimate of the range within which we could expect the expected shortfall to be, say, 95\% of the time. The range would then identify at least (lower bound) and at most (upper bound) the amount of capital needed. 
+
+First, we 
+
+```{r}
+exrates <- na.omit(read.csv("data/exrates.csv", header = TRUE))
+exrates.r <- diff(log(as.matrix(exrates[, -1]))) * 100
+ES_calc <- function(data, prob){
+  data <- as.matrix(data)
+  return(mean(data[data > quantile(data, prob),]))
+}
+bootstrap_resample <- function (data) {
+  sample(data, length(data), replace=TRUE)
+}
+replicate(5, bootstrap_resample (6:10))
+
+ES_1 <- ES_calc(exrates.r[,1], 0.95)
+bootstrap_resample <- function (data, n_sample) sample(data, n_sample, replace=TRUE) 
+t(replicate(5, bootstrap_resample (6:10, 3)))
+ES_sample <- replicate(1000, ES_calc(bootstrap_resample (exrates.r[,1], 250), 0.95))
+hist(ES_sample)
+q_0.025 <- quantile(ES_sample, 0.025)
+q_0.975 <- quantile(ES_sample, 0.975)
+q_0.500 <- quantile(ES_sample, 0.500)
+
+```
+

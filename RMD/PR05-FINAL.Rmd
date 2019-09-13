@@ -1,0 +1,148 @@
+---
+title: 'Financial Analytics: Final Project'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhead[CO,CE]{\thetitle}
+- \fancyfoot[CO,CE]{Copyright 2018, William G. Foote}
+- \fancyhead[RE,RO]{\thepage}
+- \renewcommand{\footrulewidth}{0.5pt}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, eval = F, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(tidy = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=36))
+knitr::opts_chunk$set(size = "small")
+knitr::opts_hooks$set(fig.width = function(options) {
+  if (options$fig.width < options$fig.height) {
+    options$fig.width = options$fig.height
+  }
+  options
+})
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+```
+
+## Purpose, Process, Product
+
+We have built everything from net present value and internal rate of return calculators to extreme market event indicators, optimal portfolios: all set against market risk and return stylized facts. The final project puts it all together for a business context and data set of your choice. 
+
+## Assignment
+
+This assignment will be the focus of Live Session 10. The final project is due at the Final Project Session in week 11. Submit into **Coursework > Assignments and Grading > Project 6 > Submission** an `RMD`  file with filename **lastname-firstname_Final-Project.Rmd** and associated `csv` or other relevant files. 
+
+1. Choose a business decision and context. Based on that decision and context choose at least three (3) **daily** time series of sufficient length to help (often not completely) answer the key business questions that arise out of the business context and decision.
+
+2. Build a flexdashboard application that addresses the business context you have chosen. The following outline is a guideline for the work flow in the web application. Populate the application with appropriate models, descriptive, explanatory, and predictive text, tables, and plots.
+
+3. List in the text the `R` packages and skills needed to complete this project along with references used, including data sources.
+
+4. Discuss how well did the results begin to answer the business questions posed for the project.
+
+## Flexdashboard outline
+
+Here is guideline for the `flexdashboard` representation of the workflow in the final project.
+
+```{}
+Business context and decision
+========================
+### Context and decision
+
+### Key questions
+
+Data exploration
+========================
+
+### Data description
+
+### Line plots
+
+### Distributions
+
+Analysis: markets relationships
+========================
+
+### Correlations, acf, ccf, pacf
+
+### Volatility spillover
+
+Analysis: portfolio choices
+========================
+
+### Efficient frontier
+
+### Implications for decisions
+
+Analysis: market risk of loss
+========================
+
+### Decision loss profile
+
+### Implications for decisions
+
+OPTIONAL Analysis: simulating the future
+============================
+
+Observations and recommendations
+============================
+
+### Key insights
+
+### Recommendations for next steps
+
+References
+============================
+
+R resources {.tabset}
+------------------------------------------------
+
+### Packages
+
+### Blogs, etc.
+
+Other references
+------------------------------------------------
+
+### Sites
+
+### Books and articles
+
+```
+
+## Rubric
+
+### General
+
+The assignment solution is due *at the Final Project Week 11 Live Session*. 
+
+You will only receive credit for this assignment if you attempt to answer all questions and address all sections with substantive answers, relevant code, and graphics as needed.
+
+You are individually responsible for all content and analysis in the Final Project deliverable.
+
+### Specific
+
+Individual grades for the Final Project will follow this rubric:
+
+- \textbf{Words:} The text is laid out cleanly, with clear divisions and transitions between sections and sub-sections. The writing itself is well-organized, free of grammatical and other mechanical errors, divided into complete sentences, logically grouped into paragraphs and sections, and easy to follow from the presumed level of knowledge.
+
+- \textbf{Numbers:} All numerical results or summaries are reported to suitable precision, and with appropriate measures of uncertainty attached when applicable.
+
+- \textbf{Pictures:} All figures and tables shown are relevant to the argument for ultimate conclusions. Figures and tables are easy to read and interact with, with informative captions, titles, axis labels, and legends, and are placed near the relevant pieces of text.
+
+- \textbf{Code:} The code is formatted and organized so that it is easy for others to read and understand. It is indented, commented, and uses meaningful names. It only includes computations which are actually needed to answer the analytical questions, and avoids redundancy. Code borrowed from the notes, from books, or from resources found online is explicitly acknowledged and sourced in the comments. Functions or procedures not directly taken from the notes have accompanying tests which check whether the code does what it is supposed to. All code runs, and the `R Markdown` file `knits` to viewable output, or other output agreed with the instructor.
+
+- \textbf{Modeling:} Model specifications are described clearly and in appropriate detail. There are clear explanations of how estimating the model helps to answer the analytical questions, and rationales for all modeling choices. If multiple models are compared, they are all clearly described, along with the rationale for considering multiple models, and the reasons for selecting one model over another, or for using multiple models simultaneously. 
+
+- \textbf{Inference:} The actual estimation and simulation of model parameters or estimated functions is technically correct. All calculations based on estimates are clearly explained, and also technically correct. All estimates or derived quantities are accompanied with appropriate measures of uncertainty.
+
+- \textbf{Conclusions:} The substantive, analytical questions are all answered as precisely as the data and the model allow. The chain of reasoning from estimation results about the model, or derived quantities, to substantive conclusions is both clear and convincing. Contingent answers (for example, "if X, then Y, but if A, then B, else C") are likewise described as warranted by the model and data. If uncertainties in the data and model mean the answers to some questions must be imprecise, this too is reflected in the conclusions.
+
+- \textbf{Sources:} All sources used, whether in conversation, print, online, or otherwise, are listed and acknowledged where they used in code, words, pictures, and any other components of the analysis.
+

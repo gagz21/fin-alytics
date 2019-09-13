@@ -1,0 +1,635 @@
+---
+title: 'Project #4: Portfolio Analytics'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+subtitle: Everything is a Portfolio
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhead[CO,CE]{\thetitle}
+- \fancyfoot[CO,CE]{Copyright 2018, William G. Foote}
+- \fancyhead[RE,RO]{\thepage}
+- \renewcommand{\footrulewidth}{0.5pt}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, eval = F, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(tidy = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=36))
+knitr::opts_chunk$set(size = "small")
+knitr::opts_hooks$set(fig.width = function(options) {
+  if (options$fig.width < options$fig.height) {
+    options$fig.width = options$fig.height
+  }
+  options
+})
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+```
+
+## Purpose, Process, Product
+
+We built a simple portfolio in Project 4 with equally weighted allocataions to the commodities we traded. We continue with the freight forwarder. We will compute optimal holdings of risky and risk-free assets for the Markowitz mean-variance model. We will then build a simple financial web application. With this tool we can also explore impact of the extremes of distributions of financial returns on portfolio results. 
+
+## Assignment
+
+This assignment will span Live Sessions 8 and 9 (two weeks). The project (4) is due before Live Session 10. Submit into **Coursework > Assignments and Grading > Project 4 > Submission** an `RMD`  file with filename **lastname-firstname_Project4.Rmd**. If you have difficulties submitting a `.Rmd` file, then submit a `.txt` file. 
+
+1. Use headers (##), r-chunks for code, and text to build a flexdashboard application that addresses the two parts of this project.
+
+2. List in the text the 'R' skills needed to complete this project.
+
+3. Explain each of the functions (e.g., `()`) used to compute and visualize results.
+
+4. Discuss how well did the results begin to answer the business questions posed at the beginning of each part of the project.
+
+## Flexdashboard and plotly
+
+We continue to expand our range of production capabilities. Now we add some interactivity to the plots.
+
+1. Install the `plotly` packages. In RStudio console type `library(plotly)` or simply include this command in an Rmd script.
+
+2. Go to the RStudio `plotly` site to learn about the basics of of using `plotly` with `ggplot2`.
+
+3. Deposit code that reads data, transforms data and calculates various analytics such as the quantile regression fit from Projects 3 and 4 into the `setup` (first) chunk of the. Begin to move any plots to code chunks in `###` panes in columns in pages in the growing `The Answer is 42` (or title of your choice) script. 
+
+4. Surround one of the `ggplot2` plots with `renderPlotly({ insert ggplot code here with ggplotly(p) where p is the ggplot2 plot object})`.
+
+5. Knit and see the results.
+
+6. Continue to modify this template to document your own data analysis journey. Each live session will contain a short segment on doing exactly that. Use the `ExtremeFinance` application to guide your work.
+
+## Problem
+
+A freight forwarder with a fleet of bulk carriers wants to optimize their portfolio in the metals markets with entry into the nickel business and use of the tramp trade.  Tramp ships are the company's "swing" option without any fixed charter or other constraint. They allow the company flexibility in managing several aspects of freight uncertainty.   They have allocated \$250 million to purchase metals. The company wants us to:
+
+1.	Retrieve and begin to analyze data about potential commodities to diversify into
+2.	Compare potential commodities with existing commodities in conventional metals spot markets
+3.	Begin to generate economic scenarios based on events that may, or may not, materialize in the commodities
+4.	The company wants to mitigate their risk by diversifying their cargo loads
+
+Identify the optimal combination of Nickel, Copper, and Aluminium to trade
+
+1.	Product: Metals commodities and freight charters
+2.	Metal, Company, and Geography:
+    a. Nickel: MMC Norilisk, Russia
+    b. Copper: Codelco, Chile and MMC Norilisk, Russia
+    c. Aluminium: Vale, Brasil and Rio Tinto Alcan, Australia
+3.	Customers: Ship Owners, manufacturers, traders
+4.  All metals traded on the London Metal Exchange 
+
+### Key business questions
+
+1.	How would the performance of these commodities affect the size and timing of shipping arrangements?
+2.	How would the value of new shipping arrangements affect the value of our business with our current customers?
+3.	How would we manage the allocation of existing resources given we have just landed in this new market? 
+
+### Getting to a response: more detailed questions
+
+1. What is the decision the freight-forwarder must make? List key business questions and data needed to help answer these questions and support the freight-forwarder's decision.
+
+2. Develop a model to optimize the holdings of each of the three commodities. 
+
+3. Run two scenarios: with and without short sales of the commodities. 
+
+4. Interpret results for the freight-forwarder, including tangency portfolio, amount of cash and equivalents in the portfolio allocation, minimum risk portfolio and the risk and return characteristics of each commodity. In the interpretation, relate these results to the resource allocation decision and consequences for entering the the new market.
+
+5. A more advanced analysis would subset the returns data into body and tail of the distribution. Then we can examine how portfolio allocation works under two more scenarios.
+
+6. More importantly, begin to import your data into this model. You will have to modify some of the column subsets and all of the titles.
+
+```{r }
+rm(list = ls())
+
+library(ggplot2)
+library(flexdashboard)
+library(shiny)
+library(QRM) #GPD fit
+library(qrmdata)
+library(xts)
+library(zoo)
+library(psych)
+library(quadprog)
+library(matrixStats)
+library(quantreg)
+library(moments)
+library(plotly)
+library(mvtnorm)
+
+#########################################################
+#
+# Exploratory Analysis
+#
+#########################################################
+data <- na.omit(read.csv("data/metaldata.csv", header = TRUE))
+# Compute log differences percent using as.matrix to force numeric type
+data.r <- diff(log(as.matrix(data[, -1]))) * 100
+# Create size and direction
+size <- na.omit(abs(data.r)) # size is indicator of volatility
+#head(size)
+colnames(size) <- paste(colnames(size),".size", sep = "") # Teetor
+direction <- ifelse(data.r > 0, 1, ifelse(data.r < 0, -1, 0)) # another indicator of skewness
+colnames(direction) <- paste(colnames(direction),".dir", sep = "")
+# Convert into a time series object: 
+# 1. Split into date and rates
+dates <- as.Date(data$DATE[-1], "%m/%d/%Y")
+dates.chr <- as.character(data$DATE[-1])
+str(dates.chr)
+values <- cbind(data.r, size, direction)
+# for dplyr pivoting and ggplot2 need a data frame also known as "tidy data"
+data.df <- data.frame(dates = dates, returns = data.r, size = size, direction = direction)
+data.df.nd <- data.frame(dates = dates.chr, returns = data.r, size = size, direction = direction, stringsAsFactors = FALSE) 
+#non-coerced dates for subsetting on non-date columns
+# 2. Make an xts object with row names equal to the dates
+data.xts <- na.omit(as.xts(values, dates)) #order.by=as.Date(dates, "%d/%m/%Y")))
+#str(data.xts)
+data.zr <- as.zooreg(data.xts)
+returns <- data.xts
+
+# Market analysis of the stylized facts and market risk preliminaries
+corr.rolling <- function(x) {	
+  dim <- ncol(x)	
+  corr.r <- cor(x)[lower.tri(diag(dim), diag = FALSE)]	
+  return(corr.r)	
+}
+
+ALL.r <- data.xts[, 1:3] # Only three series here
+window <- 20 #reactive({input$window}) let the user decide
+corr.returns <- rollapply(ALL.r, width = window, corr.rolling, align = "right", by.column = FALSE)
+#colnames(corr.returns) <- c("nickel & copper", "nickel & aluminium", "copper & aluminium")
+corr.returns.df <- data.frame(Date = index(corr.returns), nickel.copper = corr.returns[,1], nickel.aluminium = corr.returns[,2], copper.aluminium = corr.returns[,3])
+
+# Market dependencies
+#library(matrixStats)
+R.corr <- apply.monthly(as.xts(ALL.r), FUN = cor)
+R.vols <- apply.monthly(ALL.r, FUN = colSds) # from MatrixStats	
+# Form correlation matrix for one month 	
+R.corr.1 <- matrix(R.corr[20,], nrow = 3, ncol = 3, byrow = FALSE)	
+rownames(R.corr.1) <- colnames(ALL.r[,1:3])	
+colnames(R.corr.1) <- rownames(R.corr.1)	
+R.corr <- R.corr[, c(2, 3, 6)]
+colnames(R.corr) <- colnames(corr.returns) 	
+colnames(R.vols) <- c("nickel.vols", "copper.vols", "aluminium.vols")	
+R.corr.vols <- na.omit(merge(R.corr, R.vols))
+nickel.vols <- as.numeric(R.corr.vols[,"nickel.vols"])	
+copper.vols <- as.numeric(R.corr.vols[,"copper.vols"])	
+aluminium.vols <- as.numeric(R.corr.vols[,"aluminium.vols"])
+#library(quantreg)
+# hist(rho.fisher[, 1])
+nickel.corrs <- R.corr.vols[,1]
+#hist(nickel.corrs)
+taus <- seq(.05,.95,.05)	# Roger Koenker UI Bob Hogg and Allen Craig
+fit.rq.nickel.copper <- rq(nickel.corrs ~ copper.vols, tau = taus)	
+fit.lm.nickel.copper <- lm(nickel.corrs ~ copper.vols)
+plot(summary(fit.rq.nickel.copper), parm = "copper.vols", main = "nickel-copper correlation sensitivity to copper volatility")
+#' Some test statements	
+#summary(fit.rq.nickel.copper, se = "boot")
+#'
+#summary(fit.lm.nickel.copper, se = "boot")
+#plot(summary(fit.rq.nickel.copper), parm = "copper.vols", main = "nickel-copper correlation sensitivity to copper volatility") #, ylim = c(-0.1 , 0.1))
+# Try the other combinations
+##
+title.chg <- "Metals Market Percent Changes"
+autoplot.zoo(data.xts[,1:3]) + ggtitle(title.chg) + ylim(-5, 5)
+autoplot.zoo(data.xts[,4:6]) + ggtitle(title.chg) + ylim(-5, 5)
+acf(coredata(data.xts[,1:3])) # returns
+acf(coredata(data.xts[,4:6])) # sizes
+#pacf here
+one <- ts(data.df$returns.nickel)
+two <- ts(data.df$returns.copper)
+# or
+one <- ts(data.zr[,1])
+two <- ts(data.zr[,2])
+title.chg <- "Nickel vs. Copper"
+ccf(one, two, main = title.chg, lag.max = 20, xlab = "", ylab = "", ci.col = "red")
+# build function to repeat these routines
+run_ccf <- function(one, two, main = title.chg, lag = 20, color = "red"){
+  # one and two are equal length series
+  # main is title
+  # lag is number of lags in cross-correlation
+  # color is color of dashed confidence interval bounds
+  stopifnot(length(one) == length(two))
+  one <- ts(one)
+  two <- ts(two)
+  main <- main
+  lag <- lag
+  color <- color
+  ccf(one, two, main = main, lag.max = lag, xlab = "", ylab = "", ci.col = color)
+  #end run_ccf
+}
+title <- "nickel-copper"
+run_ccf(one, two, main = title, lag = 20, color = "red")
+# now for volatility (sizes)
+one <- abs(data.zr[,1])
+two <- abs(data.zr[,2])
+title <- "Nickel-Copper: volatility"
+run_ccf(one, two, main = title, lag = 20, color = "red")
+##
+# Load the data_moments() function
+## data_moments function
+## INPUTS: r vector
+## OUTPUTS: list of scalars (mean, sd, median, skewness, kurtosis)
+data_moments <- function(data){
+  library(moments)
+  library(matrixStats)
+  mean.r <- colMeans(data)
+  median.r <- colMedians(data)
+  sd.r <- colSds(data)
+  IQR.r <- colIQRs(data)
+  skewness.r <- skewness(data)
+  kurtosis.r <- kurtosis(data)
+  result <- data.frame(mean = mean.r, median = median.r, std_dev = sd.r, IQR = IQR.r, skewness = skewness.r, kurtosis = kurtosis.r)
+  return(result)
+}
+# Run data_moments()
+answer <- data_moments(data.xts[, 1:3])
+# Build pretty table
+answer <- round(answer, 4)
+knitr::kable(answer)
+mean(data.xts[,4])
+##
+returns1 <- returns[,1]
+colnames(returns1) <- "Returns" #kluge to coerce column name for df
+returns1.df <- data.frame(Returns = returns1[,1], Distribution = rep("Historical", each = length(returns1)))
+  
+alpha <- 0.95 # reactive({ifelse(input$alpha.q>1,0.99,ifelse(input$alpha.q<0,0.001,input$alpha.q))})
+  
+# Value at Risk
+VaR.hist <- quantile(returns1,alpha)
+VaR.text <- paste("Value at Risk = ", round(VaR.hist, 2), sep = "")
+  
+# Determine the max y value of the desity plot.
+# This will be used to place the text above the plot
+VaR.y <- max(density(returns1.df$Returns)$y)
+  
+# Expected Shortfall
+ES.hist <- median(returns1[returns1 > VaR.hist])
+ES.text <- paste("Expected Shortfall =", round(ES.hist, 2))
+# plotly  
+p <- ggplot(returns1.df, aes(x = Returns, fill = Distribution)) + geom_density(alpha = 0.5) + 
+    geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "firebrick1") + 
+    geom_vline(aes(xintercept = ES.hist), size = 1, color = "firebrick1") +
+    annotate("text", x = 2+ VaR.hist, y = VaR.y*1.05, label = VaR.text) +
+    annotate("text", x = 1.5+ ES.hist, y = VaR.y*1.1, label = ES.text) + scale_fill_manual( values = "dodgerblue4")
+ggplotly(p)
+# Do the same for returns 2 aand 3
+##
+## Now for Loss Analysis
+# Get last prices
+price.last <- as.numeric(head(data[, -1], n=1))
+# Specify the positions
+position.rf <- c(1/3, 1/3, 1/3) # equally weighted portfolio
+# And compute the position weights
+w <- position.rf * price.last
+# Fan these  the length and breadth of the risk factor series
+weights.rf <- matrix(w, nrow=nrow(data.r), ncol=ncol(data.r), byrow=TRUE)
+#head(rowSums((exp(data.r/100)-1)*weights.rf), n=3)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+#head(rowSums((exp(data.r/100)-1)*weights.rf), n=4)
+loss.rf <- -rowSums(expm1(data.r/100) * weights.rf)
+loss.rf.df <- data.frame(Loss = loss.rf, Distribution = rep("Historical", each = length(loss.rf)))
+## Simple Value at Risk and Expected Shortfall
+alpha.tolerance <- .95 #alpha.q
+VaR.hist <- quantile(loss.rf, probs=alpha.tolerance)#, names=FALSE)
+## Just as simple Expected shortfall
+ES.hist <- median(loss.rf[loss.rf > VaR.hist])
+VaR.text <- paste("Value at Risk =\n", round(VaR.hist, 2)) # ="VaR"&c12
+ES.text <- paste("Expected Shortfall \n=", round(ES.hist, 2))
+title.text <- paste(round(alpha.tolerance*100, 0), "% Loss Limits")
+# using histogram bars instead of the smooth density
+#renderPlotly({
+p <- ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_histogram(alpha = 0.8) + geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "blue") + geom_vline(aes(xintercept = ES.hist), size = 1, color = "blue") + annotate("text", x = VaR.hist, y = 40, label = VaR.text) + annotate("text", x = ES.hist, y = 20, label = ES.text) + xlim(0, 500) + ggtitle(title.text)
+ggplotly(p)
+#})
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss.rf) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid.0 <- numeric(nint)    # grid store
+e <- grid.0                # store mean exceedances e
+upper <- grid.0            # store upper confidence interval
+lower <- grid.0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval =NORM.S.DIST() =NORM.S.INV()
+  }
+mep.df <- data.frame(threshold = u, threshold.exceedances = e, lower = lower, upper = upper)
+loss.excess <- loss.rf[loss.rf > u]
+# Voila the plot => you may need to tweak these limits!
+#renderPlotly({
+p <- ggplot(mep.df, aes( x= threshold, y = threshold.exceedances)) + geom_line() + geom_line(aes(x = threshold, y = lower), colour = "red") + geom_line(aes(x = threshold,  y = upper), colour = "red") + annotate("text", x = 400, y = 200, label = "upper 95%") + annotate("text", x = 200, y = 0, label = "lower 5%")
+ggplotly(p)
+#})
+##########################################################
+#
+# GPD to describe and analyze the extremes
+#
+##########################################################
+#library(QRM)
+alpha.tolerance <- 0.95
+u <- quantile(loss.rf, alpha.tolerance , names=FALSE)
+fit <- fit.GPD(loss.rf, threshold=u) # Fit GPD to the excesses
+xi.hat <- fit$par.ests[["xi"]] # fitted xi
+beta.hat <- fit$par.ests[["beta"]] # fitted beta
+data <- loss.rf
+n.relative.excess <- length(loss.excess) / length(loss.rf) # = N_u/n
+VaR.gpd <- u + (beta.hat/xi.hat)*(((1-alpha.tolerance) / n.relative.excess)^(-xi.hat)-1) 
+ES.gpd <- (VaR.gpd + beta.hat-xi.hat*u) / (1-xi.hat)
+# Plot away
+VaRgpd.text <- paste("GPD: Value at Risk =", round(VaR.gpd, 2))
+ESgpd.text <- paste("Expected Shortfall =", round(ES.gpd, 2))
+title.text <- paste(VaRgpd.text, ESgpd.text, sep = " ")
+loss.plot <- ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2)
+loss.plot <- loss.plot + geom_vline(aes(xintercept = VaR.gpd), colour = "blue", linetype = "dashed", size = 0.8)
+loss.plot <- loss.plot + geom_vline(aes(xintercept = ES.gpd), colour = "blue", size = 0.8) 
+  #+ annotate("text", x = 300, y = 0.0075, label = VaRgpd.text, colour = "blue") + annotate("text", x = 300, y = 0.005, label = ESgpd.text, colour = "blue")
+loss.plot <- loss.plot + xlim(0,500) + ggtitle(title.text)
+#
+# Confidence in GPD
+#
+#showRM(fit, alpha = 0.99, RM = "ES", method = "BFGS") 
+#showRM(fit, alpha = 0.99, RM = "VaR")
+##
+# Generate overlay of historical and GPD; could also use Gaussian or t as well from the asynchronous material
+#############################################################
+# 
+# Portfolio Analytics: the Markowitz model
+# RAND Corporation
+#
+#############################################################
+# cov = sum((Rn - mean(Rn))^2) / (n - 1)
+
+R <- returns[,1:3]/100
+quantile_R <- quantile(R[,1], 0.95) # look at tail of the nickel distribution
+R <- subset(R, nickel > quantile_R, select = nickel:aluminium)
+names.R <- colnames(R)
+mean.R <-  apply(R,2,mean)
+cov.R <-  cov(R)
+sd.R <-  sqrt(diag(cov.R)) ## remember these are in daily percentages
+#library(quadprog)
+Amat <-  cbind(rep(1,3),mean.R)  ## set the equality constraints matrix
+mu.P <- seq(0.5*min(mean.R), 1.5*max(mean.R), length = 300)  ## set of 300 possible target portfolio returns
+#mu.P <- seq(0.5*quantile_R, max(R), length = 100)  ## set of 300 possible target portfolio returns
+sigma.P <-  mu.P ## set up storage for std dev's of portfolio returns
+weights <-  matrix(0, nrow=300, ncol = ncol(R)) ## storage for portfolio weights
+colnames(weights) <- names.R
+for (i in 1:length(mu.P))
+{
+  bvec <- c(1,mu.P[i])  ## constraint vector
+  result <- solve.QP(Dmat=2*cov.R,dvec=rep(0,3),Amat=Amat,bvec=bvec,meq=2)
+  sigma.P[i] <- sqrt(result$value)
+  weights[i,] <- result$solution
+}
+sigma.mu.df <- data.frame(sigma.P = sigma.P, mu.P = mu.P )
+mu.free <-  .0000822 ## input value of daily risk-free interest rate
+                     ## exp(0.03 / 365) - 1 TYX 30 year CBOE yield
+sharpe <- ( mu.P-mu.free) / sigma.P ## compute Sharpe's ratios
+ind <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind2 <-  (sigma.P == min(sigma.P)) ## find the minimum variance portfolio
+ind3 <-  (mu.P > mu.P[ind2]) ## finally the efficient frontier
+col.P <- ifelse(mu.P > mu.P[ind2], "blue", "grey")
+sigma.mu.df$col.P <- col.P
+#renderPlotly({
+p <- ggplot(sigma.mu.df, aes(x = sigma.P, y = mu.P, group = 1)) + geom_line(aes(colour=col.P, group = col.P)) + scale_colour_identity() # + xlim(0, max(sd.R*1.1))  + ylim(0, max(mean.R)*1.1) + 
+p <- p + geom_point(aes(x = 0, y = mu.free), colour = "red")
+options(digits=4)
+p <- p + geom_abline(intercept = mu.free, slope = (mu.P[ind]-mu.free)/sigma.P[ind], colour = "red")
+p <- p + geom_point(aes(x = sigma.P[ind], y = mu.P[ind])) 
+p <- p + geom_point(aes(x = sigma.P[ind2], y = mu.P[ind2])) ## show min var portfolio
+p <- p + annotate("text", x = sd.R[1], y = mean.R[1], label = names.R[1]) + annotate("text", x = sd.R[2], y = mean.R[2], label = names.R[2]) + annotate("text", x = sd.R[3], y = mean.R[3], label = names.R[3])
+p
+ggplotly(p)
+#})
+#############################################################
+#
+# Next steps:
+#    1. Subset portfolio data into body and tail of one commodity
+#    2. Deposit into flexdashboard
+#    3. Render all plots with plotly
+#    4. Plan sliders for interaction with plots
+#
+#############################################################
+```
+
+Some additional `R` code for portfolio analytics.
+
+```{r}
+# 2 risky assets and a risk-free asset
+# per annum returns
+mu1 <-  0.14
+mu2 <-  0.08
+sig1 <-  0.2
+sig2 <-  0.15
+rho <-  -.5
+rf <-  0.06
+w <-  seq(0, 1, len = 500)
+means <-  0.08 + 0.06 * w
+var <-  sig1^2 * w^2 + sig2^2 * (1 - w)^2 +2*w*(1-w)*rho*sig1*sig2
+risk <-  sqrt(var)
+wt <-  0.693
+meant <-  0.08 + 0.06 * wt
+riskt <-  sqrt(sig1^2 * wt^2 + sig2^2 * (1 - wt)^2)
+
+wp <-  0.475
+meanp <-  0.08 + 0.06 * wp
+riskp <-  sqrt(sig1^2 * wp^2 + sig2^2 * (1 - wp)^2)
+
+sigma.mu.df <- data.frame(sigma.P = risk, mu.P = means )
+names.R <- c("one", "two")
+mean.R <- c(mu1, mu2)
+sd.R <- c(sig1, sig2)
+mu.P <- sigma.mu.df$mu.P
+sigma.P <- sigma.mu.df$sigma.P
+mu.free <-  rf ## input value of risk-free interest rate
+sharpe <- ( mu.P-mu.free)/sigma.P ## compute Sharpe's ratios
+ind <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind2 <-  (sigma.P == min(sigma.P)) ## find the minimum variance portfolio
+ind3 <-  (mu.P > mu.P[ind2]) ## finally the efficient frontier
+col.P <- ifelse(mu.P > mu.P[ind2], "blue", "grey")
+sigma.mu.df$col.P <- col.P
+
+library(ggplot2)
+library(plotly)
+p <- ggplot(sigma.mu.df, aes(x = sigma.P, y = mu.P, group = 1)) + geom_line(aes(colour=col.P, group = col.P)) + scale_colour_identity() # + xlim(0, max(sd.R*1.1))  + ylim(0, max(mean.R)*1.1) + 
+p <- p + geom_point(aes(x = 0, y = mu.free), colour = "red")
+options(digits=4)
+p <- p + geom_abline(intercept = mu.free, slope = (mu.P[ind]-mu.free)/sigma.P[ind], colour = "red")
+p <- p + geom_point(aes(x = sigma.P[ind], y = mu.P[ind])) 
+p <- p + geom_point(aes(x = sigma.P[ind2], y = mu.P[ind2])) ## show min var portfolio
+p <- p + annotate("text", x = sd.R[1], y = mean.R[1], label = names.R[1]) + annotate("text", x = sd.R[2], y = mean.R[2], label = names.R[2]) #+ annotate("text", x = sd.R[3], y = mean.R[3], label = names.R[3])
+ggplotly(p)
+
+```
+
+Enforce no short sales.
+
+```{r}
+# no short sales
+#
+library(quadprog)
+R <- returns[,1:3]/100
+#quantile_R <- quantile(R[,1], 0.95)
+#R <- subset(R, nickel > quantile_R, select = nickel:aluminium)
+names.R <- colnames(R)
+mean.R <-  apply(R,2,mean)
+cov.R <-  cov(R)
+sd.R <-  sqrt(diag(cov.R)) ## remember these are in daily percentages
+#library(quadprog)
+# Amat <-  cbind(rep(1,3),mean.R)  ## short sales: set the equality constraints matrix
+Amat <-  cbind(rep(1,3),mean.R,diag(1,nrow=3))  # set the constraints matrix
+#mu.P <- seq(0.5*min(mean.R), 1.5*max(mean.R), length = 100)  ## set of 300 possible target portfolio returns
+#muP <-  seq(min(mean.R)+.0001,max(mean.R)-.0001,length=300) 
+#mu.P <- seq(0.5*quantile_R, max(R), length = 100)  ## set of 300 possible target portfolio returns
+sigma.P <-  mu.P ## set up storage for std dev's of portfolio returns
+weights <-  matrix(0, nrow=300, ncol = ncol(R)) ## storage for portfolio weights
+colnames(weights) <- names.R
+for (i in 1:length(mu.P))
+{
+  #bvec <- c(1,mu.P[i])  ## constraint vector: short sales
+  bvec <-  c(1,mu.P[i],rep(0,3)) ## no short sales
+  result <- solve.QP(Dmat=2*cov.R,dvec=rep(0,3),Amat=Amat,bvec=bvec,meq=2)
+  sigma.P[i] <- sqrt(result$value)
+  weights[i,] <- result$solution
+}
+#R = 100*CRSPday[,4:6]  #  convert to percentages
+mean.R <- apply(R,2,mean)
+cov.R <-  cov(R)
+sd.R <-  sqrt(diag(cov.R))
+Amat <-  cbind(rep(1,3),mean.R,diag(1,nrow=3))  # set the constraints matrix
+length.P <- 300
+#mu.P <- seq(0.5*min(mean.R), 1.5*max(mean.R), length = length.P)  ## set of 300 possible target portfolio returns
+mu.P <-  seq(min(mean.R)+.0001,max(mean.R)-.0001,length = length.P) 
+#mu.P <- seq(0.5*quantile_R, max(R), length = length.P)  ## set of 300 possible target portfolio returnssigma.P <-  mu.P # set up storage for standard deviations of portfolio returns
+weights <-  matrix(0, nrow = length.P, ncol = 3) # storage for portfolio weights
+for (i in 1:length(mu.P))  # find the optimal portfolios for each target expected return
+{
+  bvec <-  c(1,mu.P[i],rep(0,3))
+  result <-  
+    solve.QP(Dmat=2*cov.R,dvec=rep(0,3),Amat=Amat,bvec=bvec,meq=2)
+  sigma.P[i] <-  sqrt(result$value)
+  weights[i,] <-  result$solution
+}
+sigma.mu.df <- data.frame(sigma.P = sigma.P, mu.P = mu.P )
+mu.free <-  .0003 ## input value of daily risk-free interest rate
+sharpe <- ( mu.P-mu.free)/sigma.P ## compute Sharpe's ratios
+ind <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind2 <-  (sigma.P == min(sigma.P)) ## find the minimum variance portfolio
+ind3 <-  (mu.P > mu.P[ind2]) ## finally the efficient frontier
+col.P <- ifelse(mu.P > mu.P[ind2], "blue", "grey")
+sigma.mu.df$col.P <- col.P
+#renderPlotly({
+p <- ggplot(sigma.mu.df, aes(x = sigma.P, y = mu.P, group = 1)) + geom_line(aes(colour=col.P, group = col.P)) + scale_colour_identity() # + xlim(0, max(sd.R*1.1))  + ylim(0, max(mean.R)*1.1) + 
+p <- p + geom_point(aes(x = 0, y = mu.free), colour = "red")
+options(digits=4)
+p <- p + geom_abline(intercept = mu.free, slope = (mu.P[ind]-mu.free)/sigma.P[ind], colour = "red")
+#p <- p + geom_point(aes(x = sigma.P[ind], y = mu.P[ind])) 
+#p <- p + geom_point(aes(x = sigma.P[ind2], y = mu.P[ind2])) ## show min var portfolio
+p <- p + annotate("text", x = sigma.P[ind], y = mu.P[ind], label = "T") + annotate("text", x = sigma.P[ind2], y = mu.P[ind2], label = "M") + annotate("text", x = sd.R[1], y = mean.R[1], label = names.R[1]) + annotate("text", x = sd.R[2], y = mean.R[2], label = names.R[2]) + annotate("text", x = sd.R[3], y = mean.R[3], label = names.R[3])
+p <- p + geom_vline(aes(xintercept = sd.R[2]), color = "red")
+p
+```
+
+Bootstrapped statistics.
+
+```{r}
+n <-  dim(R)[1]
+N <-  dim(R)[2]
+mufree <-  mu.free
+mean_vect_TRUE <-  apply(R,2,mean)
+cov_mat_TRUE <-  cov(R)
+nboot <-  250
+out <-  matrix(1,nrow=nboot,ncol=2)
+mean_out <-  matrix(1,nrow = nboot,ncol = dim(R)[2])
+set.seed(1016)
+for (iboot in (1:nboot))
+{
+  un <-  ceiling((n-1)*runif(n-1))
+  Rboot <-  R[un,]
+  mean_vect <-  apply(Rboot,2,mean)
+  mean_out[iboot,] <-  mean_vect
+  cov_mat <-  cov(Rboot)
+  sd_vect <-  sqrt(diag(cov_mat))
+  Amat <-  cbind(rep(1,N),mean_vect) # short sales
+  #   Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+  sdP <- muP 
+  mu.P <-  seq(min(mean.R)+.0001,max(mean.R)-.0001,length = length.P)           
+  weights <-  matrix(0,nrow=300,ncol=N) 
+  for (i in 1:length(muP))  
+  {
+    bvec <-  c(1,muP[i])  # short sales
+    #bvec = c(1,muP[i],rep(0,N)) # no short sales
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+    sdP[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+  } 
+  sharpe <- ( muP-mufree)/sdP 
+  ind <-  (sharpe == max(sharpe)) 
+  out[iboot,1] <-  sharpe[ind]
+  wT <-  weights[ind,]
+  sharpe_TRUE <-  (wT %*% mean_vect_TRUE - mufree) / sqrt(wT %*% cov_mat_TRUE %*% wT)
+  out[iboot,2] <-  sharpe_TRUE
+}
+out_Short <-  out
+gp <-  cbind(rep("estimated",nboot),rep("actual",nboot))
+par(mfrow=c(1,2))
+boxplot(out_Short ~ gp, main="Short Sales Allowed",ylim=c(0,.7))
+
+## To Be Trouble Shot: no short sales case
+
+n <- dim(R)[1]
+N <- dim(R)[2]
+mufree <- mu.free
+mean_vect_TRUE <- apply(R,2,mean)
+cov_mat_TRUE <-  cov(R)
+nboot <-  250
+out <-  matrix(1,nrow=nboot,ncol=2)
+mean_out <-  matrix(1,nrow = nboot,ncol = dim(R)[2])
+set.seed(1016)
+for (iboot in (1:nboot))
+{
+  un <-  ceiling((n-1)*runif(n-1))
+  Rboot <-  R[un,]
+  mean_vect <-  apply(Rboot,2,mean)
+  mean_out[iboot,] <-  mean_vect
+  cov_mat <-  cov(Rboot)
+  sd_vect <-  sqrt(diag(cov_mat))
+  #Amat <-  cbind(rep(1,N),mean_vect) # short sales
+  Amat = cbind(rep(1,N),mean_vect,diag(1,N)) # no short sales
+  muP <-  seq(0,2.5,length=300)                              
+  sdP <- muP 
+  weights <-  matrix(0,nrow=300,ncol=N) 
+  for (i in 1:length(muP))  
+  {
+    #bvec <-  c(1,muP[i])  # short sales
+    bvec = c(1,muP[i],rep(0,N)) # no short sales
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=Amat,bvec=bvec,meq=2)
+    sdP[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+  } 
+  sharpe <- ( muP-mufree)/sdP 
+  ind <-  (sharpe == max(sharpe)) 
+  out[iboot,1] <-  sharpe[ind]
+  wT <-  weights[ind,]
+  sharpe_TRUE <-  (wT %*% mean_vect_TRUE - mufree) / sqrt(wT %*% cov_mat_TRUE %*% wT)
+  out[iboot,2] <-  sharpe_TRUE
+}
+out_Short <-  out
+gp <-  cbind(rep("estimated",nboot),rep("actual",nboot))
+par(mfrow=c(1,2))
+boxplot(out_Short ~ gp, main="Short Sales Allowed",ylim=c(0,.7))
+
+```
+

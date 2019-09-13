@@ -1,0 +1,809 @@
+---
+title: "Week 9 - Portfolio Analytics"
+author: "Copyright 2016, William G Foote. All Rights Reserved."
+theme: "Madrid"
+fontsize: 10pt
+fig_caption: no
+header-includes:
+   - \usepackage[labelformat = empty]{caption}
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(tidy = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=36))
+knitr::opts_chunk$set(size = "small")
+knitr::opts_hooks$set(fig.width = function(options) {
+  if (options$fig.width < options$fig.height) {
+    options$fig.width = options$fig.height
+  }
+  options
+})
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+```
+
+# Imagine these scenarios...
+- You are trying to negotiate a new energy contract across 10 different facilities and 20 gas and oil suppliers.
+- Your colleague is managing accounts receivable across 38 different currencies in spot and forward markets.
+- Another colleague manages collateral for workers' compensation funding in all 50 states.
+- Yet another colleague manages 5 fund managers for a health insurer.
+
+***
+
+## Portfolios are Everywhere!
+- We can conceive of every margin as a long position in revenue and a short position in costs.
+- At least the mean and standard deviation of the portfolio will be traded off.
+- Operational and financial constraints narrow the possible choices to achieve performance (mean = "mu" = $\mu$) and risk (standard deviation = "sigma" = $\sigma$) goals.
+
+***
+## Our "working example" ...
+- ... is Working Capital = Receivables + Inventory - Payables.
+- The CFO needs answers around why it is so big and always seems to bulge when the economic fortunes of our customers are in peril of deteriorating.
+- She knows that there are three culprits: the euro rate, the Sterling rate, and Brent crude.
+- She commissions you and your team to figure out the ultimate combination of these factors that contributes to a \$100 million working capital position with a volatility of over \$25 million this past year.
+
+# Previously on Financial Analytics
+- Practically the entire course!
+- Especially the volatilities we examined last week.
+- Remembering some matrix maths we learned in Week 1 as well.
+
+***
+![](MBASyracuse_logo.png)
+
+# Let's walk before we run
+
+## Suppose management wants to achieve a targeted value at risk on new contracts
+- Value at risk (VaR) is the $\alpha$ quantile of portfolio value where $\alpha$ ("alpha") is the organization's tolerance for risk.
+- VaR is the maximum amount of tolerable loss. But more loss is possible.
+
+***
+
+## Now suppose
+- Management is considering a \$1 billion contract. 
+- This contract will be two Iberian companies and one United Kingdom-based (UK) company working in Spain.
+- Only \$100 million in reserves are available to cover any losses.
+- The Board wants some comfort that no more than a 10 \% age loss (the average "return" $\mu$) would occur.
+- The Board has set the organization's tolerance for risk at 5\%: that is, a maximum of 5\% of the time could losses exceed 10\%.
+- To keep things simple: losses are normally distributed...
+
+***
+Let perform a "back of the envelope" analysis. We let $R$ stand for returns, so that $-R$ is a loss. Our management team wants 
+
+\[
+Prob(R < -0.10) = 0.05,
+\]
+
+that is, the probability of a loss worse than 10 \% is no more than 5 \%. 
+
+## Let's now do some algebra 
+- Let $w$ be the "weight" invested in the risky contract.
+- The rest, $1-w$ in high quality collateral assets like treasury bonds. 
+- The weight $w$ can take on values from 0\% (0.0) to 100\% (1.0). 
+- No collateral means $w = 1$; no contract means $w = 0$.
+
+***
+The average return, $\mu$, on the contract is
+
+\[
+\mu = w(0.1) + (1-w)(0.02).
+\]
+
+- This is the weighted average return of the contract at 10\% and collateral at 2\%. 
+- The average level of risk in this model is given by the standard deviation of this combination of risky contract and default-free collateral. 
+
+***
+Management currently believes that a 25\% standard deviation, "sigma" or $\sigma$, is reasonable.
+
+\[
+\sigma = w^2 (0.25)^2 + (1-w)^2 (0.0).
+\]
+
+Collateral is not "risky" in this scenario.
+
+***
+- We now try to figure out what $w$. 
+- More precisely, the percentage of total assets as investment in this contract, that will make losses happen no greater than 5\% of the time. 
+
+We form a normalizing "z-score" to help us:
+
+\[
+z = \frac{-0.1 - \mu}{\sigma}.
+\]
+
+- This is the ratio of potential deviation of loss from the mean maximum loss per unit of risk. 
+- Our job is to find $w$ such that the score under the normal distribution cannot exceed 5\%.
+
+\[
+Prob(R < -0.10) = Normal(z(w)) = 0.05,
+\]
+
+where $Normal$ is the cumulative normal distribution (you might know this as =Norm.S.Dist() in Excel or `qnorm()` in `R`).
+
+***
+Using our models of $\mu$ and $\sigma$ we get
+
+\[
+z = \frac{-0.1 - 0.1 w - 0.02 (1-w)}{0.25 w},
+\]
+
+or, better after combining constant terms and terms in $w$ and putting this into the target probability:
+
+\[
+z = Normal \left[ \frac{-0.12 - 0.12 w}{0.25 w} \right] = 0.05.
+\]
+
+***
+FINALLY, we solve for $w$ in a few more steps. 
+
+1. Takes the inverse of the normal distribution on both sides of the equation. On the left hand side this means that we are left with the $z$ score as a function of $w$, the percentage of all wealth in the risk contract.
+\[
+NormalInverse \left[ Normal \left( \frac{-0.12 - 0.12 w}{0.25 w} \right) \right] = NormalInverse (0.05)
+\]
+***
+We can calculate $NormalInverse(0.05)$ using `R`
+
+```{r}
+qnorm(0.05)
+```
+
+or in Excel with `=norm.s.inv(0.05)`.
+
+2. This means that loss cannot exceed 1.64 times the portfolio standard deviation in the direction of loss ("negative" or less than the mean). Plugging this value in
+
+\[
+\left( \frac{-0.12 - 0.12 w}{0.25 w} \right) = NormalInverse (0.05) = -1.64
+\]
+
+multiplying each side by $0.25 w$, combining terms in $w$ and dividing by the coefficient of that last combined $w$ we get
+
+\[
+w = \frac{-0.12}{0.25(-1.64) + 0.12} = 0.42.
+\]
+
+***
+In `R`:
+
+```{r}
+-0.12/(0.25*(-1.64)+0.12)
+```
+
+
+***
+## Implication?
+- Objective: To fund the new contract at this tolerance for risk and with these reserves.
+- Risky contract + collateral = portfolio value.
+- 42\% of portfolio value = risky contract value.
+- Portfolio value = \$1 billion / 0.42 = \$2.38 billion.
+- Collateral value = \$2.38 billion - \$1 billion = \$1.38 billion or 68\% of portfolio value.
+
+***
+- We just found the notorious "tangency" portfolio.
+- This portfolio, when combined with a risk-free (really "default-free" asset), will yield the best mix of risky and risk-free assets.
+- "Best" here is in the sense of not violating the organization's risk tolerance policy.
+
+## How?
+1. Find the optimal combination of risky assets, the tangency portfolio.
+2. Then find the optimal mix of tangency assets and the risk-free asset.
+3. Working capital's "risk-free" asset is the cash account and the process of getting there is the cash-conversion cycle.
+
+# All in
+
+- Now that we have our basic procedure, let's complicate this problem with many risky assets. 
+- The basic solution will be choosing weights to minimize the portfolio risk given risk-adjusted return targets. This is the Markowitz (1952) portfolio solution.
+- For this task we need to define a matrix version of the portfolio allocation problem.
+- Our three risky "assets" will be the euro/USD and GBP/USD exchange rates and Brent crude.
+
+This is all about the normally distributed universe.
+
+***
+First, the return matrix $R$ for $N$ assets across $T$ sample periods and the subscript indicates the row (observation) and column (asset):
+
+\[ 
+\left[ \begin{array}{ccc}
+R_{11} & ... & R_{1N}  \\
+... & ... & ... \\
+R_{1T} & ... & R_{TN} 
+\end{array} \right]
+\]
+
+Then, the mean return vector $\mu$ is the arithmetic average of each column of $R$ 
+
+\[ 
+\left[ \begin{array}{c}
+\mu_1  \\
+... \\
+\mu_N 
+\end{array} \right],
+\]
+
+after exchanging rows for columns (transpose).
+
+Now try this ...
+
+# Try this computation
+- Be sure the `qrmdata` package is installed. 
+- Call this package and the daily data in it. 
+- Look up the `apply` function to see if you can compute row averages.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+require(qrmdata)
+require(xts)
+# The exchange rate data was obtained from OANDA (http://www.oanda.com/) on 2016-01-03
+data("EUR_USD")
+data("GBP_USD")
+# The Brent data was obtained from Federal Reserve Economic Data (FRED) via Quandl on 2016-01-03
+data("OIL_Brent")
+data.1 <- na.omit(merge(EUR_USD, GBP_USD, OIL_Brent))
+R <- na.omit(diff(log(data.1))*100)
+names.R <- c("EUR.USD", "GBP.USD", "OIL.Brent")
+colnames(R) <- names.R
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize'}
+(mean.R <- apply(R, 2, mean))
+```
+
+```{r mysize=TRUE, size='\\normalsize'}
+```
+
+## Some questions
+1. Look at a `summary` of a few columns. Notice anything odd or curious?
+2. What does the `2` indicate in the `apply` function.
+3. What is Brent crude's annualized mean "return"?
+
+***
+Thinking...
+
+# Results
+For question 1:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+summary(R)
+```
+
+```{r mysize=TRUE, size='\\normalsize'}
+```
+
+- Means are much less than medians. 
+- Huge max and min returns. 
+- We can also look at `acf` and `ccf`, absolute returns, run GARCH models, and so on... 
+
+But save that for another day...
+
+***
+For question 2:
+
+Look up `??apply` and read that the `2` indicates that we are calculating the mean for the second dimension of the data matrix, namely, the assets.
+
+***
+For question 3:
+
+Brent crude's annualized mean return is calculated on a 252 average days traded in a year basis as:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+(1 + mean.R[3]/100)^252 - 1
+```
+
+Some folks use 253 days. But this is all a back of the envelope computation.
+
+***
+![](MBASyracuse_logo.png)
+
+# Let's keep moving on...
+
+## So, what is the context?
+- We have working capital with three main drivers of risk and return: two exchange rates and a commodity price.
+- Over time how do these factors act and interact to produce EBITDA returns on Assets? [EBITDA = Earnings Before Interest and Tax adding back in non-cash Depreciation and Amortization].
+- Given risk and performance in the market-place (as ONE place we would look...remembering there are many other, much more qualitative factors in play as well) what is the least risky for the return combination of these factors in our working capital?
+- Then, how does that combination compare with today's reality and especially answer the CFO's question of what to do about the millstone of working capital around the neck of EBITDA?
+
+***
+Given this context, and the data we found earlier on, next in line is the calculation of the variance-covariance matrix. The diagonals of this matrix are the variances, so that the square root of the diagonal will yield standard deviations. The off-diagonals can be converted to correlations.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+(mean.R <-  apply(R,2,mean))
+(cov.R <-  cov(R))
+(sd.R <-  sqrt(diag(cov.R))) # remember these are in daily percentages
+```
+
+# Now for some programming (quadratic that is...)
+
+In a mathematical nutshell we are formally (more tractable version to follow...) solving the problem of minimizing working capital factors risk, subject to target returns and a budget that says it all has to add up to our working capital position. We define weights as percentages of the total working capital position. Thus the weights need to add up to one.
+
+\[
+\begin{array}{c}
+min_w w_T \Sigma w \\
+subject \, to \\
+1^T w = 1\\
+w^T \mu = \mu_0
+\end{array}
+\]
+
+where 
+
+- $w$ are the weights in each instrument. 
+- $\Sigma$ is the variance-covariance matrix we just estimated, `cov.R`.
+- $1$ is a vector of ones's with length equal to the number of instruments. 
+- $\mu$ are the mean returns we just estimated, `mean.R`. 
+- $\mu_0$ is the target portfolio return. 
+- $T$ is the matrix transpose.
+- $min_w$ means to find weights $w$ that minimizes portfolio risk.
+
+(ENGLISH version to follow...)
+
+***
+(Well some English here...) The expression $w_T \Sigma w$ is our measure of portfolio risk and is a quadratic form that looks like this for two instruments:
+
+\[
+\left[ \begin{array}{cc} w_1 & w_2 \end{array} \right] \left[ \begin{array}{cc} \sigma_1^2 & \sigma_{12} \\ \sigma_{21} & \sigma_2^2 \end{array} \right] \left[ \begin{array}{c} w_1 \\ w_2 \end{array} \right]
+\]
+
+Multiplied out we get the following quadratic formula for portfolio variance:
+
+\[
+\sigma_P^2 = w_1^2 \sigma_1^2 + w_2^2 \sigma_2^2 + w_1 w_2 \sigma_{12} + w_2 w_1 \sigma_{21}  
+\]
+
+and because $\sigma_{12} = \sigma_{21}$ this reduces a bit to
+
+\[
+\sigma_P^2 = w_1^2 \sigma_1^2 + w_2^2 \sigma_2^2 + 2 w_1 w_2 \sigma_{12}
+\]
+
+***
+Tedious? Definitely. But useful to explain the components of portfolio risk
+
+1. Two dashes of own asset risk $w_1^2 \sigma_1^2 + w_2^2 \sigma_2^2$, and
+2. Two dashes of relational risk $2 w_1 w_2 \sigma_{12}$
+
+When $\sigma_{12} < 1$ we have _diversification_.
+
+# Try this
+Suppose you have two commodities (New York Harbor No. 2 Oil and Henry Hub Natural Gas) feeding a production process (Electricity Generation). 
+
+***
+![Big Allis LIC, NY](BigAllis.jpg)
+
+***
+These are the weights in this process:
+
+\[
+w = \{ w_{oil} = -.5, w_{ng} = -.5, w_{ele} = 1.0 \}
+\]
+ 
+The percentage changes in terms of the prices of these commodities are:
+
+\[
+\mu = \{ \mu_{oil} = 0.12, \mu_{ng} = -0.09, \mu_{ele} = 0.15 \}.
+\]
+
+***
+Standard deviations are
+
+\[
+\sigma = \{ \sigma_{oil} = 0.20, \sigma_{ng} = 0.15, \sigma_{ele} = 0.40 \}
+\]
+
+The correlation matrix is
+
+\[
+\rho = 
+\left[ \begin{array}{ccc}
+1.0 & 0.2 & 0.6  \\
+0.2 & 1.0 & 0.4 \\
+0.6 & 0.4 & 1.0 
+\end{array} \right]
+\]
+
+***
+1. Using the formula
+\[
+\Sigma = (\sigma \sigma^T) \rho
+\]
+Calculate the variance-covariance matrix $\Sigma$ using your `R` knowledge of arrays. [Hint: `t()` is the transpose of an array so that $\sigma^T$ is `t(sigma)`. ]
+2. Calculate the portfolio mean return.
+3. Calculate the portfolio standard deviation.
+
+***
+Thinking...
+
+# Results
+1. Use this `R` code:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+sigma <- c(0.20, 0.15, 0.40)
+rho = c(1.0 , 0.2 , 0.6,
+0.2 , 1.0 , 0.4,
+0.6 , 0.4 , 1.0 )
+(rho <- matrix(rho, nrow = 3, ncol = 3))
+(Sigma <- (sigma %*% t(sigma)) * rho )
+```
+
+The diagonals are the squared standard deviations.
+
+***
+2. Use this `R` code:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+w <- c(-0.5, -0.5, 1.0)
+mu <- c(0.12, -0.09, 0.15)
+(mu.P <- t(w) %*% mu)
+```
+
+***
+2. Next the portfolio average level of "risk":
+
+```{r mysize=TRUE, size='\\footnotesize'}
+rho = c(1.0 , 0.2 , 0.6,
+0.2 , 1.0 , 0.4,
+0.6 , 0.4 , 1.0 )
+(rho <- matrix(rho, nrow = 3, ncol = 3))
+(Sigma2 <- (sigma %*% t(sigma)) * rho )
+(Sigma.P <- (t(w) %*% Sigma2 %*% w))^0.5
+```
+
+***
+3. What does this mean?
+- Running a power-generating plant (or refinery, or distribution chain, ...) over time financially really means generating a spark spread: the margin between costs of inputs natural gas and oil (the negative or short position) and revenue from the output of electricity (the positive or long position).
+- The average spark spread for this plant is 10.67\%.
+- The average standard deviation of the spark spread is 32.65\%.
+
+***
+![](MBASyracuse_logo.png)
+
+***
+Our next job is to use these mechanics about portfolio means, standard deviations, and correlations to find the best set of weights that minimizes portfolio risk while attempting to achieve a target level of return.
+
+***
+![](MBASyracuse_logo.png)
+
+# Now to fulfill our optimized experience
+
+To perform the optimization task we turn to the `quadprog` quadratic programming package (yes, parabolas are indeed very useful). We worked out a two-asset example that showed us clearly that the objective function has squared terms (and interactive product terms too). These are the tell-tale signs that mark the portfolio variance as quadratic...in the weights.
+
+***
+After all of our wrangling above it is useful to define our portfolio optimization problem again here:
+
+\[
+\begin{array}{c}
+min_w w_T \Sigma w \\
+subject \, to \\
+1^T w = 1\\
+w^T \mu = \mu_0
+\end{array}
+\]
+
+***
+Here is what `quadprog` does
+\[
+\begin{array}{c}
+min_d -d^T x +\frac{1}{2} x^T D x \\
+subject \, to \\
+A_{neq}^T x \geq b_{neq} \\
+A_{eq}^T x = b_{eq}
+\end{array}
+\]
+
+Now we need to transform these equations to solve our portfolio problem.
+
+***
+We do this by setting
+
+\[
+A_{eq}^T = \left[ 
+\begin{array}{c}
+1^T \\
+\mu^T
+\end{array}
+\right]
+\]
+
+***
+This gives us a stack of equality constraints that looks like:
+
+\[
+\left[ \begin{array}{c}
+1^T w \\
+\mu^T w
+\end{array}
+\right]
+=
+\left[ \begin{array}{c}
+1 \\
+\mu_0
+\end{array}
+\right]
+\]
+
+We will allow short positions, like the spark spread experiment above. So far we will not yet impose inequality constraints like $w \geq 0$.
+
+***
+Here is the setup code
+```{r mysize=TRUE, size='\\footnotesize'}
+library(quadprog)
+Amat <-  cbind(rep(1,3),mean.R)  # set the equality constraints matrix
+mu.P <-  seq(min(mean.R - 0.0005), max(mean.R + 0.0005), length=300)  # set of 300 possible target portfolio returns
+sigma.P <-  mu.P # set up storage for std dev's of portfolio returns
+weights <-  matrix(0, nrow=300, ncol = ncol(R)) # storage for portfolio weights
+colnames(weights) <- names.R
+```
+
+***
+Next we build the "efficient frontier." 
+
+- This curve (a parabola...) traces optimal combinations of risk and return. For each combination there is an underlying set of weights. 
+- In effect this is a very specialized sensitivity analysis.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+for (i in 1:length(mu.P))
+{
+  bvec = c(1,mu.P[i])  # constraint vector
+  result =
+    solve.QP(Dmat=2*cov.R,dvec=rep(0,3),Amat=Amat,bvec=bvec,meq=2)
+  sigma.P[i] = sqrt(result$value)
+  weights[i,] = result$solution
+}
+```
+
+***
+## Then plot away
+1. Plot all of the portfolio combinations.
+2. Plot the point on the graph that represents the so-called risk-free (actually more like default-free) asset.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+par(mfrow = c(1,1))
+plot(sigma.P, mu.P, type="l", xlim=c(0,max(sd.R)*1.1), ylim=c(0,max(mean.R)*1.1), lty=3, lwd = 3)  #  plot
+# the efficient frontier (and inefficient portfolios
+# below the min var portfolio)
+mu.free = 1.3/253 # input value of risk-free interest rate
+points(0,mu.free,cex=1,pch="+")  # show risk-free asset
+```
+
+***
+
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+par(mfrow = c(1,1))
+plot(sigma.P, mu.P, type="l", xlim=c(0,max(sd.R)*1.05), ylim=c(min(mean.R)*1.05 ,max(mean.R)*1.1),lty=3, lwd = 3)  #  plot
+# the efficient frontier (and inefficient portfolios
+# below the min var portfolio)
+mu.free = 1.3/253 # input value of risk-free interest rate
+points(0,mu.free,cex=1.5,pch="+")  # show risk-free asset
+```
+
+***
+## Now for William Sharpe's ratio:
+- This number is the amount of portfolio premium per unit of risk (the "price" of risk) across all combinations of portfolio assets on the efficient frontier. Its maximum is the best combination for the risk in terms of returns.
+- We figure out where (the index `ind`) the return to risk is along the frontier, record the weights associated with this unique point in risk-return space, and
+- Find where (the index `ind2`) the minimum variance portfolio is.
+- Plot the "efficient frontier": the efficient frontier will extend from the minimum variance portfolio (a "+" will mark the spot) up and out (in red). Anything else below this line is "inefficient" in the sense you get less and less return for more and more risk.
+
+***
+Here is the code:
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+sharpe =( mu.P-mu.free)/sigma.P # compute Sharpe's ratios
+ind = (sharpe == max(sharpe)) # Find maximum Sharpe's ratio
+options(digits=3)
+lines(c(0,2),mu.free+c(0,2)*(mu.P[ind]-mu.free)/sigma.P[ind],lwd=4,lty=1, col = "blue")
+# show line of optimal portfolios
+points(sigma.P[ind],mu.P[ind],cex=4,pch="*") # show tangency portfolio
+ind2 = (sigma.P == min(sigma.P)) # find the minimum variance portfolio
+points(sigma.P[ind2],mu.P[ind2],cex=2,pch="+") # show min var portfolio
+ind3 = (mu.P > mu.P[ind2]) # finally the efficient frontier
+lines(sigma.P[ind3],mu.P[ind3],type="l", xlim=c(0,max(sd.R)*1.1), ylim=c(min(mean.R)*1.05, max(mean.R)*1.1) ,lwd=3, col = "red")  #  plot the efficient frontier
+text(sd.R[1],mean.R[1],"EUR.USD",cex=1.15)
+text(sd.R[2],mean.R[2],"GBP.USD",cex=1.15)
+text(sd.R[3],mean.R[3],"OIL_Brent",cex=1.15)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+par(mfrow = c(1,1))
+plot(sigma.P,mu.P,type="l", xlim=c(0,max(sd.R)*1.1), ylim=c(min(mean.R)*1.05, max(mean.R)*1.1), lty=3, lwd = 3)  #  plot the efficient frontier (and inefficient portfolios
+# below the min var portfolio)
+mu.free = 1.3/253 # input value of risk-free interest rate
+points(0,mu.free,cex=3,pch="+")  # show risk-free asset
+sharpe <- ( mu.P-mu.free)/sigma.P # compute Sharpe's ratios
+ind <-  (sharpe == max(sharpe)) # Find maximum Sharpe's ratio
+options(digits=3)
+lines(c(0,2),mu.free+c(0,2)*(mu.P[ind]-mu.free)/sigma.P[ind],lwd=4,lty=1, col = "blue")
+# show line of optimal portfolios
+points(sigma.P[ind],mu.P[ind],cex=4,pch="*") # show tangency portfolio
+ind2 = (sigma.P == min(sigma.P)) # find the minimum variance portfolio
+points(sigma.P[ind2],mu.P[ind2],cex=2,pch="+") # show min var portfolio
+ind3 = (mu.P > mu.P[ind2]) # finally the efficient frontier
+lines(sigma.P[ind3],mu.P[ind3],type="l", xlim=c(0,max(sd.R)*1.1), ylim=c(min(mean.R)*1.05, max(mean.R)*1.1) , lwd=3, col = "red")  #  plot the efficient frontier
+text(sd.R[1], mean.R[1], names.R[1] ,cex=1.15)
+text(sd.R[2], mean.R[2], names.R[2] ,cex=1.15)
+text(sd.R[3], mean.R[3], names.R[3] ,cex=1.15)
+```
+
+***
+The weights for the tangency portfolio ("*") are in
+
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+weights[ind,]
+sum(weights[ind,])
+```
+
+For a given notional amount in your portfolio, go long (buy) 250.\% of that position in euros traded against USD, go short (sell) 180.7\% of your aggregate position in euros traded against USD, and go long 30.6\% in Brent. 
+
+## This means in the working capital accounts, 
+1. \$250 million should be denominated in euros 
+2. Net of a short (payables?) position of \$180 million 
+3. With another \$30 million priced in Brent crude.
+
+***
+If our working capital is \$100 million in euros, -\$200 in sterling, and \$200 exposed to Brent, we might think of ways to bring this more into line with the optimal positions we just derived, by changing contract terms and using swaps and other derivative instruments.
+
+***
+# Try this for size
+Don't allow short positions (negative weights). This means we impose the inequality constraint:
+
+$w \geq 0$
+
+Further, 
+
+- We modify the `Amat` to `Amat` to `cbind(rep(1,3),mean.R,diag(1,nrow=3))`.
+- We set the target return vector`mu.P` to `seq(min(mean.R)+.0001, max(mean.R)-.0001, length=300)`.
+- We also set the righthand-side vector `bvec` to `c(1,mu.P[i],rep(0,3))`.
+
+## Watch what happens. 
+1. Are the tangency portfolio and minimum variance portfolio weights different?
+2. Explain how the constraint matrix and target return vector are different from the first run where $w$ was allowed to be negative.
+
+***
+Thinking...
+
+# Results
+Here is the new setup code where we no longer allow for short positions.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+library(quadprog)
+Amat <-  cbind(rep(1,3),mean.R,diag(1,nrow=3))  # set the equality ND inequality constraints matrix
+mu.P <-  seq(min(mean.R) + 0.0001, max(mean.R) - 0.0001, length=300)  # set of 300 possible target portfolio returns
+sigma.P <-  mu.P # set up storage for std dev's of portfolio returns
+weights <-  matrix(0,nrow=300,ncol=3) # storage for portfolio weights
+```
+
+***
+Next we build the "efficient frontier." All of this code is as before.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+for (i in 1:length(mu.P))
+{
+  bvec <-  c(1,mu.P[i],rep(0,3))  # constraint vector with no short positions
+  result <- 
+    solve.QP(Dmat=2*cov.R,dvec=rep(0,3),Amat=Amat,bvec=bvec,meq=2)
+  sigma.P[i] <-  sqrt(result$value)
+  weights[i,] <-  result$solution
+}
+```
+
+***
+## Then plot away...again the same as before
+1. Plot all of the portfolio combinations.
+2. Plot the point on the graph that represents the so-called risk-free (actually more like default-free) asset.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+par(mfrow = c(1,1))
+plot(sigma.P,mu.P,type="l",xlim=c(0,max(sd.R)*1.1),ylim=c(min(mean.R)*1.05, max(mean.R)*1.1),lty=3, lwd = 3)  #  plot the efficient frontier (and inefficient portfolios
+# below the min var portfolio)  
+mu.free <-  1.3/253 # input value of risk-free interest rate
+points(0,mu.free,cex=1.5,pch="+")  # show risk-free asset
+```
+
+***
+
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+par(mfrow = c(1,1))
+plot(sigma.P,mu.P,type="l",xlim=c(0,max(sd.R)*1.1),ylim=c(min(mean.R)*1.05, max(mean.R)*1.1),lty=3, lwd = 3)  #  plot the efficient frontier (and inefficient portfolios
+# below the min var portfolio)  
+mu.free <-  1.3/253 # input value of risk-free interest rate
+points(0,mu.free,cex=1.5,pch="+")  # show risk-free asset
+```
+
+***
+## Now for William Sharpe's ratio, again as before, where 
+- This number is the amount of portfolio premium per unit of risk (the "price" of risk) across all combinations of portfolio assets on the efficient frontier. Its maximum is the best combination for the risk in terms of returns.
+- We figure out where (the index `ind`) the return to risk is along the frontier, record the weights associated with this unique point in risk-return space, and
+- Find where (the index `ind2`) the minimum variance portfolio is.
+- Plot the "efficient frontier": the efficient frontier will extend from the minimum variance portfolio (a "+" will mark the spot) up and out (in red). Anything else below this line is "inefficient" in the sense you get less and less return for more and more risk.
+
+***
+Here is the code (again)
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+sharpe <- ( mu.P-mu.free)/sigma.P # compute Sharpe's ratios
+ind <- (sharpe == max(sharpe)) # Find maximum Sharpe's ratio
+options(digits=3)
+lines(c(0,2),mu.free+c(0,2)*(mu.P[ind]-mu.free)/sigma.P[ind],lwd=4,lty=1, col = "blue")
+# show line of optimal portfolios
+points(sigma.P[ind],mu.P[ind],cex=4,pch="*") # show tangency portfolio
+ind2 <-  (sigma.P == min(sigma.P)) # find the minimum variance portfolio
+points(sigma.P[ind2],mu.P[ind2],cex=2,pch="+") # show min var portfolio
+ind3 <-  (mu.P > mu.P[ind2]) # finally the efficient frontier
+lines(sigma.P[ind3],mu.P[ind3],type="l",xlim=c(0,max(sd.R)*1.1),ylim=c(min(mean.R)*1.05, max(mean.R)*1.1),lwd=3, col = "red")  #  plot the efficient frontier
+text(sd.R[1],mean.R[1],"GE",cex=1.15)
+text(sd.R[2],mean.R[2],"IBM",cex=1.15)
+text(sd.R[3],mean.R[3],"Mobil",cex=1.15)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+par(mfrow = c(1,1))
+plot(sigma.P,mu.P,type="l",xlim=c(0,max(sd.R)*1.1),ylim=c(min(mean.R)*1.05, max(mean.R)*1.1),lty=3, lwd = 3)  #  plot the efficient frontier (and inefficient portfolios
+# below the min var portfolio)  
+mu.free <-  1.3/253 # input value of risk-free interest rate
+points(0,mu.free, cex=1.5, pch="+")  # show risk-free asset
+mu.free <-  1.3/253 # input value of risk-free interest rate
+points(0, mu.free, cex=1.5, pch="+")  # show risk-free asset
+sharpe =( mu.P-mu.free)/sigma.P # compute Sharpe's ratios
+ind = (sharpe == max(sharpe)) # Find maximum Sharpe's ratio
+options(digits=3)
+lines(c(0,2),mu.free+c(0,2)*(mu.P[ind]-mu.free)/sigma.P[ind],lwd=4,lty=1, col = "blue")
+# show line of optimal portfolios
+points(sigma.P[ind],mu.P[ind],cex=4,pch="*") # show tangency portfolio
+ind2 = (sigma.P == min(sigma.P)) # find the minimum variance portfolio
+points(sigma.P[ind2],mu.P[ind2],cex=1.5,pch="+") # show min var portfolio
+ind3 = (mu.P > mu.P[ind2])
+lines(sigma.P[ind3],mu.P[ind3],type="l",xlim=c(0,max(sd.R)*1.1),ylim=c(min(mean.R)*1.05, max(mean.R)*1.1),lwd=3, col = "red")  #  plot the efficient frontier
+text(sd.R[1],mean.R[1],"EUR.USD",cex=1.15)
+text(sd.R[2],mean.R[2],"GBP.USD",cex=1.15)
+text(sd.R[3],mean.R[3],"OIL.Brent",cex=1.15)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+Amat
+bvec
+```
+
+1. `bvec` changes for each of the three assets. Here we see one of them.
+2. The short position `bvec` has three zeros appended to it.
+3. The `Amat` constraint matrix has the identity matrix appended to it to represent $w_i = 0$ in the formulation of the inequality constraints parsed by `quantprog`.
+
+***
+4. The tangency of the line from the risk-free rate to the maximum Sharpe ratio point on the efficient frontier does not change.
+
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+weights[ind,]
+```
+
+## The picture radically changes:
+1. Long working capital position with only a \$1 million euro exposure.
+2. No pounding sterling exposure at all.
+3. A huge \$99 million Brent exposure.
+
+***
+![](MBASyracuse_logo.png)
+
+***
+Let's put a fork in all of this and say we are done (for now...)
+
+***
+![](MBASyracuse_logo.png)
+
+
+# The wrap
+
+- We learned portfolio maths and finance: building feasible combinations of risk and return called the efficient frontier, figured out in 1952 by Harry Markowitz.
+- We also looked at a simple example of tolerance for loss to imply the amount of collateral (risk-free asset) to hold.
+- Using that idea and a ruler we drew a line to the efficient frontier to discover the best portfolio of exposures for a hypothetical working capital position: the one that maximizes the return for the risk, the ratio that William Sharpe figured out in 1964.
+
+## To Prepare for the live session:
+
+1. What are the top 3 key learnings for you from this week?
+2. What pieces are still a mystery?
+3. What parts would you like more practice on?
+4. Please review the assignment for this week. What questions would you like addressed in the live session?
+
+## Thanks!
+
+***
+![](MBASyracuse_logo.png)

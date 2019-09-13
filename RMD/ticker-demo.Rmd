@@ -1,0 +1,58 @@
+---
+title: "Ticker Demo"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(googleVis)
+library(shiny)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+n <-  100 
+dates <-  seq(Sys.Date(), by = 'day', length = n)
+x <-  10 * rnorm(n)
+y <-  3 * x + 1 + rnorm(n)
+label <-  rep(LETTERS[1:4], each=25)
+label[1] <-  "D"
+#  
+my.data = data.frame(Date = dates, x, y, label)
+
+# declare that something will change
+uiOutput("dynamic")
+#render the ui:
+output$dynamic <- renderUI({ 
+   htmlOutput("my_plot")
+})
+# server side
+renderGvis({    
+    gvisMotionChart(my.data, idvar ='label', xvar = 'x', yvar = 'y', timevar= 'Date')
+  })
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+div(id = "myapp",
+      h2("ticker demo"),
+      textInput("name", "Name", ""),
+      numericInput("age", "Age", 30),
+      textInput("company", "Company", ""),
+      p("Timestamp: ", span(date())),
+      actionButton("submit", "Submit")
+    )
+```
+

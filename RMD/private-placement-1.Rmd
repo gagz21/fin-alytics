@@ -1,0 +1,371 @@
+---
+title: "Private Placement: deal structure"
+author: "Bill Foote"
+date: "10/22/2018"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+<script>
+function showText(y) {
+    var x = document.getElementById(y);
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+</script>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(digits = 3, scipen = 9999)
+library(visNetwork)
+library(tidyverse)
+library(kableExtra)
+
+# Internal Rate of Return (IRR) function
+# Inputs: vector of cash flows (cashflows), scalar interations (maxiter)
+# Outputs: scalar net present value
+IRR <- function(cashflows, maxiter=1000) {
+  t <- seq_along(cashflows)-1
+  # rate will eventually converge to IRR
+  f <- function(rate)(sum(cashflows/(1+rate)^t))
+  # use uniroot function to solve for root (IRR = rate) of f = 0
+  # c(-1,1) bounds solution for only positive or negative rates
+  # select the root estimate
+  return(uniroot(f, c(-1,1), maxiter = maxiter)$root)
+}
+
+
+```
+
+## The market for private placement
+
+The dual-currency private placement market arises for several reasons:
+
+- Investors with excess cash crave higher returns
+
+- Higher returns occur in higher risk countries than the investor's domicile
+
+- Borrowers are not large enough or diversified enough to access public capital markets
+
+- Some borrowers require non-disclosure of financial activity
+
+- Issuers (borrowers) will usually have a lower credit rating than investors (lenders)
+
+The private placement market had a [banner year in 2017](https://www.globalcapital.com/article/b181cwtb5pk5lm/us-private-placements-stake-out-their-future) with growth continuing into 2018. Importantly is an increased investor appetite for sub-investment grade paper with good credit stories and inherent guarantees. Since the bulk of investors are insurers, [NAIC requires capital charges](https://www.naic.org/cipr_topics/topic_private_placements.htm) assessed against risk weighted assets. Sub-investment grade assets might require more capital and thus more return for the insurer-investor. [NAIC reports](https://www.naic.org/cipr_topics/topic_private_placements.htm) that U.S. insurers held more than \$370 billion in privately placed securities with [NAIC credit ratings of 1 or 2](https://institutional.dws.com/content/_media/Proposed_RBC_changes_march_2017.pdf).
+
+The private placement market provides financing for projects that could not be financed on the public side of the capital markets. Decisions to lend are made on the basis of the initial credit quality of the issuer and negative covenants and other protections, such as parental guarantees and swap indemnification. Because information about the issuer, the issue and the financed projects are not publicly disseminated, private placements tend to be less liquid than publicly traded bonds.
+
+Insurers have the financial and legal sophistication to assess the issuer's credit risk and the other risks presented by the issuers, the issue and the project. Insurers and their bankers will be able to negotiate protections for their loans. Insurers need long-term assets like bonds to match long-term claims liabilities. Thusthey can hold relatively illiquid assets like private placements to maturity, with higher coupons to compensate for illiquidity. Insurers can also monitor the performance of these assets, using covenants and other contractual protections to manage deteriorations in the credit quality of the issuer/borrower in a way which has, over time and collectively, resulted in much lower default rates for this asset class than for comparable publicly traded bonds.
+
+Banks play a non-conventional role in this market. Typically a lending officer asks "Does this borrower's cash flow requirements match our bank's financing criteria?" In the private placement market the bank as intermediary asks instead "How can this borrower's financing requirements be structured to acceptable to some investor?" The investor might, and often is, not a client of the bank. Since the search for returns carries lenders and borrowers cross borders, currencies will often need to be swapped. Swaps will need to be indemnified with collateral. Issuer default will need to be insured with stand-by letters of credit and credit default swaps. Banks are in the regular business of providing these services.
+
+## A deal emerges from the mist
+
+The borrower is an energy services company that operates in Cameroon and is a wholly-owned subsidiary of a U.S. company. The subsidiary requires 10 year fixed-rate XAF debt to build facilities, expand technical resources, and participate in regional renewable energy initiatives. The U.S. parent is rated BBB+.
+
+The investor is a U.S. insurer rated A- that is looking for 10-year floating rate USD. Regulators require the insurer to invest in A- rated or better paper.
+
+The intermediary is the U.S. branch of a French bank. The French bank is exposed to XAF currency and has branches throughout the Central African region. The bank also clears funds for the XAF issuer Bank of the Central African States. It seeks 2- to 7-year EUR floating rate investments. The bank will lend to any secured credit priced in liquid markets.
+
+Can these three counterparties agree to a structure? Using the entries in this table to assess if borrower terms might be acceptable ("yes") or not ("not") to these counterparties.
+
+```{r}
+table <- matrix("", nrow = 4, ncol = 2)
+colnames(table) <- c("French Bank", "U.S. Insurer")
+rownames(table) <- c("maturity", "credit", "rate", "currency")
+table %>% 
+  kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+
+<button onclick="showText('myDIV0')">show / hide</button>
+<div id="myDIV0" style="display:none;">
+
+```{r}
+table <- matrix("", nrow = 4, ncol = 2)
+colnames(table) <- c("French Bank", "U.S. Insurer")
+rownames(table) <- c("maturity", "credit", "rate", "currency")
+table[1,1] <- "no"
+table[1,2] <- "yes"
+table[2,1] <- "yes"
+table[2,2] <- "no"
+table[2:4,2] <- "no"
+table[3,1] <- "no"
+table[4,1] <- "yes"
+table %>% 
+  kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+A deal might emerge.
+
+</div>
+
+## Structuring a transaction
+
+The sales team of the French bank in Paris reports that a midwest U.S. insurer would like to invest USD100 million in a 10-year subordinated private placement. The insurer will do the placement if it can earn a coupon of 5.52\% in Euros. 
+
+- At maturity the U.S. investor wants to receive the par value of principal in USD. This will be accomplished through a XAF LIBOR - zero coupon USD swap. Initially the bank must invest enough USD to return par value at maturity.
+
+- Initially the bank takes the borrower's USD proceeds, swaps a portion of them for XAF, and invests the remainder in EUR bonds. This will pay the EUR coupons to the U.S. investor.
+
+- The bank locates a swap counterparty to take the other side of the USD LIBOR - zero coupon EUR swap. The counterparty quotes a 5.24\% annual effective rate.
+
+Here is a picture of the structure when the parties initiate the transaction. Click on a counterparty and use the mouse to move the pieces around.
+
+```{r}
+visNetwork(dot = 'dinetwork{ node [shape=box];  
+           "US insurer" -> "issuer" [label = "USD FV"] ; 
+           "issuer" -> "intermediary" [label = "USD FV"] ; 
+           "intermediary" -> "issuer" [label = "XAF"] ; 
+           "intermediary" -> "EUR bond portfolio" [label = "EUR"] ; 
+           "intermediary" -> "spot fx market" [label = "USD"] ; 
+           "spot fx market" -> "intermediary" [label = "EUR"]  ; 
+           "intermediary" -> "USD / XAF swap counterparty" [label = "USD"]; 
+           "USD / XAF swap counterparty" -> "intermediary" [label ="XAF"];     
+           }'
+           ) 
+```
+
+### Placing the transaction
+
+#### Question 1: how many USD must the bank invest in the swap to yield USD10 million in 10 years?
+
+```{r}
+principal <- 100
+rate_swap <- 0.0824
+n_swap <- 10
+USD_swap <- principal / (1 + rate_swap)^n_swap
+USD_XAF <- 0.002
+XAF_swap <- USD_swap / USD_XAF
+bonds_USD <- principal - USD_swap
+USD_EUR <- 1.17
+bonds_EUR <- bonds_USD / USD_EUR
+yield_EUR <- 0.0552
+i <- yield_EUR
+annuity_factor <- (1/i - 1/(i*(1+i)^n_swap))
+coupon_EUR <- bonds_EUR / annuity_factor
+year <- 0:n_swap
+principal_USD <- c(-principal, rep(0, n_swap - 1), principal)
+coupon_EUR_series <- c(0, rep(coupon_EUR, n_swap))
+USD_EUR_fwd_1 <- 1.21
+USD_EUR_rate <- 0.03
+USD_EUR_fwd <- c(0, USD_EUR_fwd_1, USD_EUR_fwd_1*(1+USD_EUR_rate)^(1:(n_swap-1)))
+USD_cf <- principal_USD + coupon_EUR_series * USD_EUR_fwd
+cash_flow <- data.frame(year = year, principal_USD = principal_USD, coupon_EUR = coupon_EUR_series, USD_EUR_fwd = USD_EUR_fwd, USD_cf = USD_cf)
+colnames(cash_flow) = c("year", "USD principal", "EUR coupon", "USD/EUR forward", "USD cash flow")
+irr_cf <- IRR(cash_flow$`USD cash flow`)
+```
+
+
+<button onclick="showText('myDIV1')">show / hide</button>
+<div id="myDIV1" style="display:none;">
+
+1. Principal: USD`r principal` million
+
+2. Swap rate: `r rate_swap*100`\% per annum
+
+3. Number of periods: `r n_swap` years
+
+4. USD invested in the swap: USD`r USD_swap` million
+
+</div>
+
+#### Question 2: What XAF will the bank receive from the swap?
+
+<button onclick="showText('myDIV2')">show / hide</button>
+<div id="myDIV2" style="display:none;">
+
+1. USD invested in the swap: USD`r USD_swap` million
+
+2. XAF from the swap: XAF`r XAF_swap` million
+
+</div>
+
+Now the bank has XAF to pass onto the borrower. Because the bank did not invest the full USD`r principal` million in the swap, a portion of the USD proceeds is left over. This can be invested in Euro bonds to provide the EUR coupon payments the investor requires.
+
+#### Question 3: How much must the bank invest, in millions of EUR, in an Euro bond portfolio to pay the EUR coupon?
+
+<button onclick="showText('myDIV3')">show / hide</button>
+<div id="myDIV3" style="display:none;">
+
+
+1. Total USD receipts from investor: USD`r principal` million
+
+2. USD swap value: USD`r USD_swap` million
+
+3. USD available for Euro bond investment: USD`r bonds_USD` million
+
+4. EUR available for Euro bond investment: EUR`r bonds_EUR` million
+
+</div>
+
+#### Question 4: What does the initial transaction structure look like?
+
+Label each numbered leg of the structure below.
+
+```{r}
+visNetwork(dot = 'dinetwork{ node [shape=box];  
+           "US insurer" -> "issuer" [label = "1. USD"] ; 
+           "issuer" -> "intermediary" [label = "2. USD"] ; 
+           "intermediary" -> "issuer" [label = "3. XAF"] ; 
+           "intermediary" -> "EUR bond portfolio" [label = "4. EUR"] ; 
+           "intermediary" -> "spot fx market" [label = "5. USD"] ; 
+           "spot fx market" -> "intermediary" [label = "6. EUR"]  ; 
+           "intermediary" -> "USD / XAF swap counterparty" [label = "7. USD"]; 
+           "USD / XAF swap counterparty" -> "intermediary" [label ="8. XAF"];     
+           }'
+           ) 
+```
+
+<button onclick="showText('myDIV4')">show / hide</button>
+<div id="myDIV4" style="display:none;">
+
+1. U.S. insurer -> Cameroun issuer: USD`r principal` million
+
+2. Cameroun issuer -> French bank: USD`r principal` million
+
+3. French bank -> Cameroun issuer: XAF`r XAF_swap` million
+
+4. French bank -> Euro bond portfolio: EUR`r bonds_EUR` million
+
+5. French bank -> Spot FX market: USD`r bonds_USD` million
+
+6. Spot FX market -> French bank: EUR`r bonds_EUR` million
+
+7. French bank -> Swap counterparty: USD`r USD_swap` million
+
+8. Swap counterparty -> French bank: XAF`r XAF_swap` million
+
+</div>
+
+### Living the transaction
+
+#### Question 5: What is the coupon payment?
+
+<button onclick="showText('myDIV5')">show / hide</button>
+<div id="myDIV5" style="display:none;">
+
+1. EUR bond investment: EUR`r bonds_EUR` million
+
+2. EUR AA corporate bond yield: `r yield_EUR * 100`\%
+
+3. EUR coupon payment: EUR`r coupon_EUR` million
+
+</div>
+
+#### Question 6: What are the cash flows during the life of the transaction (non-redemption of principal)?
+
+Label each numbered leg of the structure below.
+
+```{r}
+visNetwork(dot = 'dinetwork{ node [shape=box];  
+           "issuer" -> "intermediary" [label = "1. XAF"] ; 
+           "intermediary" -> "issuer" [label = "2. EUR"] ; 
+           "issuer" -> "investor" [label = "3. EUR"]
+           "EUR bond portfolio" -> "intermediary" [label = "4. EUR"] ; 
+           "intermediary" -> "USD / XAF swap counterparty" [label = "5. XAF"]; 
+           }'
+           ) 
+```
+
+<button onclick="showText('myDIV6')">show / hide</button>
+<div id="myDIV6" style="display:none;">
+
+1. Cameroun issuer -> French bank: XAF LIBOR
+
+2. French bank -> Cameroun issuer: EUR`r coupon_EUR` million
+
+3. Cameroun issuer -> U.S. investor: EUR`r coupon_EUR` million
+
+4. Euro bond portfolio -> French bank: EUR`r coupon_EUR` million
+
+5. French bank -> Swap counterparty: XAF LIBOR
+
+</div>
+
+### Wrapping up the transaction, and evaluating it
+
+#### Question 7. How is principal redeemed?
+
+Label each numbered leg of the structure below.
+
+```{r}
+visNetwork(dot = 'dinetwork{ node [shape=box];  
+           "issuer" -> "intermediary" [label = "1. XAF"] ; 
+           "intermediary" -> "issuer" [label = "2. USD"] ; 
+           "issuer" -> "investor" [label = "3. USD"]
+           "intermediary" -> "swap counterparty" [label = "4. XAF"];
+           "swap counterparty" -> "intermediary" [label = "5. USD"]
+           }'
+           ) 
+```
+
+<button onclick="showText('myDIV7')">show / hide</button>
+<div id="myDIV7" style="display:none;">
+
+1. Cameroun issuer -> French bank: XAF`r XAF_swap` million
+
+2. French bank -> Cameroun issuer: USD`r principal` million
+
+3. Cameroun issuer -> U.S. investor: USD`r principal` million
+
+4. French bank -> Swap counterparty: XAF`r XAF_swap` million
+
+5. Swap counterparty -> French bank: USD`r principal` million
+
+</div>
+
+#### Question 8. What is the yield to the investor on this private placement?
+
+Assume two scenarios 
+
+1. 1-year forward USD/EUR rate is USD1.21/EUR1.00 and that the USD will appreciate by 3\% per year.
+
+2. 1-year forward USD/EUR rate is USD1.21/EUR1.00 and that the USD will depreciate by 3\% per year.
+
+<button onclick="showText('myDIV8')">show / hide</button>
+<div id="myDIV8" style="display:none;">
+
+For the first scenario, and appreciateion, here are the cashflows from the placement ultimately in USD equivalent amounts.
+
+```{r}
+cash_flow %>% 
+  kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+The internal rate of return is `r irr_cf * 100`\%.
+
+For the second scenario, and depreciation, here are the cashflows from the placement ultimately in USD equivalent amounts.
+
+```{r}
+USD_EUR_fwd_1 <- 1.21
+USD_EUR_rate <- -0.03
+USD_EUR_fwd <- c(0, USD_EUR_fwd_1, USD_EUR_fwd_1*(1+USD_EUR_rate)^(1:(n_swap-1)))
+USD_cf <- principal_USD + coupon_EUR_series * USD_EUR_fwd
+cash_flow <- data.frame(year = year, principal_USD = principal_USD, coupon_EUR = coupon_EUR_series, USD_EUR_fwd = USD_EUR_fwd, USD_cf = USD_cf)
+colnames(cash_flow) = c("year", "USD principal", "EUR coupon", "USD/EUR forward", "USD cash flow")
+irr_cf <- IRR(cash_flow$`USD cash flow`)
+yield_HQM <- 0.0418
+cash_flow %>% 
+  
+  kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+The internal rate of return is `r irr_cf * 100`\%.
+
+Compare both of these yields with the [high quality market (HQM) corporate bond yield as of end of month September, 2018 reported in FRED](https://fred.stlouisfed.org/series/HQMCB10YR): `r yield_HQM * 100`\%.
+
+</div>
+
+## The big question is ...
+
+### How do we apply this analysis to structure a debt financing for our MNC?

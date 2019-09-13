@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>News Ticker Demo</title>
+<style>
+  @keyframes ticker {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-100%, 0, 0); }
+  }
+  .ticker-container{
+    width: 100%;
+    overflow: hidden;
+  }
+  .ticker-wrap {
+    width: 100%;
+    padding-left: 100%;
+    background-color: #eee;
+  }
+  .ticker-move {
+    display: inline-block;
+    white-space: nowrap;
+    padding-right: 100%;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+    animation-name: ticker;
+    animation-duration: 40s;
+  }
+  .ticker-move:hover{
+    animation-play-state: paused;
+  }
+  .ticker-item{
+    display: inline-block;
+    padding: 0 2rem;
+  }
+</style>
+</head>
+<body>
+  <div class="ticker-container">
+    <div class="ticker-wrap">
+      <div class="ticker-move">
+        <div class="ticker-item">FB Facebook </div>
+        <div class="ticker-item">Aliquam consequat varius consequat.</div>
+        <div class="ticker-item">Fusce dapibus turpis vel nisi malesuada sollicitudin.</div>
+        <div class="ticker-item">Pellentesque auctor molestie orci ut blandit.</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

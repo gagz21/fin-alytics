@@ -1,0 +1,742 @@
+---
+title: "Week 5: Market Risk"
+author: "Copyright 2016, William G. Foote, all rights reserved"
+fontsize: 10pt
+fig_caption: no
+header-includes:
+   - \usepackage[labelformat = empty]{caption}
+theme: "Madrid"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(tidy = TRUE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=36))
+knitr::opts_chunk$set(size = "small")
+knitr::opts_hooks$set(fig.width = function(options) {
+  if (options$fig.width < options$fig.height) {
+    options$fig.width = options$fig.height
+  }
+  options
+})
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+```
+
+
+# Imagine this
+## For our working example we will consider an organization that uses electricity to produce steel. 
+1. The price of electricity at the revenue end, and the other is 
+2. The price of steel at the cost end. 
+
+***
+- We can use electricity and steel prices straight from the commodity markets. 
+- We can also use stock market indexes or company stock prices from electricity producers and transmitters and from a steel products company to proxy for commodities.
+- Using company proxies gives us a broader view of these commodities than just the traded pure play in them.
+
+***
+## What is market risk?
+- Market risk for financial markets is the impact of unanticipated price changes on the value of an organization's position in instruments, commodities, and other contracts. 
+- In commodity markets there is sometimes considered a more physical type of market risk called volumetric risk. 
+- This risk might be triggered by a complex contract such as a CDO or a spark spread tolling agreement in power and energy markets. 
+- Here we will assume that volumetric changes are physical in the sense that a electricity system operator governs a physical process such as idling an electric generation plant. 
+- ASSUMPTION: The "position" is considered exogenous to the price stochastic process. This implies that changes in position do not affect the liquidity of the market relative to that position.
+
+# Try this...
+- Suppose you are in charge of the project to manage the contracting for electricity and steel at your speciality steel company. Your company and industry have traditionally used tolling agreements to manage the steel-power spread, both from a poweir input and a steel output points of view.
+1. Look up a tolling agreement and summarize its main components.
+2. What are the input and output decisions in this kind of agreement.
+
+***
+Thinking...
+
+# Results
+1. In the electric power to steel tolling agreement a steel buyer supplies power to a steel plant and receives from the plant supplier an amount of steel based on an assumed power-to-steel transformation rate at an agreed cost.
+- Prices of power and steel
+- Transformation rate
+- Agree cost
+
+2. Decisions include
+- Amount of power (MWh)
+- Amount of steel (tons)
+- Steel (tons) / Power (MWh) transformation rate
+- Start-up, idle, and shut-down timing and costs
+- Plant production costs and optimal scheduling
+
+***
+![](MBASyracuse_logo.png)
+
+***
+## Outcomes this week
+1. Measure risks using historical and parametric approaches
+2. Interpret results relative to business decisions
+3. Visualize market risk
+
+***
+![](MBASyracuse_logo.png)
+
+# History speaks
+
+- To get the basic idea of risk measures across we develop the *value at risk* and *expected shortfall* metrics from the historical simulated distributions of risk factors.
+- Given these factors we combine them into a portfolio and calculate their losses. 
+- Finally with the loss distribution in hand we can compute the risk measures. 
+- This approach is nonparametric.
+
+## First we need to get some data. We will use throughout these computations several libraries: 
+1. `mvtnorm` builds multivariate normal (Gaussian) simulations and 
+2. `QRM` estimates Student-t and generalized pareto distribution (GPD) simulation. 
+3. We will hold off on these parametric approaches till later and start with historical simulation.
+4. The `psych` library helps us to explore the interactions among data through scatter plots and histograms. 
+5. The `ggplot2` library allows us to build complex vizualizations that will aid the generation of further insights.
+
+***
+Read in the csv file from the working directory. This file contains dates and several risk factors: RWE will stand in for electricity inputs and THYSSEN for steel outputs.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+## Download the data
+data.all <- read.csv("data/eurostock.csv",stringsAsFactors = FALSE)
+# This will convert string dates to date objects below
+str(data.all) # Check the structure and look for dates
+```
+
+The next thing we must do is transform the data set into a time series object. 
+
+***
+The way we do that is to make the dates into row names so that dates are the index for the two risk factors. Making dates an index allows us to easily filter the data.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+str(row.names <- data.all$X) # We find that the first field X contains dates
+date <- as.Date(row.names) # convert string dates to date objects
+str(date) #Always look at structure to be sure
+rownames(data.all) <- date
+head(data.all)
+tail(data.all) #And always look at data
+```
+
+***
+and...
+
+```{r mysize=TRUE, size='\\footnotesize'}
+## Subset the data using a start and end date
+start.date <- "1975-06-02"
+end.date   <- "1990-12-30"
+#First column looks for filtered dates, second and third columns pull out prices
+price <- data.all[start.date <= date & date <= end.date, c("RWE", "THYSSEN")]
+# We add a check to ensure that price is a matrix and that ncol will work
+if(!is.matrix(price)) price <- rbind(price, deparse.level=0L)
+str(price)
+head(price) # show the beginning
+tail(price) # and the end
+```
+
+***
+The code before the `str`, `head`, and `tail` filters the price data by start and end dates. We could also perform this head and tail job using the following code.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+(end.idx <- dim(price)[1])
+(price.2 <- rbind(price[1:5,],price[(end.idx-4):end.idx,]))
+```
+
+# Try this
+Now let's really explore this data. The library `psych` has a prefabricated scatter plot???histogram matrix we can use. With this composite plot we examine historical relationships between the two risk factors as well as the shape of the risk factors themselves. We can also use this device to look at dependent simulations. After the scatter plots, we then look at the time series plots of the two factors.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+## Use scatter plots of the two price series along with their histograms to examine the data
+library(psych)
+pairs.panels(price)
+price.rownames <- rownames(price) 
+plot(as.Date(price.rownames), price[,"THYSSEN"], type="l",
+     main="Thyssen stock price data", # title
+     xlab="Date t", # x-axis label
+     ylab=expression(Stock~price~price[t])) # y-axis label
+plot(as.Date(price.rownames), price[,"RWE"], type="l",
+     main="RWE stock price data", # title
+     xlab="Date t", # x-axis label
+     ylab=expression(Stock~price~price[t])) # y-axis label
+```
+
+***
+Thinking...
+
+# Results
+First the pairs plot that displays a matrix of interactions between `RWE` and `THYSSEN`:
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+## Use scatter plots of the two price series along with their histograms to examine the data
+library(psych)
+pairs.panels(price)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+price.rownames <- rownames(price) 
+plot(as.Date(price.rownames), price[,"THYSSEN"], type="l",
+     main="Thyssen stock price data", # title
+     xlab="Date t", # x-axis label
+     ylab=expression(Stock~price~price[t])) # y-axis label
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+plot(as.Date(price.rownames), price[,"RWE"], type="l",
+     main="RWE stock price data", # title
+     xlab="Date t", # x-axis label
+     ylab=expression(Stock~price~price[t])) # y-axis label
+```
+
+***
+![](MBASyracuse_logo.png)
+
+***
+Prices are interesting but, as we have seen, are not stable predictors. Let's transform them to returns next.
+
+***
+![](MBASyracuse_logo.png)
+
+# Now to the matter at hand
+Now to the matter at hand: *value at risk* and *expected shortfall*. These two measures are based on the quantiles of losses attributable to risk factors. Value at risk is the quantile at an $\alpha$ level of tolerance. Expected shortfall is the mean of the distribution beyond the value at risk threshold.
+
+To get losses attributable to market risk factors we compute log price differences (also called log price relatives). These can be interpreted as returns, or simply as percentage changes, in the risk factor prices. A plot lets us examine the results.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+## Here we can compute two items together: log price differences, and their range (to bound a plot)
+return.range <- range(return.series <- apply(log(price), 2, diff)) # compute log-returns and range
+return.range
+plot(return.series, xlim=return.range, ylim=return.range, main="Risk Factor Changes", cex=0.2)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+## Here we can compute two items together: log price differences, and their range (to bound a plot)
+return.range <- range(return.series <- apply(log(price), 2, diff)) # compute log-returns and range
+return.range
+plot(return.series, xlim=return.range, ylim=return.range, main="Risk Factor Changes", cex=0.2)
+```
+
+***
+Using the returns we can now compute loss. Weights are defined as the value of the positions in each risk factor. We can compute this as the notional times the last price. Remember we are talking about an input, electricity, and an output, steel. We form the margin:
+
+\[
+Margin = price_{steel} \times tons - price_{power} \times [(rate_{MWh / tons} \times tons],
+\]
+
+where the last term is the power to steel transformation rate that converts power prices \$ per MWh to \$ per ton. 
+
+We convert prices to share prices and tons to equivalent values in terms of the number of shares. The position in power is equivalent to a (negative) number of shares (in the square brackets). The position in steel is equivalent to a (positive) number of shares.
+
+***
+```{r mysize=TRUE, size='\\footnotesize'}
+# Get last prices
+price.last <- as.numeric(tail(price, n=1))
+# Specify the positions
+position.rf <- c(-30,10)
+# And compute the position weights
+w <- position.rf * price.last
+# Fan these across the length and breadth of the risk factor series
+weights.rf <- matrix(w, nrow=nrow(return.series), ncol=ncol(return.series), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss.rf <- -rowSums(expm1(return.series) * weights.rf)
+summary(loss.rf)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+loss.rf.df <- data.frame(Loss = loss.rf, Distribution = rep("Historical", each = length(loss.rf)))
+library(ggplot2)
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) + xlim(-100,100)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+loss.rf.df <- data.frame(Loss = loss.rf, Distribution = rep("Historical", each = length(loss.rf)))
+library(ggplot2)
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) + xlim(-100,100)
+```
+
+
+***
+The plot reveals some interesting deep and shallow outliers. The distribution is definitely very peaked. We use the base function `expm1` that computes the natural exponent of returns all minus 1. 
+
+\[
+e^{r} - 1
+\]
+
+Some of these returns, or percentage price changes if you will, are very close to zero. High precision arithmetic is needed to get accurate calculations. The function `expm1` does this well.
+
+***
+Now we can get to estimating value at risk (VaR) and expected shortfal (ES). We set the tolerance level $\alpha$, for example, equal to 95\%. This would mean that a decision maker would not tolerate loss in  more than 5\% of all risk scenarios.
+
+We define the VaR as the quantile for probability $\alpha \in (0,1)$, as
+
+\[
+VaR_{\alpha} (X) = inf \{ x \in R: F(x) \geq \alpha \},
+\]
+
+which means find the greatest lower bound of loss $x$ (what the symbol $inf$ = _infimum_ means in English), such that the cumulative probability of $x$ is greater than or equal to $\alpha$. 
+
+***
+Using the $VaR_{\alpha}$ definition we can also define $ES$ as
+
+\[
+ES_{\alpha} = E [X \lvert X \geq VaR_{\alpha}],
+\]
+
+where $ES$ is "expected shortfall" and $E$ is the expectation operator, also known as the "mean." Again, in English, the expected shortfall is the average of all losses greater than the loss at a $VaR$ associated with probability $\alpha$, and $ES \geq VaR$.
+
+# Try this
+1. Run the following lines of code.
+2. Look up `quantile` in `R` and see that it matches the calculation for `VaR.hist`.
+3. `ES` is calculated off of `VaR`, but only looking for losses greater than `VaR`.
+4. Look closely at the text annotations we can achieve in `ggplot2`.
+
+***
+Here is the code:
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+## Simple Value at Risk
+alpha.tolerance <- .99
+(VaR.hist <- quantile(loss.rf, probs=alpha.tolerance, names=FALSE))
+## Just as simple Expected shortfall
+(ES.hist <- mean(loss.rf[loss.rf > VaR.hist]))
+VaR.text <- paste("Value at Risk =", round(VaR.hist, 2))
+ES.text <- paste("Expected Shortfall =", round(ES.hist, 2))
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) +
+  geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "blue") +
+  geom_vline(aes(xintercept = ES.hist), size = 1, color = "blue") + xlim(0,200) + 
+  annotate("text", x = 40, y = 0.03, label = VaR.text) +
+  annotate("text", x = 140, y = 0.03, label = ES.text)
+```
+
+*** 
+Thinking...
+
+# Results
+First the computations of $VaR$ and $ES$:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+## Simple Value at Risk
+alpha.tolerance <- .99
+(VaR.hist <- quantile(loss.rf, probs=alpha.tolerance, names=FALSE))
+## Just as simple Expected shortfall
+(ES.hist <- mean(loss.rf[loss.rf > VaR.hist]))
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+VaR.text <- paste("Value at Risk =", round(VaR.hist, 2))
+ES.text <- paste("Expected Shortfall =", round(ES.hist, 2))
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) +
+  geom_vline(aes(xintercept = VaR.hist), linetype = "dashed", size = 1, color = "blue") +
+  geom_vline(aes(xintercept = ES.hist), size = 1, color = "blue") + xlim(0,200) +
+  annotate("text", x = 40, y = 0.03, label = VaR.text) +
+  annotate("text", x = 140, y = 0.03, label = ES.text)
+```
+
+***
+- We see that `ES` is much bigger than `VaR` but also much less than the maximum historical loss.
+- One note: `VaR` is computed as a pre-event indicator beyond a loss of `0` in this example. Many applications of this metric center loss at the median loss. Thus, loss would be computed as gross loss minus the median (50th percentile of loss).
+
+***
+A box plot might also help us visualize the results without resorting to a probability distribution function.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+ggplot(loss.rf.df, aes(x = Distribution, y = Loss)) + geom_boxplot(outlier.size = 1.5, outlier.shape = 21) + ylim(-250,10)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+ggplot(loss.rf.df, aes(x = Distribution, y = Loss)) + geom_boxplot(outlier.size = 1.5, outlier.shape = 21) + ylim(-250,10)
+```
+
+***
+![](MBASyracuse_logo.png)
+
+***
+- This box plot might look better with more than one distribution. 
+- Next we start to put some different shapes into the loss potential of our tolling agreement.
+
+***
+![](MBASyracuse_logo.png)
+
+# Carl Friedrich Gauss, I presume...
+
+- What we just did was the classic historical simulation technique for computing tail risk measures. 
+- Historical simulation is a "nonparametric" technique, since there is no estimation of parameters conditional on a distribution. Only history, unadorned, informs risk measurement. 
+- Now we shift gears into the parametric work of Gauss: Gaussian, Generalized Pareto, and as an exercise Gossett's (Student's t) distributions.
+
+***
+- Carl Friedrich Gauss is often credited with the discovery of the normal distribution. So we tack his name often enough to the normal distribution. 
+- This distribution has a crucial role in quantitative risk and finance. It is often the basis for most derivative pricing models and for simulation of risk factors in general. It is not exhibit thick tails, and definitely not skewed or peaked.
+- This distribution definitely does not describe volatility clustering we observe in most financial and commodity time series. 
+- Nevertheless, it is otherwise ubiquitous, if only as a benchmark (like "perfect competition" or "efficient markets").
+
+***
+With just a little of math here, we can define the Gaussian (normal) distribution function. If $x$ is a uniformly distributed random variable, then 
+
+\[
+f(x) = \frac{1}{\sigma \sqrt {2\pi}}e^{-(x - \mu)^{2} / 2 \sigma^{2}}
+\]
+
+is the probability density function of the normally distributed $x$ with mean $\mu$ and standard deviation $\sigma$.
+
+***
+"Halfway"" between the normal Gaussian distribution and Student's t is the chi-square, $\chi^2$, distribution. We define $\chi^2$ as the distribution of the sum of the squared normal random variables $x$ with density function and $k$ degrees of freedom for $x > 0$:
+
+\[
+f(x) = \frac{x^{(k/2-1)}e^{-x/2}}{2^{k/2}\Gamma(\frac{k}{2})}
+\]
+
+and $0$ otherwise. The "degrees of freedom" are the number of normal distributions used to create a chi-square variate.
+
+***
+Now on to Student's t distribution which is defined in terms of the Gaussian and chi-square distributions as the ratio of a Gaussian random variate to the square root of a chi-squared random variate. Student (a pseudonym for William Sealy Gossett) will have thicker tails but also the same symmetry as the normal curve. (Lookup this curve in Wikipedia among other references.)
+
+***
+- Here is a quick comparison of the standard Gaussian and the Student's t distributions. 
+- The functions `rnorm` and  `rt` generate Gaussian and Student's t
+variates, respectively. 
+- The functions `qnorm` and `qt` compute the distance from the mean (probability = 50%) for a given probability, here stored in `alpha.tolerance`.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+library(mvtnorm) # Allows us to generate Gaussian and Student-t variates
+library(ggplot2)
+set.seed(1016)
+n.sim <- 1000
+z <- rnorm(n.sim)
+t <- rt(n.sim, df = 5)
+alpha.tolerance <- 0.95
+(z.threshold <- qnorm(alpha.tolerance))
+(t.threshold <- qt(alpha.tolerance, df = 5))
+```
+
+***
+Now make a data frame and plot with `ggplot`:
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+zt.df <- data.frame(Deviations = c(z,t), Distribution = rep(c("Gaussian","Student's t"), each = n.sim))
+ggplot(zt.df, aes(x = Deviations, fill = Distribution)) + geom_density(alpha=.3)  +   geom_vline(aes(xintercept=z.threshold), color="red", linetype ="dashed", size=1) + geom_vline(aes(xintercept=t.threshold), color="blue", linetype="dashed", size=1) + xlim(-3,3)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+zt.df <- data.frame(Deviations = c(z,t), Distribution = rep(c("Gaussian","Student's t"), each = n.sim))
+ggplot(zt.df, aes(x = Deviations, fill = Distribution)) + geom_density(alpha=.3)  +   geom_vline(aes(xintercept=z.threshold), color="red", linetype ="dashed", size=1) + geom_vline(aes(xintercept=t.threshold), color="blue", linetype="dashed", size=1) + xlim(-3,3)
+```
+
+***
+- The `ggplots2` library allows us to control several aspects of the histogram including fill, borders, vertical lines, colors, and line types and thickness. 
+- The plot requires a data frame where we have indicated the type of distribution using a replication of character strings.
+- We see the two distributions are nearly the same in appearance. But the Student's t tail is indeed thicker in the tail as the blue `t` density overtakes the red `z` density. - This is numerically evident as the `t.threshold` is $>$ than the `z.threshold` for a cumulative probability of 95%, the 95th quantile. 
+
+# Try this...
+Let's zoom in on the right tail with the `xlim` facet.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+ggplot(zt.df, aes(x = Deviations, fill = Distribution)) + geom_density(alpha = 0.2)  +   geom_vline(aes(xintercept=z.threshold), color="red", linetype ="dashed", size=1) +
+  geom_vline(aes(xintercept=t.threshold), color="blue", linetype="dashed", size=1) +xlim(1,5)
+
+```
+
+***
+Thinking...
+
+# Results
+
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+ggplot(zt.df, aes(x = Deviations, fill = Distribution)) + geom_density(alpha = 0.2)  +   geom_vline(aes(xintercept=z.threshold), color="red", linetype ="dashed", size=1) +
+  geom_vline(aes(xintercept=t.threshold), color="blue", linetype="dashed", size=1) +xlim(1,5)
+
+```
+
+***
+## Interesting digression! 
+- But not really not too far off the mark. 
+- The thresholds are the same with two standard risk measures, scaled for particular risk factors and positions. 
+- We have simulated two different *values at risk*.
+
+***
+![](MBASyracuse_logo.png)
+
+# Back to the future
+
+Let's remember where the returns (as changes) in each risk factor come from. Also, we extract the last price for use below.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+## Again computing returns as changes in the risk factors
+return.series <- apply(log(price), 2, diff) # compute risk-factor changes
+price.last <- as.numeric(tail(price, n=1)) # reserve last price
+```
+
+- Again to emphasize what constitutes this data, we specify the notional exposure. 
+- These are number of shares if stock, number of \$1 million contracts of futures, or volumetric contract sizes, e.g., MMBtus or boe.  
+- All of these work for us given the that price is dimensioned relative to the notional dimension.
+- So if the risk factors are oil and natural gas prices, then we should use a common volumetric equivalent such as Btu (energy content) or boe (barrel of oil equivalent for volume). 
+- Position weights are then calculated as position times the last available price.
+
+***
+*First*, we can set the weights directly and a little more simply than before since we do not need to simulate historically.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+# Specify the positions
+position.rf <- c(-30,10) # As before
+# And compute the position weights directly again as before
+(w <- position.rf * price.last)
+```
+
+***
+*Second*, estimate the mean vector and the variance-covariance matrix, the two major inputs to the simulation of normal risk factor changes. Here we use a purely parametric approach.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+mu.hat <- colMeans(return.series) # Mean vector mu; estimated = hat
+Sigma.hat  <- var(return.series) # Variance-covariance matrix Sigma
+(loss.mean <- -sum(w * mu.hat)) # Mean loss
+(loss.stdev <- sqrt(t(w) %*% Sigma.hat %*% w)) # Standard deviation of loss
+```
+
+***
+*Third*, set the level of risk tolerance $\alpha$. Then calculate `VaR` and `ES`:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+## Compute VaR and ES and return
+alpha.tolerance <- 0.95
+q.alpha <- qnorm(alpha.tolerance)
+(VaR.varcov <- loss.mean + loss.stdev * q.alpha)
+(ES.varcov  <- loss.mean + loss.stdev * dnorm(q.alpha) / (1-alpha.tolerance))
+```
+
+***
+... and plot
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+VaR.text <- paste("Value at Risk =", round(VaR.varcov, 2))
+ES.text <- paste("Expected Shortfall =", round(ES.varcov, 2))
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) +
+  geom_vline(aes(xintercept = VaR.varcov), colour = "red", size = 1) +
+  geom_vline(aes(xintercept = ES.varcov), colour = "blue", size = 1) + xlim(0,200)+ 
+  annotate("text", x = 30, y = 0.03, label = VaR.text) +
+  annotate("text", x = 120, y = 0.03, label = ES.text)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+VaR.text <- paste("Value at Risk =", round(VaR.varcov, 2))
+ES.text <- paste("Expected Shortfall =", round(ES.varcov, 2))
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) +
+  geom_vline(aes(xintercept = VaR.varcov), colour = "red", size = 1) +
+  geom_vline(aes(xintercept = ES.varcov), colour = "blue", size = 1) + xlim(0,200) + 
+  annotate("text", x = 30, y = 0.03, label = VaR.text) +
+  annotate("text", x = 120, y = 0.03, label = ES.text)
+```
+
+# Try this...
+Suppose it takes less electricity to make steel. Model this by changing the positions to `(-20, 10)`. Redo steps 1, 2, and 3. What happened?
+
+***
+Thinking...
+
+# Results
+*First*, we can set the weights directly a little more simply than before since we do not need to simulate historically.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+# Specify the positions
+position.rf <- c(-20,10) # As before
+# And compute the position weights directly again as before
+(w <- position.rf * price.last)
+```
+
+***
+*Second*, estimate the mean vector and the variance-covariance matrix, the two major inputs to the simulation of normal risk factor changes. Here we use a purely parametric approach.
+
+```{r mysize=TRUE, size='\\footnotesize'}
+mu.hat <- colMeans(return.series) # Mean vector mu; estimated = hat
+Sigma.hat  <- var(return.series) # Variance-covariance matrix Sigma
+(loss.mean <- -sum(w * mu.hat)) # Mean loss
+(loss.stdev <- sqrt(t(w) %*% Sigma.hat %*% w)) # Standard deviation of loss
+```
+
+***
+*Third*, set the level of risk tolerance $\alpha$. Then calculate `VaR` and `ES`:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+## Compute VaR and ES and return
+alpha.tolerance <- 0.95
+q.alpha <- qnorm(alpha.tolerance)
+(VaR.varcov <- loss.mean + loss.stdev * q.alpha)
+(ES.varcov  <- loss.mean + loss.stdev * dnorm(q.alpha) / (1-alpha.tolerance))
+```
+
+
+***
+... and plot
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+VaR.text <- paste("Value at Risk =", round(VaR.varcov, 2))
+ES.text <- paste("Expected Shortfall =", round(ES.varcov, 2))
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) +
+  geom_vline(aes(xintercept = VaR.varcov), colour = "red", size = 1) +
+  geom_vline(aes(xintercept = ES.varcov), colour = "blue", size = 1) + xlim(0,200)+ 
+  annotate("text", x = 20, y = 0.04, label = VaR.text) +
+  annotate("text", x = 100, y = 0.04, label = ES.text)
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+VaR.text <- paste("Value at Risk =", round(VaR.varcov, 2))
+ES.text <- paste("Expected Shortfall =", round(ES.varcov, 2))
+ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2) +
+  geom_vline(aes(xintercept = VaR.varcov), colour = "red", size = 1) +
+  geom_vline(aes(xintercept = ES.varcov), colour = "blue", size = 1) + xlim(0,200)+ 
+  annotate("text", x = 20, y = 0.04, label = VaR.text) +
+  annotate("text", x = 100, y = 0.04, label = ES.text)
+```
+
+***
+Aesthetics: change the `x` and `y` `annotate` coordinates to fit on the graph properly.
+
+***
+![](MBASyracuse_logo.png)
+
+***
+
+- So ends the story of the main method used for years and embodied in the famous 4:15 (pm, that is) report at JP Morgan.
+- Also remember the loss that we simulate here is an operating income loss, which after taxes and other adjustments, and, say, a one-year horizon, means a loss of additions to retained earnings. Book equity drops and so will market capitalization on average.
+
+***
+![](MBASyracuse_logo.png)
+
+# Let's go to extremes
+
+- All along we have been stylizing financial returns, including commodities and exchange rates, as skewed and with thick tails.
+- We next go on to an extreme tail distribution called the Generalized Pareto Distribution (GPD). 
+- For very high thresholds, GPD not only well describes behavior in excess of the threshold, but the mean excess over the threshold is linear in the threshold. 
+- From this we get more intuition around the use of expected shortfall as a coherent risk measure. 
+- In recent years we well exceeded all Gaussian and Student's t thresholds.
+
+***
+For a random variate $x$, this distribution is defined for the shape parameters $\xi \geq 0$ as:
+
+\[
+g(x; \xi \geq 0) = 1- (1 + x \xi/\beta)^{-1/\xi}
+\]
+
+and when the shape parameter $\xi = 0$, the GPD becomes the exponential distribution dependent only on the scale parameter $\beta$:
+
+\[
+g(x; \xi = 0) = 1 - exp(-x/\beta).
+\]
+
+Now for one reason for GPD's notoriety...
+***
+## The notorious property: 
+- If $u$ is an upper (very high) threshold, then the excess of threshold function for the GPD is
+\[
+e(u) = \frac{\beta + \xi u}{1 - \xi}. 
+\]
+- This simple measure is _linear_ in thresholds. 
+- It will allow us to visualize where rare events begin (see McNeil, Embrechts, and Frei (2015, chapter 5)). 
+- We will come back to this property when we look at operational loss data in a later segment.
+
+***
+```{r mysize=TRUE, size='\\footnotesize'}
+library(QRM)
+u <- quantile(loss.rf, alpha.tolerance , names=FALSE)
+fit <- fit.GPD(loss.rf, threshold=u) # Fit GPD to the excesses
+(xi.hat <- fit$par.ests[["xi"]]) # fitted xi
+(beta.hat <- fit$par.ests[["beta"]]) # fitted beta
+```
+
+***
+Now for the closed form (no random variate simulation!) using the McNeil, Embrechts, and Frei (2015, chapter 5) formulae:
+
+```{r mysize=TRUE, size='\\footnotesize'}
+# Pull out the losses over the threshold and compute excess over the threshold
+loss.excess <- loss.rf[loss.rf > u] - u # compute the excesses over u
+n.relative.excess <- length(loss.excess) / length(loss.rf) # = N_u/n
+(VaR.gpd <- u + (beta.hat/xi.hat)*(((1-alpha.tolerance) / n.relative.excess)^(-xi.hat)-1)) 
+(ES.gpd <- (VaR.gpd + beta.hat-xi.hat*u) / (1-xi.hat))
+
+```
+
+# Try this...
+How good a fit? This plot should look roughly uniform since the GPD excess loss function is a linear function of thresholds `u`.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+gpd.density <- pGPD(loss.excess, xi=xi.hat, beta=beta.hat)
+gpd.density.df <- data.frame(Density = gpd.density, Distribution = rep("GPD", each = length(gpd.density))) # This should be U[0,1]
+ggplot(gpd.density.df, aes(x = Density, fill = Distribution)) + geom_histogram()
+```
+
+***
+Thinking...
+
+# Result
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+gpd.density <- pGPD(loss.excess, xi=xi.hat, beta=beta.hat)
+gpd.density.df <- data.frame(Density = gpd.density, Distribution = rep("GPD", each = length(gpd.density))) # This should be U[0,1]
+ggplot(gpd.density.df, aes(x = Density, fill = Distribution)) + geom_histogram()
+```
+
+***
+And it does look "uniform" enough (in a statistical sort of way as we perform eyeball econometrics again!).
+
+***
+![](MBASyracuse_logo.png)
+
+# All together now
+
+Let's graph the historical simulation, variance-covariance and GPD results together.
+
+```{r mysize=TRUE, size='\\footnotesize', eval = FALSE}
+loss.plot <- ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2)
+loss.plot <- loss.plot + geom_vline(aes(xintercept = VaR.varcov), colour = "red", linetype = "dashed", size = 1) 
+loss.plot <- loss.plot + geom_vline(aes(xintercept = ES.varcov), colour = "blue", linetype = "dashed", size = 1) 
+loss.plot <- loss.plot + geom_vline(aes(xintercept = VaR.gpd), colour = "red", size = 1)
+loss.plot <- loss.plot + geom_vline(aes(xintercept = ES.gpd), colour = "blue", size = 1)
+loss.plot <- loss.plot + xlim(0,200)
+loss.plot
+```
+
+***
+```{r mysize=TRUE, size='\\footnotesize', echo = FALSE}
+loss.plot <- ggplot(loss.rf.df, aes(x = Loss, fill = Distribution)) + geom_density(alpha = 0.2)
+loss.plot <- loss.plot + geom_vline(aes(xintercept = VaR.varcov), colour = "red", linetype = "dashed", size = 1) 
+loss.plot <- loss.plot + geom_vline(aes(xintercept = ES.varcov), colour = "blue", linetype = "dashed", size = 1) 
+loss.plot <- loss.plot + geom_vline(aes(xintercept = VaR.gpd), colour = "red", size = 1)
+loss.plot <- loss.plot + geom_vline(aes(xintercept = ES.gpd), colour = "blue", size = 1)
+loss.plot <- loss.plot + xlim(0,200)
+loss.plot
+```
+
+***
+## That was a lot. 
+- We will need our "mean over excess" knowledge when we get to operational risk. 
+- Actually we will be able to apply that to these risk measures for any kind of risk. But we will save ourselves for operational risk later. 
+- Someone might even annotate the graph...
+
+***
+![](MBASyracuse_logo.png)
+
+# What have we done this week?
+
+- More and More `R`, Finance, Risk, Statistics, and Probability 
+- Filtering
+- Math to `R` translation
+- Graphics
+- Normal and GPD distributions
+- VaR and ES
+- Loss distributions and mean over loss
+
+# To Prepare for the live session:
+
+## List these:
+1. What are the top 3 key learnings for you?
+2. What pieces are still a mystery?
+3. What parts would you like more practice on?
+4. Review the assignment. What questions do you have about the assignment for the live session?
+
+## Thanks!
+
+***
+![](MBASyracuse_logo.png)
+
