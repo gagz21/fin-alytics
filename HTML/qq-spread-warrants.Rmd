@@ -1,0 +1,357 @@
+---
+title: "Can we manage convergence?"
+subtitle: "Betting on interest rate convergence"
+output: 
+  html_document:
+    toc: true
+    toc_floating: true
+---
+ 
+<script>
+function showText(y) {
+    var x = document.getElementById(y);
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+</script>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+options(digits = 2, scipen = 99999)
+
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(bsselectR))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(stringr))
+suppressPackageStartupMessages(library(dplyr))
+```
+
+## To converge or not to converge
+
+[Between the Brexit blues](https://ftalphaville.ft.com/2018/08/31/1535730857000/A-case-of-the-Brexit-blues-/), and the US [base erosion and anti-abuse tax](https://ftalphaville.ft.com/2018/03/23/1521832181000/Cross-currency-basis-feels-the-BEAT/) are narrowing the cross-currency basis swap spreads. In late 2016, money-market fund reform led investors to move \$800 billion out of commercial-paper prime funds into Treasury government funds. That led to a wider cross-currency basis swap and wider Libor-OIS spreads.  [This article from Credit-Suisse](https://plus.credit-suisse.com/rpc4/ravDocView?docid=V7btnA2AN-VHSK) describes the transactions that create some of the recent convergence and divergence volatility.
+
+The difference between the success and failure of cross-currency financial instruments depends on the timing. With timing comes understanding arbitrage windows, rate spread volatility, abruptly changing beliefs in future rate changes, changes in regulations and political sentiment and their impact on banks and customers. The agility that customers and intermediaries is tested every day.
+
+Here are some recent swap rates for EUR, GBP, and USD [swaps from ICE](https://www.theice.com/marketdata/reports/220).
+
+```{r }
+data <- read.csv("data/swap-rates.csv")
+options(digits = 4)
+swap_rate <- data %>% group_by(tenor) %>% summarise(EUR_rate = mean(EUR_swap), EUR_vol = sd(EUR_swap), GBP_rate = mean(GBP_swap), GBP_vol = sd(GBP_swap), USD_rate = mean(USD_swap), USD_vol = sd(USD_swap), EUR_GBP = mean(EUR_swap-GBP_swap), EUR_GBP_sig = sd(EUR_swap-GBP_swap) )
+
+swap_rate %>%
+  kable("html", escape = F) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+If market participants believe that the gap between EUR and GBP interest rates will narrow, this expectation should be reflected in the term structure of interest rates. To the extend that the term structure implies **diverging** rates, an opportunity exists to construct an instrument for investors seeking to take the **opposite** position. Behind the configuration of rates are deeply held beliefs spurred by political events and government policies.
+
+- Are EUR more or less steeply inverted than GBP interest rates?
+
+- Would forward rates imply that the gap in cash rates would diverge in the future?
+
+## Forecasting forward rates
+
+Is the difference between EUR and GBP forward rates greater than the difference between EUR and GBP spot rates?
+
+- A 2-year forward, 3-year rate is a reflection of what lenders and borrowers believe 3-year interest rates will be in two years.
+
+We can derive the implied EUR forward rate from current ("spot") 2- and 5-year interest rates.
+
+For a constant rate per maturity period $i$ and maturity $m$ and notional amount $N$
+
+$$
+PV = \frac{N}{(1 + i)^m}
+$$
+and
+
+$$
+FV = N(1+i)^m
+$$
+
+$PV$ _discounts_ a receipt of a future amount $N$. $FV$ is the forward value received at maturity $m$ earning $i$ per period of a present amount $N$ invested at time 0.
+
+Here is a code snippet using R that implements the use of present and future value to gain insight into the convergence and divergence of interest rates. 
+
+- Calculations include forward (future or $FV$) and present value ($PV$) using near $i_{near}$ and far $i_{far}$ rates from the term structure of years. 
+
+- Near is a short term maturity and far is a long term maturity. Rates are input from an analysis of recent market quotes such as presented above from ICE.
+
+Convergence is measured by the implied (sometimes called [bootstrapping](https://en.wikipedia.org/wiki/Bootstrapping_(finance))). Our goal is to calculate the market expectation of an interest rate as as proxy for market expectations of future inflation. 
+
+1. We calculate the future value of a `notional` at the `i_far` rate `n_far` periods into the future `fv_far`. 
+
+2. Next we calculate the present value 'pv_near` of the far maturity future value using the near rate `i_near` rate `n_near` periods into the future where `n_near < n_far`. 
+
+3. The forward maturity period within which we are estimating market expectations is `n_far - n_near`. we use this to calculate the implied (_i.e._, bootstrapped, estimated, and imputed) `n_far - `n_near` maturity rate `n_near` periods into the future given expectations today.
+
+```{r}
+A <- "EUR"
+n_far <- 5
+i_far <- 0.2764 / 100
+n_near <- 2
+i_near <- -0.1506 / 100
+i_forward <-  -0.0132 / 100
+i_forward_A <- i_forward
+notional <- 100
+fv_far <- notional * (1 + i_far)^n_far
+pv_near <- notional * (1 + i_near) ^ n_near
+n_far_near <- n_far - n_near
+i_forward_e <- (fv_far / pv_near)^(1/(n_far_near)) - 1
+i_forward_e_A <- i_forward_e
+i_forward_gap <- i_forward_e - i_forward
+```
+
+Here are a series of calcuations on an HP-12C calculator:
+
+1. Number of years: `r n_far` [n]
+
+2. `r n_far`-year rate: `r i_far*100`  [i]
+
+3. Amount invested: `r notional` [CHS][PV]
+
+4. No intermittent payments: 0 [PMT]
+
+5. Solve for future value: [FV][STO][1] `r fv_far`
+
+Now back to the future
+
+6. Number of years: `r n_near` [n]
+
+7. `r n_near`-year rate: `r i_near * 100` [i]
+
+8. Solve for future value: [FV] `r pv_near`
+
+Finally, the forward rate
+
+9. Convert to present value: [CHS][PV] `r pv_near`
+
+10. Enter future value: [RCL][1][FV] `r fv_far`
+
+11. Years remaining: `r n_far_near` [n] 
+
+12. Solve for interest rate: [i] `r i_forward_e`
+
+```{r}
+B <- "GBP"
+n_far <- 5
+i_far <- 0.0043 /100
+n_near <- 2
+i_near <- 0.0116 / 100
+i_forward <- 1.1837 / 100
+i_forward_B <- i_forward
+notional <- 100
+fv_far <- notional * (1 + i_far)^n_far
+pv_near <- notional * (1 + i_near) ^ n_near
+n_far_near <- n_far - n_near
+i_forward_e <- (fv_far / pv_near)^(1/(n_far_near)) - 1
+i_forward_e_B <- i_forward_e
+i_forward_gap <- i_forward_e - i_forward
+```
+
+Solve for the implied `r B` `r n_near`-year forward, `r n_far_near`-year rate.
+
+<button onclick="showText('myDIV1')">show / hide</button>
+<div id="myDIV1" style="display:none;">
+
+1. Number of years: `r n_far` [n]
+
+2. `r n_far`-year rate: `r i_far*100`  [i]
+
+3. Amount invested: `r notional` [CHS][PV]
+
+4. No intermittent payments: 0 [PMT]
+
+5. Solve for future value: [FV][STO][1] `r fv_far`
+
+Now back to the future
+
+6. Number of years: `r n_near` [n]
+
+7. `r n_near`-year rate: `r i_near * 100` [i]
+
+8. Solve for future value: [FV] `r pv_near`
+
+Finally, the forward rate
+
+9. Convert to present value: [CHS][PV] `r pv_near`
+
+10. Enter future value: [RCL][1][FV] `r fv_far`
+
+11. Years remaining: `r n_far_near` [n] 
+
+12. Solve for interest rate: [i] `r i_forward_e`
+
+</div>
+
+The analysis
+
+- `r n_far_near`-year `r A` rate: `r i_forward_A`
+
+- (-) 2-year forward 3-year `r A` rate: `r i_forward_e_A`
+
+- = Expected change in 3-year `r A` rate: `r i_forward_A - i_forward_e_A`
+
+and
+
+- 3-year `r B` rate: `r i_forward_B`
+
+- (-) 2-year forward 3-year `r B` rate: `r i_forward_e_B`
+
+- = Expected change in 3-year `r B` rate: `r i_forward_B - i_forward_e_B`
+
+What's the verdict from this analysis of market conditions?
+
+<button onclick="showText('myDIV2')">show / hide</button>
+<div id="myDIV2" style="display:none;">
+
+A divergence in the `r B` markets of `r i_forward_B - i_forward_e_B` is greater than the absolute value of the `r A` market divergence `r i_forward_A - i_forward_e_A`. Note that the `r A` divergence takes out all of the 3-year spot rate. The 3-year `r B` rates will rise much further than the relatively small `r A`  market fall. The absolute value of the spread will wide. At the very least inflationary expectations will widely differ between the `r A` and `r B` markets.The yield curves are not expected to be so flat.
+
+If investors do not believe that the `r B` divergence will that much overwhelm the `r A` then a product based on the spread will move quickly and provide a countervailing tool for hedgers and speculators alike.
+
+We can build the spread of expected fall in `r A` and `r B` into a put product for the purposes of
+
+- Speculation on the course of GBP versus EUR rates
+
+- Hedging with an asymmetrical alternative to a Diff futures contract on the CME
+
+- Use a block chain distributed settlement system to expedite the small basis point moves we would anticipate in this cross currency market
+
+</div>
+
+## Here is a put / call spread product
+
+Well at least there is one inside this prospectus accessed from the [central bank of Ireland](https://www.centralbank.ie/docs/default-source/regulation/prospectus-regulation/2017/prospectusdocs-2017-09/315970-base-prospectus.pdf?sfvrsn=2). Here is a [local copy of this document](https://turing.manhattan.edu/~wfoote01/multifin/QUIZ/315970-base-prospectus-citigroup-warrants.pdf).
+
+- Locate the phrase _put spread warrant_ and all of the references to the definition of this term in this document.
+
+- Pay special attention to the risk factors involved in an investor's ownership of a put spread warrant.
+
+We will eventually calculate the return on investment (ROI) for a put spread warrant.
+
+## What's a put warrant?
+
+Puts in general help protect long positions from declines the value of the position. Warrants are similar in some ways to exchange-traded put options since they are options to sell (forward at the strike price) the underlying.
+
+Warrants attached to securities may be detached and separately transacted over-the-counter. They have an exercise price, may be American or European in style, and have the same payoff as an option. For a put, the payoff is: $max(0, s - X)$.
+
+Warrants are not entirely the same as put options. 
+
+- They are often priced out of the money.
+
+- They are often much longer in maturity (some are 15 years). 
+
+- They are attached to other securities like bonds, perferred stock, and common stock issuances. 
+
+- Put options are not detachable and they often have a shorter shelf life than warrants do (usually less than a year, versus five or more for warrants). 
+
+They are also not the same as convertible securities, where the holder uses the principal of one security to purchase another security (usually a bond issuer's stock). 
+
+- If bond is a convertible bond, the holder could trade the bond's USD1,000 par value for a number of issuing company's shares. 
+
+- If the bond has a warrant attached, the investor must come up with additional money to purchase the shares at the exercise price (for example,  100 shares x the exercise price of USD20 per share, or USD2,000).
+  
+Warrants are also not the same as stock purchase rights. 
+
+- The exercise price of a stock purchase right is usually less than the underlying security's market price at the time of issuance.
+
+- Warrant exercise prices are typically 15\% or more above market price at the time of issuance. 
+
+- Companies often issue stock purchase rights only to existing shareholders, and they also have short expiries, often days.
+
+## Now for the ROI
+
+Here is an R snippet for calculating the theoretical present value of a spread put warrant. It uses the [Black-Scholes option price model](https://www.investopedia.com/terms/b/blackscholes.asp) modifying for numerically calculating a [binomial tree](https://www.investopedia.com/terms/b/binomial_tree.asp). Given the tree for estimating future movements in the spot interest rate, the model uses [backward recursion](https://www.investopedia.com/articles/investing/021215/examples-understand-binomial-option-pricing-model.asp) to solve for the present value of put option payoffs.
+
+```{r}
+# initial parameters
+s_0 <- 123 #bp
+X <- 123 * 1.15 #bp in the money by 15%
+T <-  161 / 365 #0.5
+r_h <-  0.010867 #h is A above
+r_f <- 0 #0.02 f is B above
+r <- r_h - r_f
+sigma <-  1.453; M <-  6; c <- 0
+h <- T/M
+u <- exp(sqrt(h) * sigma)
+d <- exp(-sqrt(h) * sigma)
+q <- (exp((r - c) * h) - d)/(u - d) # uses s = f(exp(r_d - r_f)delta_t) parity
+n <- 0:M
+# build expected spot tree
+s_tree <- matrix(0, M + 1, M + 1)
+s_tree[1, ] <- s_0 * u^n
+for (i in 2:(M + 1)) {
+  s_tree[i, i:(M + 1)] <- s_tree[i - 1, (i - 1):M] * d
+}
+# build call option on expected spot tree
+v <- matrix(0, M + 1, M + 1)
+payoff_flag <- 1 # 1 for call, -1 for put
+v[, M + 1] <- pmax(0, (s_tree[, M + 1] - X) * payoff_flag)
+for (i in (M):1) {
+        v_new <- exp(-r * h) * (q * v[1:i, i + 1] + (1 - q) * v[2:(i + 1), i + 1])
+        v[1:i, i] <- v_new
+    }
+o_call <- v
+# build put option on expected spot tree
+v <- matrix(0, M + 1, M + 1)
+payoff_flag <- -1 # 1 for call, -1 for put
+v[, M + 1] <- pmax(0, (s_tree[, M + 1] - X) * payoff_flag)
+for (i in (M):1) {
+        v_new <- exp(-r * h) * (q * v[1:i, i + 1] + (1 - q) * v[2:(i + 1), i + 1])
+        v[1:i, i] <- v_new
+    }
+o_put <- v
+o_put_0 <- o_put[1,1]
+#o_put`
+# forward is long call and short put
+f_cp <- o_call - o_put
+# term sheet
+notional <- 2 #million
+GBP_2 <- 1.0678
+EUR_2 <- -0.15058
+spread <- GBP_2 - EUR_2
+o_put_intrinsic <- max(0, X - spread*100)
+roi <- (o_put_intrinsic / o_put_0) * 100
+```
+
+Here's the term sheet:
+
+- Underlying: EUR/GBP swap rate; no underlying to give or take delivery
+
+- Issue: `r notional` million put spread warrants
+
+- Warrant type: European style
+
+- Exercise price: `r X` b.p.
+
+- Exercise: Holder will receive GBP1.00 for each b.p. that the differential between the 2-year swap rates fall short of the exercise price
+
+- Valuation date: October 5, 2018
+
+- Expiration date: March 15, 2019
+
+- Warrant premium: EUR`r o_put[1,1]` per warrant (b.p.)
+
+Here is our calculation of the return on investment (ROI) for the spread put warrant strategy:
+
+Two-year GBP swap rate: `GBP_2 * 100` = `r GBP_2 * 100`
+
+(-) Two-year EUR swap rate: `EUR_2 * 100` = `r EUR_2 * 100`
+
+(=) Spread: `spread` = `GBP_2 * 100` -  ``EUR_2 * 100` = `r spread *100`
+
+Exercise price: `X` = `r X`
+
+(-) Spread: `spread` = `r spread *100`
+
+(=) Differential: `X - spread` = `r X - spread*100`
+
+Intrinsic value = max(0,`r X - spread*100`) $\times$ EUR1.00 = EUR`r max(0, X - spread*100)`
+ 
+$ROI =  \frac{Intrinsic\,\,value}{Warrant\,\,price} \times 100 = \frac{`r max(0, X - spread*100)`}{`r o_put_0`}= `r ((max(0, X - spread*100)) / o_put_0) * 100`$\%

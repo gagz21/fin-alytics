@@ -1,0 +1,563 @@
+---
+title: "Notes on Interest Rate Simulation"
+author: "William G. Foote"
+date: "11/16/2018"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+<script>
+function showText(y) {
+    var x = document.getElementById(y);
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+</script>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+options(scipen = 999999, digits = 4)
+
+library(tidyverse)
+library(kableExtra)
+library(xts)
+library(tidyquant)
+```
+
+## The rates have it
+
+Suppose we are thinking about entering into a 10 year swap: the paying leg is in EUR and the receiving leg in JPY. There is one transaction at the the end of 10 years. Each leg is computed using high quality market rates.
+
+Here are [JPY 10-year](https://fred.stlouisfed.org/series/IRLTLT01JPM156N) and [EUR 10-year](https://fred.stlouisfed.org/series/IRLTLT01EZM156N) high quality bond rates.
+
+```{r}
+data_all <- read.csv("data/jpy-eur-10-rates.csv", stringsAsFactors = FALSE)
+r_JPY <-  data_all[1:276,2]
+r_EUR <- data_all[1:276,3]
+n <-  length(r_JPY)
+r_JPY_1 <-  stats::lag(r_JPY)[-n]
+delta_r_JPY <-  diff(r_JPY)
+n <-  length(r_EUR)
+r_EUR_1 <-  stats::lag(r_EUR)[-n]
+delta_r_EUR <-  diff(r_EUR)
+n <-  length(r_EUR_1)
+t <-  seq(from=1989,to =2018,length=n)
+#r1_df <- data.frame(lag_r1 = lag_r1, delta_r1 = delta_r1, t = t)
+#ggplot(r1_df, aes(x = t, y = lag_r1)) + geom_line() + geom_line(aes(x = t, y = delta_r1))
+#  CKLS (Chan, Karolyi, Longstaff, Sanders)
+```
+
+Let's look at this data. 
+
+1. Are there trends in each market? Simple line plots of the time series of rates will help us define trends and whether the data is stationary, cycled, discontinuous. Autocorrelations will tell us something about the reliance of current on past rates.
+
+2. How do  rates change? Difference plots will help us see if movements in rates revert to a perhaps moving target of returns, and how fast. 
+
+3. Is there any pattern in the volatility? Absolute values in differences, or even squares of differences will show us some ideas about how constant, or not is volatility.
+
+For each of these we will eventually bootstrap sampled means, standard deviations, skewness, and kurtosis to get a further handle on the character of the data.
+
+### Trends
+
+Are there trends in each market? Simple line plots of the time series of rates will help us define trends and whether the data is stationary, cycled, discontinuous. Autocorrelations will tell us something about the reliance of current on past rates.
+
+```{r}
+date <- as.Date(data_all[,1]) %>% rep(2)
+currency <- rep(c("JPY", "EUR"), each = length(data_all[, 1]))
+rates <- c(data_all[, 2], data_all[, 3])
+rates <- tibble(date = date, rates = rates, currency = currency) %>%
+  group_by(currency)
+date_lagged <- as.Date(data_all[-1,1]) %>% rep(2)
+currency <- rep(c("JPY", "EUR"), each = length(data_all[-1, 1]))
+lagged_rates <- c(data_all[2:length(data_all[,2]), 2], data_all[2:length(data_all[,3]), 3])
+diff_rates <- c(diff(data_all[, 2]), diff(data_all[, 3]))
+diff_rates <- tibble(date = date_lagged, diff_rates = diff_rates, lagged_rates = lagged_rates, currency = currency) %>%
+  group_by(currency)
+#rates <- tibble(date = as.Date(data_all[,1]), rates = data_all[,2], currency = rep("JPY", length(data_all[,2])))
+
+#str(rates)
+
+diff_rates %>%
+    ggplot(aes(x = date, y = lagged_rates, color = currency)) +
+    geom_point() +
+    labs(title = "10 year swap rates: monthly", x = "") +
+    facet_wrap(~ currency) +
+    scale_color_tq() +
+    theme_tq() +
+    theme(legend.position="none")
+```
+
+EUR rates and JPY rates have downward trends. The JPY rates fall below zero lately. At least some sort of trend should be included in the rate model.
+
+### Differences
+
+Let's try to pull the trend out by differencing the data with  first differences of the rates.
+
+```{r}
+date_lagged <- as.Date(data_all[-1,1]) %>% rep(2)
+currency <- rep(c("JPY", "EUR"), each = length(data_all[-1, 1]))
+lagged_rates <- c(data_all[2:length(data_all[,2]), 2], data_all[2:length(data_all[,3]), 3])
+diff_rates <- c(diff(data_all[, 2]), diff(data_all[, 3]))
+diff_rates_1 <- tibble(date = date_lagged, diff_rates = diff_rates, lagged_rates = lagged_rates, currency = currency) %>%
+  group_by(currency)
+#rates <- tibble(date = as.Date(data_all[,1]), rates = data_all[,2], currency = rep("JPY", length(data_all[,2])))
+
+#str(rates)
+diff_rates_1 %>%
+    ggplot(aes(x = date, y = diff_rates, color = currency)) +
+    geom_point() +
+    labs(title = "10 year swap rates: monthly differences", x = "") +
+    facet_wrap(~ currency) +
+    scale_color_tq() +
+    theme_tq() +
+    theme(legend.position="none")
+```
+
+EUR rates exhibit a fairly consistent movement of rate differences around zero, with a few outliers. JPY rates seem to have two behaviors: one is very scattered up to 2010, the other more concentrated as rates approach zero and become negative after 2010. Given the way JPY behaves, perhaps a sample that reaches into the beginnning of 2010 will show us a consistent trend. This will help us also understand the longer-run movements as rates begin to lift themselves up from the extremely low, and sometimes negative, levels lately.
+
+Let's see if there is any relationship between the current and past months' rates as well. Significance in auto-correlation plots shows up as a vertical ine that exceeds the blue dashed 95\% confidence interval. Auto-correlations of raw rates show very strong reliance of current months' rates on the not so recent past months of rates.
+
+```{r}
+acf(coredata(data_all[,2]), title = "Monthly JPY 10 rates")
+acf(coredata(data_all[,3]), title = "Monthly EUR 10 rates")
+```
+
+First differencing of the rates shows a very different picture.
+
+```{r}
+acf(coredata(diff(data_all[,2])), title = "First differences: JPY 10 year rates")
+acf(coredata(diff(data_all[,3])), title = "First differences: EUR 10 year rates")
+```
+
+Both JPY and EUR rates exhibit a one-month lagged significant relationship to the first differenced rates.
+
+The rate model should then consider differences of rates as they depend on the lagged one-month rate.
+
+### Volatility
+
+Next we consider volatility. One way to do this is to create scale versions of rate changes. A scale transformation could include squaring or taking the absolute value of a variate. Since differences depend on the lagged rate, let's consider a similar relationship between the rate difference volatility (by squaring the difference) and the lagged rate.
+
+```{r}
+n <- length(data_all[,1])
+date_lagged <- as.Date(data_all[-1,1]) %>% rep(2)
+currency_lagged <- rep(c("JPY", "EUR"), each = length(data_all[-1, 1]))
+lagged_rates <- c(data_all[1:(n-1), 2], data_all[1:(n-1), 3])
+diff_rates <- c(diff(data_all[, 2]), diff(data_all[, 3]))
+rates_sq <- c(data_all[2:n, 2]^2, data_all[2:n, 3]^2)
+diff_rates_vol <- tibble(date = date_lagged, diff_rates = diff_rates, rates_sq = rates_sq, lagged_rates = lagged_rates, currency = currency_lagged) %>%
+  group_by(currency)
+diff_rates_vol %>%
+    ggplot(aes(x = lagged_rates, y = rates_sq, color = currency)) +
+    geom_point() +
+    labs(title = "10 year swap rates: monthly", x = "") +
+    facet_wrap(~ currency) +
+    scale_color_tq() +
+    theme_tq() +
+    theme(legend.position="none")
+```
+
+We see what might be exponential curvature in the relationship between volatility and lagged rates in both markets. The rates model volatility should be able to express both an increasing volatility and a rate of change of volatility with respect to the lagged rates.
+
+## Build we must
+
+For our last trick let's create, almost out of thin air, but air nonetheless, the sample mean and standard deviation distributions of JPY and EUR 10-year swap rates from the historical record. This will allow us to bound our simulations should that become necessary. Here are the many calculations needed.
+
+```{r}
+# get the data
+#data_all <- read.csv("data/jpy-eur-10-rates.csv")
+#r_JPY <-  data_all[1:276,2]
+#r_EUR <- data_all[1:276,3]
+
+# expected shortfall for a later discussion
+ES_calc <- function(data, prob){
+  data <- as.matrix(data)
+  return(mean(data[data > quantile(data, prob),]))
+}
+
+# we embed this resample path into a much larger sampling routine
+bootstrap_resample <- function (data, n_sample) {
+  sample(data, n_sample, replace=TRUE)
+}
+# build this routine to get several bootstrapped (replacement) paths of sampled means and standard deviations
+mean_sd_sampled <- function(data, n_sample, data_2 = NULL){
+  # simple one=path bootstrap function
+  bootstrap_resample <- function (data, n_sample) {
+  sample(data, n_sample, replace=TRUE)
+  }
+  # use bootstrap_resample with the mean and sd, then replicate a lot of times
+  replicate_mean <- replicate(1000, mean(bootstrap_resample (data, n_sample)))
+  replicate_sd <- replicate(1000, sd(bootstrap_resample (data, n_sample)))
+  # report quantiles
+  results <- list(
+    mean_simulation = replicate_mean,
+    q_m_0.025 = quantile(replicate_mean, 0.025),
+    q_m_0.500 = quantile(replicate_mean, 0.500),
+    q_m_0.975 = quantile(replicate_mean, 0.975),
+    sd_simulation = replicate_sd,
+    q_sd_0.025 = quantile(replicate_sd, 0.025),
+    q_sd_0.500 = quantile(replicate_sd, 0.500),
+    q_sd_0.975 = quantile(replicate_sd, 0.975)
+  )
+  return(results)
+}
+corr_sampled <- function(data_1, data_2, n_sample){
+  # simple one=path bootstrap function
+  bootstrap_resample <- function (data, n_sample) {
+  sample(data, n_sample, replace=TRUE)
+  }
+  # use bootstrap_resample with the mean and sd, then replicate a lot of times
+  replicate_corr <- replicate(1000, cor(bootstrap_resample(data_1, n_sample), bootstrap_resample (data_2, n_sample)))
+  # report quantiles
+  results <- list(
+    corr_simulation = replicate_corr,
+    q_corr_0.025 = quantile(replicate_corr, 0.025),
+    q_corr_0.500 = quantile(replicate_corr, 0.500),
+    q_corr_0.975 = quantile(replicate_corr, 0.975)
+  )
+  return(results)
+}
+sampled_JPY <- mean_sd_sampled(r_JPY, 50)
+sampled_EUR <- mean_sd_sampled(r_EUR, 50)
+sampled_JPY_EUR <- corr_sampled(r_JPY, r_EUR, 50) 
+
+# next build a table of the 95\% confidence interval for means and standard deviations of the two series
+# easier to read below
+JPY <- sampled_JPY
+EUR <- sampled_EUR
+JPY_EUR <- sampled_JPY_EUR
+header <- c("Q(2.5%)", "Q(50%)", "Q(97.5%)")
+margin <- c("mean JPY", "sd JPY", "mean EUR", "sd EUR", "corr JPY-EUR")
+row_1 <- c(JPY$q_m_0.025, JPY$q_m_0.500, JPY$q_m_0.975)
+row_2 <- c(JPY$q_sd_0.025, JPY$q_sd_0.500, JPY$q_sd_0.975)
+row_3 <- c(EUR$q_m_0.025, EUR$q_m_0.500, EUR$q_m_0.975)
+row_4 <- c(EUR$q_sd_0.025, EUR$q_sd_0.500, EUR$q_sd_0.975)
+row_5 <- c(JPY_EUR$q_corr_0.025, JPY_EUR$q_corr_0.500, JPY_EUR$q_corr_0.975)
+table_5 <- rbind(row_1, row_2, row_3, row_4, row_5)
+colnames(table_5) <- header
+rownames(table_5) <- margin
+table_5 %>% 
+  kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+
+The table gives us the raw ranges of the systematic movement of JPY and EUR rates. Here are some distributions to put a point on all of this work.
+
+```{r}
+# build tables
+n <- length(r_JPY)
+raw_rates <- c(r_JPY, r_EUR)
+raw_currency <- rep(c("JPY", "EUR"), each = n)
+raw_distr <- tibble(rates = raw_rates, currency = raw_currency)
+sim_mean <- c(JPY$mean_simulation, EUR$mean_simulation)
+sim_sd <- c(JPY$sd_simulation, EUR$sd_simulation)
+n <- length(JPY$mean_simulation)
+sim_currency_mean <- rep(c("JPY_mean", "EUR_mean"), each = n)
+sim_currency_sd <- rep(c("JPY_sd", "EUR_sd"), each = n)
+sim_mean_d <- tibble(means = sim_mean, currency = sim_currency_mean)
+sim_sd_d <- tibble(sd = sim_sd, currency = sim_currency_sd)
+# build distributions
+ggplot(sim_mean_d , aes(x = means, fill = currency)) + geom_density(alpha = .3) + ggtitle("Sampled mean of JPY and EUR swap rates")
+ggplot(sim_sd_d , aes(x = sd, fill = currency)) + geom_density(alpha = .3) + ggtitle("Sampled standard deviation of JPY and EUR swap rates")
+```
+
+EUR swap rates clear the JPY rates. Their standard deviations can overlap, and thus we might see some leakage of volatility from one market into the other.
+
+The correlation between the two rates is similarly considered. 
+
+## A model is born
+
+In A nut-shell we are looking for a rate model that has:
+
+- Rates that revert to a trend that depends on the lagged rate.
+
+- Volatility that is increasing in the rate in an exponential fashion.
+
+Chan, Karolyi, Longstaff, Sanders (1994) minted a mean-reverting model of interest rate changes with non-constant volatility that fits our preliminary observations. This sort of model explains much of the shape of yield curves and is often in use as a model of the short-term interest rate. We stretch that idea here into a 10-year ensemble of rates.
+
+In continuous time the following stochastic differential equation specifies paths of interest rates $r$,
+
+$$
+dr_t = \alpha(\theta - r_t)dt + \lambda r_t^{\gamma} dW_t
+$$
+
+where $\alpha$ determines the speed of reversion to the long-run mean $\theta$ of changes in interest $r$ for small time increments $dt$, and $\lambda$ is a constant level of rate variance with $\gamma$ a constant elasticity of variance dependent on interest rate $r$ scaling a change $dW_t$ standard Wiener (Brownian) process with mean zero and variance $t$. We then discretize this model using unit time intervals.
+
+The first equation indicates that changes in rates, $r_{t+1} - r_{t}$, where $t$ is a given month, will revert to a long-run mean level of rates, $\theta$, with speed of reversion $\alpha$, and mean-zero error term $\varepsilon_{t+1}. 
+
+$$
+r_{t+1} - r_{t} = \alpha (\theta - r_t) + \varepsilon_{t+1}
+$$
+The second equation specifies the evolution of the volatility of rates measured by the variance of the error term $\varepsilon_{t+1}$. 
+$$
+E[\varepsilon_{t+1}] = 0, \,\,E[\varepsilon_{t+1}^2] = \lambda r_t^{\gamma}
+$$
+
+The rate volatility depends on the previous rate $r_t$ through an average level of rate volatility captured by $\lambda$, If $\gamma = 0$ then rate variance is constant. The percentage rate of change of variance with respect to the percentage change in the lagged-rate is a constant $\gamma$ and thus the name constant elasticity of variance model. 
+
+## Parameter estimation
+
+We estimate the CEV model in three stages:
+
+1. The first stage calculates the parameters of the mean reverting trend for each currency's rate.
+
+2. The second stage computes the parameters of the stochastic volatility for each currency's rate.
+
+3. The third and final stage fine tunes the first stage mean-reversion estimates using the fitted residuals from the second stage as weights on the first stage to build in the constant volatility aspects of the trend.
+
+Here is a function to accomplish the three estimation stages.
+
+
+```{r}
+cev_est <- function(data){
+  # estimates a Chan, Karolyi, Longstaff, Sanders constant elasticity of variance model 
+  # of the short-term interest rate:
+  # dr = alpha*(theta - r)dt + sigma^gamma * r^2 * dz
+  # using a forward Euler difference approximation
+  # Setup the data: data is a numeric vector of one interest rate series, already
+  # clean and ready for use. Note: this model is very sketchy for negative 
+  # and near zero interest rates.
+              r <- data
+              n <- length(r)
+              r_1 <-  stats::lag(r)[-n] # in case tidyverse conflicts
+              delta_r <-  diff(r)
+  # estimate first stage mean reversion trend
+              nlmod_mrv <-  nls(delta_r ~ a * (theta-r_1),
+                 start = list(theta = 2, a = 0.01),
+                 control = list(maxiter = 100))
+  # estimate second stage volatility component
+              res_sq <-  as.vector(residuals(nlmod_mrv)^2)
+              nlmod_res <- nls(res_sq ~  lambda*r_1^gamma, 
+                 start = list(lambda = 0.1, gamma = 1/2),
+                 control = list(maxiter = 100))
+  # estimate third stage weighted mean reversion trend
+              nlmod_res_fit <- fitted(nlmod_res)
+              nlmod_wgt <-  nls(delta_r ~ a * (theta-r_1),
+                 start = list(theta = 2, a = 0.01),
+                 control = list(maxiter = 100),
+                 weights=1/nlmod_res_fit)
+  # return results
+              results <- list(
+                parm_mrv = summary(nlmod_wgt),
+                parm_vol = summary(nlmod_res)
+              )
+              return(results)
+}
+
+```
+
+Using the first 250 months of data (remember we saw that 2010 seems a likely regime change in rates), we estimate trend and volatility for the JPY swap rates.
+
+```{r}
+cev_JPY <- cev_est(data_all[1:250, 2])
+cev_JPY$parm_mrv
+cev_JPY$parm_vol
+```
+
+Nearly all the JPY rate parameters are significant, especially if we can accept a 7-10\% significance level that we might be wrong that the parameters are significant.
+
+Next we estimate trend and volatility parameters for the EUR swap rates.
+
+```{r}
+cev_EUR <- cev_est(data_all[1:250, 3])
+cev_EUR$parm_mrv
+cev_EUR$parm_vol
+```
+
+Volatility clearly carries the model of EUR swap rates with a near-zero trend in rate differences.
+
+
+## Simulating rates
+
+We unpack the parameters for use in a simulation.
+
+```{r}
+# J is JPY and E is EUR
+alpha_J <- cev_JPY$parm_mrv$coefficients[2]
+theta_J <- cev_JPY$parm_mrv$coefficients[1]
+lambda_J <- cev_JPY$parm_vol$coefficients[1]
+gamma_J <- cev_JPY$parm_vol$coefficients[2]
+alpha_E <- cev_EUR$parm_mrv$coefficients[2] 
+theta_E <- cev_EUR$parm_mrv$coefficients[1]
+lambda_E <- cev_EUR$parm_vol$coefficients[1]
+gamma_E<- cev_EUR$parm_vol$coefficients[2]
+# For example one simulation path
+r_0 <- 2.0
+alpha <- 0.01
+theta <- 2.0
+lambda <- 0.02
+gamma <- 1.5
+n <-  10#n_sim # lots of trials
+z <- rnorm(n) # sample standard normal distribution variates
+e <-  z # store variates
+r <-  rep(r_0, n) # store again in a different place
+sig2 <-  z^2 # create initial volatility series
+set.seed("1012")
+for (t in 2:n) { 
+    # Because of lag start at second date
+    e[t] <- sqrt(sig2[t])*z[t]                             # 1. e is conditional on sig
+    r[t] <-  r[t-1] + alpha*(theta - r[t-1]) + e[t] # 2. generate returns
+    sig2[t+1] <- (lambda*r[t]^gamma)              # 3. generate new sigma(r,t) to feed 1.
+}
+quantile(r, 0.025)
+quantile(r, 0.5)
+quantile(r, 0.975)
+# wrap a functiona round it all
+rate_sim <- function(r_0, alpha, theta, lambda, gamma, years){
+  # to do: time steps, years, time to maturity surface
+  z <- rnorm(years) # sample standard normal distribution variates
+  e <-  z # store variates
+  r <-  rep(r_0, years) # store again in a different place
+  sig2 <-  z^2 # create initial volatility series
+  for (t in 2:years) {
+    # Because of lag start at second date
+    e[t] <- sqrt(sig2[t])*z[t]                             # 1. e is conditional on sig
+    r[t] <-  r[t-1] + alpha*(theta - r[t-1]) + e[t] # 2. generate returns
+    sig2[t+1] <- lambda*abs(r[t])^gamma              # 3. generate new sigma(r,t) to feed 1.
+  }
+  results <- list(
+    e_t = e,
+    r_t = r,
+    sig = sqrt(sig2)
+  )
+  return(results)
+}
+# simulate n_sim 10 year paths
+n_sim <- 1000
+years <- 10
+r_0_J <- median(r_JPY) 
+r_sim_J <- matrix(0, nrow = n_sim, ncol = years)
+for (i in 1:n_sim){
+  r_sim_J[i,] <- rate_sim(r_0_J, alpha_J, theta_J, lambda_J, gamma_J, 10)$r_t
+  }
+r_sim_E <- matrix(0, nrow = n_sim, ncol = years)
+for (i in 1:n_sim){
+  r_sim_E[i,] <- rate_sim(1, alpha_E, theta_E, lambda_E, gamma_E, 10)$r_t
+}
+```
+
+## VISUALIZE?? (until morale improves!)
+
+Here is a routine to begin a visualization of the simulations of the 10 year rates over a 10 year period.
+
+```{r}
+library(reshape2)
+r_sim_J_melt <- r_sim_J %>% 
+  t() %>% 
+  melt() %>%
+  group_by(Var2) 
+
+ggplot(r_sim_J_melt, aes(x= Var1, y=value, group = Var2)) + geom_line() + xlab("year") + ylab("JPY rates")
+
+r_sim_E_melt <- r_sim_E %>% 
+  t() %>% 
+  melt() %>%
+  group_by(Var2) 
+
+ggplot(r_sim_E_melt, aes(x= Var1, y=value, group = Var2)) + geom_line() + xlab("year") + ylab("EUR rates")
+```
+
+A better plot might be to pick out quantiles of the simulations.
+
+## A swap meet
+
+Here is some data and the calculations for the net present value of a principal-only JPY to EUR asset swap in 10 years.
+
+```{r}
+n <- 10
+notional_EUR <- 10
+#JPY_fwd <- 150
+JPY_spot <- 135 #JPY/EUR
+JPY_fwd <- JPY_spot * (1+r_sim_J[,10]/100)^n / (1+r_sim_E[,10]/100)^n 
+pv_EUR <- notional_EUR / (1+r_sim_E[,10]/100)^n
+pv_JPY <- notional_EUR * median(JPY_fwd) / (1+r_sim_J[,10]/100)^n # not convolved!
+npv <- pv_EUR - pv_JPY / JPY_spot
+```
+
+Let's exchange EUR`r notional_EUR` for JPY in 10 years. In arbitrage, the interest rate parity implies
+
+$$
+_0F_{10}^{JPY/EUR} = S_0^{JPY/EUR} \frac{(1+r_{JPY})^{10}}{(1+r_{EUR})^{10}}
+$$
+where we solve for the date $0$ forward JPY/EUR rate at year 10, $_0F_{10}^{JPY/EUR}$. In this arbitrage the _domestic_ currency is _JPY_ and the _foreign_ currency is _EUR_.
+
+Remember the IRP no-arbitrage transaction?
+
+<button onclick="showText('myDIV1')">show it all/hide much</button>
+<div id="myDIV1" style="display:none;" style="display:none;">
+
+### Try this trade
+
+In parity, where there is no arbitrage (profitable trading) opportunity, the following two transactions are of the same value in one year:
+
+1. GBP to USD Spot- USD Loan Repayment: borrow GBP1.00 and convert to USD at USD2.00 = GBP1.00 and earn in one year at 2\% and repay USD 2 x 1.02 or USD2.04 for each forward GBP1.00. 
+
+2. USD to GBP Spot-GBP Loan Repayment - GBP to USD Forward: convert USD2.00 to GBP1.00, then earn in one year at 4\% GBP1.00 x 1.04 or GBP1.04, and convert to USD at the forward rate of USD1.96154 = GBP1.00 to get USD2.04.
+
+At so-called _parity_, the two transactions are equivalent and thus there is no profitable trading opportunity. But what if the forward rate is not USD1.96154 = GBP1.00?
+
+In parity, the forward domestic value of a lending or a borrowing in a foreign account must equal the spot value of an account in a domestic account.
+
+$$
+Forward\,rate \times (1 + foreign\,rate) = Spot\,rate \times (1 + domestic\,rate)
+$$
+
+Solving for the forward rate (domestic currency = one unit of the foreign currency) we get
+
+$$
+Forward\,\,rate = Spot\,\,rate \times \frac{(1 + domestic\,\,rate)}{(1 + foreign\,\,rate)}
+$$
+
+### An opportunity?
+
+Suppose that the treasurer observes a forward rate of USD2.02 = GBP1.00. The savvy treasurer might exploit this arbitrage opportunity with these transactions.
+
+1. Borrow USD500,000 at 2% per annum and repay the loan in one year with USD510,000.
+
+2. Convert the USD500,000 at the spot rate USD2.00 = GBP1.00 into GBP250,000 because it offers a higher one-year interest rate of 4\%.
+
+3. Deposit GBP250,000 in a London Bank at 4% per annum, and simultaneously enter into a forward contract that converts the full maturity amount of the deposit GBP260,000 into USD at the one-year forward rate of USD2.02 = GBP1.00.
+
+4. After one year, settle the one year forward contract at the contracted one year forward rate of USD2.02 = GBP1.00, which would give the savvy treasurer USD525,200.
+
+5. Repay the loan amount of USD510,000 and reap a profit of USD15,200. Get permission from the CFO to have a party for the team.
+
+### Going backwards
+
+But wait! What if the one year forward rate is USD1.92 = GBP1.00. Then the treasurer does the reverse of the above transaction.
+
+1. Borrow GBP250,000 at 4% per annum and repay the loan in one year with GBP260,000.
+
+2. Convert the borrowed GBP into USD500,000 at the spot rate USD2.00 = GBP1.00.
+
+3. Deposit USD500,000 in a New York Bank at 2% per annum, and simultaneously enter into a forward contract that converts the full maturity amount of the denotionalposit USD510,000 into GBP at the one-year forward rate of USD1.92 = GBP1.00.
+
+4. After one year, settle the one year forward contract at the contracted one year forward rate of USD1.92 = GBP1.00, which would give the savvy treasurer GBP265,625 ($=510000/1.92$).
+
+5. Repay the loan amount of GBP260,000 and reap a profit of GBP5,625. Get permission from the CFO to have a smaller party for the team.
+
+</div>
+
+## Swap metrics (AKA results!)
+
+Using the interest rate simulations for 10 year JPY and EUR swaps we calculate the median present value of the `r notional_EUR` as EUR`r median(pv_EUR)`. With the median JPY forward rate of JPY`r median(JPY_fwd)`/EUR, the median present value of the equivalent JPY principal of JPY`r notional_EUR * median(JPY_fwd)` is JPY`r median(pv_JPY)`. 
+
+```{r}
+
+npv_df <- tibble(npv = npv, legend = rep("EUR-JPY swap NPV"), length(npv) )
+ggplot(npv_df, aes(x = npv, fill = legend)) + geom_density() + xlim(quantile(npv, 0.005), quantile(npv, 1-0.005))
+
+```
+
+Comparing both the EUR and JPY legs at present values in EUR yields a slightly negative median net present value of EUR`r median(npv)`, in favor of the JPY leg. About 95\% of the potential npv realizations occur between EUR`r quantile(npv, 0.025)` and EUR`r quantile(npv, 0.975)`.
+
+## References
+
+Chan, Karolyi, Longstaff, Sanders (1994), An Empirical Comparison of Alternative Models of the Short-Term Interest Rate. (MORE>>>)
+
+FRED
