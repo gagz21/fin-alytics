@@ -1,0 +1,330 @@
+---
+title: "Setting Up R for Analytics"
+header-includes:
+- \usepackage{fancyhdr}
+- \usepackage{tikz}
+- \usepackage{tikz-qtree}
+- \usetikzlibrary{trees}
+- \pagestyle{fancy}
+- \fancyhf{}
+- \fancyhead[CO,CE]{R Setup - FIN 654 - Winter 2018}
+- \fancyfoot[LO,LE]{Copyright 2017 William G. Foote}
+- \fancyfoot[CE,CO]{\leftmark}
+- \fancyfoot[RE,RO]{\thepage}
+- \renewcommand{\headrulewidth}{1.25pt}
+- \renewcommand{\footrulewidth}{1pt}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
+```
+
+# Why this document?
+
+The general aim of this document is to help you, a student in an analytics-focused course, learn to use the software platform `R` as part of your learning of statistics, operational research, and data analytics that accompanies nearly every domain of knowledge, from epidemiology to financial engineering. I will add new material as we cover it in class and edit old material based on feedback from you to make it clearer for you and future students. I suggest that you do not print new versions of this and other support documents. Instead please replace your electronic copy from time to time. Good luck as you begin your quest to master introductory concepts and their application!
+
+The specific aim of this document is to show you how to install `R` an integrated development environment (IDE), `RStudio`, and a documentation system `R Markdown` on your personal computing platform (also known as your personal computer). This will enable you to learn the statistical concepts usually included in an analytics course with explanations and examples aimed at the appropriate level. This document purposely does not attempt to teach you about `R`'s many fundamental and advanced features.
+
+# What is `R`?
+
+`R` is software for interacting with data along a variety of user generated paths. With `R` you can create sophisticated (even interactive) graphs, you can carry out statistical and operational research analyses, and you can create and run simulations. `R` is also a programming language with an extensive set of built-in functions. With increasing experience, you can extend the language and write your own code to build your own financial analytical tools. Advanced users can even incorporate functions written in other languages, such as C, C++, and Fortran.
+
+The current version of `R` derives from the `S` language. `S` has been around for more than twenty years and has been with extrensive use in statistics and finance, first as `S` and then as the commercially available `S-PLUS`. `R` is an open source implementation of the `S` language that is now a viable alternative to `S-PLUS`. A core team of statisticians and many other contributors work to update and improve `R` and to make versions that run well under all of the most popular operating systems. Importantly, `R` is a free, high-quality statistical software that will be useful as you learn financial analytics even though it is also a first-rate tool for professional statisticians, operational researchers, and financial analysts and engineers.
+
+# `R` for analytics
+
+There are several reasons that make `R` an excellent choice of software for an analytics course. Some benefits of using `R` include:
+
+* `R` is free and available online. `R` is open-source and runs on `UNIX`, `Windows`, and `Macintosh` operating systems.
+
+* `R` has a well-documented, context-based, help system enhanced by a wide, and deep, ranging user community globally and across several disciplines.
+
+* `R` has excellent native static graphing capabilities. Interactive dynamic graphics are evolving along with the ability to embed analytics into online applications. With `R` you can build dashboards and websites to communicate results dynamically with consumers of the analytics you generate.
+
+* Practitioners can easily migrate to the commercially supported `S-Plus` program, if commercial software is required. `S` and `S-Plus` are the immediate ancestors of the R programming environment. Cloud computing is now available with large data implementations.
+
+* `R`'s language has a powerful, easy-to-learn syntax with many built-in statistical and operational research functions. Just as important are the extensive web-scraping, text structuring, object class construction, and the extensible functional programming aspects of the language. A formal language definition is being developed. This will yield more standardization and better control of the language in future versions.
+
+* `R` is a computer programming language. For programmers it will feel more familiar than for others, for example Excel users. `R` requires array thinking and object relationships that are not necessarily native, but indeed are possible, in an Excel spreadsheet environment. In many ways, the Excel style and `R` style of environments complement one another. 
+
+* Even though it is not necessarily the simplest software to use, the basics are easy enough to master, so that learning to use `R` need not interfere with learning the statistical, operational research, data, and domain-specific concepts encountered in an analytics-focused course.
+
+There is at least one drawback.
+
+* The primary hurdle to using `R` is that most existing documentation and plethora of packages are written for an audience that is knowledgable about statistics and operational research and has experience with other statistical computing programs. In contrast, this course intends to make `R` accessible to you, especially those who are new to both statistical concepts and statistical computing. 
+
+# Some useful `R` resources
+
+There are many `R` books useful for managing implementation of models in this course. Three useful `R` books include:
+
+1.	Paul Teetor, _The R Cookbook_
+2.	Phil Spector, _Data Manipulation with R_
+3.	Norman Matloff, _The Art of R Programming: A Tour of Statistical Software Design_
+4.  John Taveras, _R for Excel Users_ at <https://www.rforexcelusers.com/book/>.
+
+The first one will serve as our `R` textbook. The other books are extremely valuable reference works. You will ultimately need all three (and whatever else you can get your hands on) in your professional work. John Taveras's book is an excellent bridge and compendium of Excel and R practices.
+
+Much is available in books, e-books, and online for free. This is an extensive online user community that links expert and novice modelers globally.
+
+1. The standard start-up is at CRAN 
+<http://cran.r-project.org/manuals.html>. A script in the appendix can be dropped into a workspace and played with easily. 
+
+2. Julian Faraway's <https://cran.r-project.org/doc/contrib/Faraway-PRA.pdf> is a fairly complete course on regression where you can imbibe deeply of the many ways to use `R` in statistics. 
+
+3. Along econometrics lines is Grant Farnsworth's <https://cran.r-project.org/doc/contrib/Farnsworth-EconometricsInR.pdf>. 
+
+4. Winston Chang's <http://www.cookbook-r.com/> and Hadley Wickham's example at <http://ggplot2.org/> are online graphics resources.
+
+5. Stack Overflow is a programming user community with an `R` thread at <http://stackoverflow.com/questions/tagged/r>. The odds are that if you have a problem, error, or question, it has already been asked, and answered, on this site. 
+
+6. For using `R Markdown` there is a short reference at <https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf>. Cosma Shalizi has a much more extensive manual at <http://www.stat.cmu.edu/~cshalizi/rmarkdown/>.
+
+# `R` on your computer
+
+Directions exist at the `R` website, <http://cran.r-project.org/> for installing `R`. There are several `twotorials`, including some on installation that can be helpful at <http://www.twotorials.com/>. 
+
+Here are more explicit instructions that tell you what to do.
+
+Download the software from the CRAN website. There is only one file that you need to obtain (a different file depending on the operating system). Running this file begins the installation process which is straight-forward in most, if not all, systems.
+
+* Download `R` from the web. Go the `R` home page at <http://cran.r-project.org/>.
+
+* If you have **Windows** (95 or later), then perform these actions. Click on the link `Windows (95 and later)`, then click on the link called `base`, and finally click on the most recent executable version. This begins the download of a file. After the download is complete, double-click on the downloaded file and follow the on screen installation instructions.
+
+* If you have **Macintosh** (OS X), then perform these actions. Click on the link `MacOS (System 8.6 to 9.1 and MacOS X)`, then click on the most recent package which begins the download. When given a choice to unstuff or save, choose save and save it on your desktop. Double-click on the downloaded file. Your Mac will unstuff the downloaded file and create an `R` folder. Inside this folder, there are many files including one with the `R` logo. You may drag a copy of this to your panel and then drag the whole `R` folder to your `Applications` folder (located on the hard drive). After completing this, you can drag the original downloaded file to your trash bin.
+
+# Install `RStudio`
+
+Every software platform has a graphical user interface ("GUI" for short). One of the more popular GUIs, and the one used exclusively in this course, is provided by `RStudio` at <http://www.rstudio.com>. `RStudio` is a freely distributed integrated development environment (IDE) for `R`. It includes a console to execute code, a syntax-highlighting editor that supports direct code execution, as well as tools for plotting, reviewing code history, debugging code, and managing workspaces. In the following steps you will navigate to the `RStudio` website where you can download `R` and `RStudio`. These steps assume you have a `Windows` or `Mac OSX` operating system.
+
+1. Click on <https://www.rstudio.com/products/RStudio/> and navigate down to the `Download Desktop` button and click.
+
+2. Click on the `Download` button for the `RStudio Desktop Personal License` choice.
+
+3. Navigate to the sentence: "RStudio requires R 2.11.1+. If you don't already have R, download it _here_." If you have not downloaded `R` (or want to again), click on `here`. You will be directed to the <https://cran.rstudio.com/> website in a new browser tab.
+
+* In the `CRAN` site, click on `Download R for Windows`, or `Download R for (MAC) OS X` depending on the computer you use. This action sends you to a new webpage in the site.
+
+* Click on `base`. This action takes you to the download page itself.
+
+4. If you have `Windows`
+
+* Click on `Download R 3.3.2 for Windows (62 megabytes, 32/64 bit)` (as of 11/8/2016; other versions numbers may appear later than this date). A Windows installer in an over 70 MB `R-3.3.2-win.exe` file will download through your browser.
+
+* In the Chrome browser, the installation-executable file will reside in a tray at the bottom of the browser. Click on the up arrow to the right of the file name and click `Open` in the list box. Follow the many instructions and accept default values throughout.
+
+* Use the default `Core` and `32-Bit` files if you have a Windows 32-bit Operating System. You may want to use `64-Bit` files if that is your operating system architecture. You can check this out by going to the `Control Panel`, then `System and Security`, then `System`, and look up the `System Type:`. It may read for example `32-bit Operating System`.
+
+* Click `Next` to accept defaults. Click `Next` again to accept placing `R` in the startup menu folder. Click `Next` again to use the `R` icon and alter and create registries. At this point the installer extracts files, creates shortcuts, and completes the installation.
+
+* Click `Finish` to finish.
+
+4. If you have a `MAC OS X`
+
+* Click on `Download R 3.3.2 for MACs (62 megabytes, 32/64 bit)` (as of 11/8/2016; other version numbers may appear later than this date). A Windows installer in an over 70 MB `R-3.3.2-win.exe` file will download through your browser.
+
+* When given a choice to unstuff or save, choose save and save it on your desktop. Double-click on the downloaded file. Your Mac will unstuff the downloaded file and create an `R` folder. Inside this folder, there are many files including one with the `R` logo.
+
+* Inside the `R` folder drag a copy of `R` logo file to your panel and then drag the whole `R` folder to your `Applications` folder (located on the hard drive).
+
+5. Now go back to `RStudio` browser tab. Click on `RStudio 1.0.44 - Windows Vista/7/8/10` or `RStudio 1.0.44 - MAC OS X` to download `RStudio`. Executiable files will download. Follow the directions exactly, and similarly, to the ones above.
+
+# Install `R Markdown`
+
+Click on `RStudio` in your tray or start up menu. Be sure you are connected to the Internet. A console panel will appear. At the console prompt `>` type
+
+```{r, eval = FALSE}
+install.packages("rmarkdown")
+```
+
+* This action will install the `rmarkdown` package. This package will enable you to construct documentation for your work in the course. Assignments will be documented using RMarkdown for submission to the learning management system.
+
+If you have several packages to attach to your workspace you can use this function to check if the packages are installed, attach installed packages, and install packages not yet installed.
+
+```{r, eval = FALSE}
+is_installed <- function(x){
+  for(i in x){
+    # require will return TRUE (1) "invisibly" if it was able to load package
+    if(!require(i, character.only = TRUE)){
+      # If, for any reason, the package was not able to be loaded then re-install and expect a
+      # RStudio message
+      install.packages(i , dependencies = TRUE)
+      #  Attach the package after installing
+      require(i , character.only = TRUE)
+    }
+  }
+}
+# for example here is a  vector of concatenated character strings assigned to the obj `pkg`
+pkg <- c("rmarkdown", "shiny", "psych", "knitr", "dplyr", "ggplot2", "ggthemes", "plotly", "moments", "dplyr")
+# use `pkg` as the "argument" of the function `is_installed()`
+is_installed(pkg)
+```
+
+* Writing and deploying functions is an important programming skill we will cover in detail. The `is_install()` function will be very helpful when building the financial web application.
+
+* This extremely helpful web page, <http://rmarkdown.rstudio.com/gallery.html>,  is a portal to several examples of `R Markdown` source files that can be loaded into `RStudio`, modified, and used with other content for your own work. 
+
+# Install LaTex
+
+`R Markdown` uses a text rendering system called `LaTeX` to render text, including mathematical and graphical content.
+
+1. Install the `MikTeX` document rendering system for `Windows` or `MacTeX` document rendering system for `Mac OS X`.
+
+- For `Windows`, navigate to the <https://miktex.org/download> page and go to the **64- or 32- bit** installer. Click on the appropriate `Download` button and follow the directions. **Be very sure you select the _COMPLETE_ installation**. Frequently Asked Questions (FAQ) can be found at <https://docs.miktex.org/faq/>. If you have `RStudio` already running, you will have to restart your session.
+
+- For `MAC OS X`, navigate to the <http://www.tug.org/mactex/> page and download the `MacTeX` system and follow the directions. This distribution requires Mac OS 10.5 Leopard or higher and runs on Intel or PowerPC processors. **Be very sure you select the _FULL_ installation**. Frequently Asked Questions (FAQ) can be found at <https://docs.miktex.org/faq/>. If you have `RStudio` already running, you will have to restart your session. FAQ can be found at <http://www.tug.org/mactex/faq/index.html>.
+
+# R Markdown
+
+Open `RStudio` and see something like this screenshot...
+```{r, echo = FALSE, out.width = "75%"}
+knitr::include_graphics("images/RStudio_knitr.jpg")
+```
+
+
+* You can modify the position and content of the four panes by selecting `View > Panes > Pane Options`.
+
+* Under `File > New File > Rmarkdown` a dialog box invites you to open document, presentation, Shiny, and other files. Upon choosing `documents` you may open up a new file. Under `File > Save As` save the untitle file in an appropriate directory. The `R Markdown` file extension `Rmd` will appear in the file name in your directory.
+
+* When creating a new `Rmarkdown` file, `RStudio` deposits a template that shows you how to use the markdown approach. You can generate a document by clicking on `knit` in the icon ribbon attached to the file name tab in the script pane. If  you do not see  `knit`, then you might need to install and load the  `knitr` package with the following statements in the `R` console. You might need also to restart your RStudio session.
+
+```{r, eval = FALSE}
+install.packages("knitr")
+require(knitr) # also can use `library()`
+```
+
+The `Rmd` file contains three types of content:
+
+1.  An (optional) __YAML header__ surrounded by `---` on the top and the bottom of `YAML` statements. `YAML` is "Yet Another Markdown (or up) Language". Here is an example from this document:
+
+```YAML
+---
+title: "Setting Up R for Analytics"
+author: "Bill Foote"
+date: "November 11, 2016"
+output: pdf_document
+---
+```
+
+2.  __Chunks__ of R code surrounded by \`\`\` (find this key usually with the `~` symbol).
+3.  Text mixed with text formatting like `# heading` and `_italics_` and mathematical formulae like `$z = \frac{(\bar x-\mu_0)}{s/\sqrt{n}}$` which will render
+
+$$z = \frac{(\bar x-\mu_0)}{s/\sqrt{n}}$$.
+
+When you open an `.Rmd` file, `RStudio` provides an interface where code, code output, and text documentation are interleaved. You can run each code chunk by clicking the `Run` icon (it looks like a play button at the top of the chunk), or by pressing `Cmd/Ctrl + Shift + Enter`. `RStudio` executes the code and displays the results in the console with the code.
+
+You can write mathematical formulae in an `R Markdown` document as well. For example, here is a formula for net present value.
+
+```LATEX
+$$
+NPV = \sum_{t=0}^{T} \frac{NCF_t}{(1+WACC)^t}
+$$
+```
+This script will render
+
+$$
+NPV = \sum_{t=0}^{T} \frac{NCF_t}{(1+WACC)^t}
+$$
+
+* Here are examples of common in file text formatting in `R Markdown`.
+
+```
+Text formatting 
+------------------------------------------------------------
+
+*italic*  or _italic_
+**bold**   __bold__
+`code`
+superscript^2^ and subscript~2~
+
+Headings
+------------------------------------------------------------
+
+# 1st Level Header
+
+## 2nd Level Header
+
+### 3rd Level Header
+
+Lists
+------------------------------------------------------------
+
+*   Bulleted list item 1
+
+*   Item 2
+
+    * Item 2a
+
+    * Item 2b
+
+1.  Numbered list item 1
+
+1.  Item 2. The numbers are incremented automatically in the output.
+
+Links and images
+------------------------------------------------------------
+
+<http://example.com>
+
+[linked phrase](http://example.com)
+
+![optional caption text](path/to/img.png)
+
+Tables 
+------------------------------------------------------------
+
+First Header  | Second Header
+------------- | -------------
+Content Cell  | Content Cell
+Content Cell  | Content Cell
+
+Math
+------------------------------------------------------------
+
+$\frac{\mu}{\sigma^2}$
+
+\[\frac{\mu}{\sigma^2}]
+
+```
+More information will be provided on `rmarkdown` documentation throughout the course and can be found [here with CRAN documentation](https://cran.r-project.org/web/packages/rmarkdown/rmarkdown.pdf) and [here at RStudio](https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf) as well.
+
+# jaRgon
+
+(directly copied from [Patrick Burns](http://www.burns-stat.com/documents/tutorials/impatient-r/jargon/), and annotated a bit, for educational use only.)
+
+## atomic vector
+
+An object that contains only one form of data. The atomic modes are: _logical_, _numeric_, _complex_ and _character_.
+
+## attach
+
+The act of adding an item to the search list. You usually attach a package with the `require` function, you attach saved files and objects with the `attach` function.
+
+## data frame
+
+A rectangular data object where each column may be a different type of data. Conceptually a generalization of a matrix, but implemented entirely differently.
+
+## factor
+
+A data object that represents categorical data. It is possible (and often unfortunate) to confuse a factor with a character vector.
+
+## global environment
+
+The first location on the search list, and the place where objects that you create reside. See **search list**.
+
+## list
+
+A type of object with possibly multiple components where each component may be an arbitrary object, including a list. Each object can can different dimensions and data types.
+
+## matrix
+
+A rectangular data object where all cells have the same data type. Conceptually a specialization of a data frame, but implemented entirely differently. This object has rows and columns.
+
+## package
+
+A collection of `R` objects in a special format that includes help files, functions, examples, data, and source code. Most packages primarily or exclusively contain functions, but some packages exclusively contain datasets. **Packages** are attached to workspaces using the `library()` or `require()` functions.
+
+## search list
+
+The collection of locations that `R` searches for objects when it is evaluating a command.

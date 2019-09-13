@@ -1,0 +1,16 @@
+---
+author: "William G. Foote"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# William G. Foote, Ph.D
+
+My work rides the seams between economics, finance, and underlying value chains, commodities, operations, and strategies. I have had the privilege of working with faculty at Pace, Clarkson, Syracuse, Le Moyne, and Manhattan College and have taught analytics, finance, and economics in evolving online and executive learning programs. The goal has always been to prepare students to take leadership positions through the rigorous application of data driven decision making.
+
+During  my career, I have helped build an energy and environment practice in Europe for Ernst & Young, led the quantitative capital markets team at Deloitte, and helped to establish new practices in enterprise risk management at Deloitte, Charles River Associates, and more recently at Alvarez & Marsal and in my own firm. During this time, I have had the opportunity to work with decision makers across several industries and business responsibilities whose one compelling request was (and is): "help me make and monitor my decisions driven by data."
+
+I look forward to welcoming you to this course. There is much work in the analytics field yet to be done. This course will help prepare you (and stretch me!) in the foundations you will need to grow in this discipline, participate in its ups and downs, and contribute to the font of evolving analytics practices in a variety of fields.

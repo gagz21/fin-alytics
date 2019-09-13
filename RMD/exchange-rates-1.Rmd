@@ -1,0 +1,223 @@
+---
+title:  "Foreign Exchange Markets"
+subtitle: "Back to the future"
+author:  "William G. Foote"
+date:  "June 4, 2018"
+output:  
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## What is the foreign exchange market?
+
+The _foreign exchange market_ is the network of individuals, organizations, financial institutions, and governments that buy and sell U.S. dollars in exchange for other currencies. Currencies are often quoted in USD since better than The market for dollars, for example, is composed of all the traders in all  of the locations in which trade transacts, including London, Singapore, Tokyo, New York, and so on. 
+
+The principal function of the foreign exchange market is the transfer of funds, and thus purchasing power, from one nation and currency to another. Other functions provide short-term credits to finance trade and facilities for speculating and hedging foreign exchange risks.
+
+- In purely domestic trade, payments transact only in the domestic currency. When doemstic entities conduct foreign trade, purchases and receipts for goods and services are denominated in the foreign currency. Thus in foreign trade the domestic currency must be exchanged for the foreign currency at a value of one for the other.
+
+- When buyers and sellers move goods or provision services across as span of time, credit is needed to finance the future receipt or disbursement of funds. In a typical export trade, the exporter might allow 90 days for payment from the importer in the exporter's currency. To get cash now, the exporter will take the 90 day note from the importer and discount the note at the exporter's bank. The exporter receives the discounted cash flow in the exporter's currency. In 90 days the bank then takes delivery of the importer's currency and may then exchange the importer's currency to the bank's functional currency.
+
+## What are exchange rates?
+
+An exchange rate is the price or value of one nation’s currency in terms of another another nation's currency. An exchange rate has two components, 
+
+- the value of domestic currency and 
+
+- the value of foreign currency, 
+
+- expressed as the ratio (rate) of the two currency values quoted either directly or indirectly. 
+
+In a direct quotation, the price of a unit of foreign currency is expressed in terms of the domestic currency. In an indirect quotation, the price of a unit of domestic currency is expressed in terms of the foreign currency. 
+
+Exchange rates are nearly always (post Bretton Woods, 1946) quoted in values against the US dollar. However, exchange rates can also be quoted against another nations currency, which are known as a cross currency, or cross rate.
+
+For example if the the current rate of USD (U.S. dollar) for each GBP (Great Britain pound sterling) is USD2.00 = GBP 1.00. An increase in the exchange rate from 2 to 2.20 means that it takes 10\% more USD to buy GBP = 
+
+$$
+\frac{2.20 - 2.00}{2.00} = 0.10
+$$
+
+Because it takes more USD, this is a _depreciation_ of the dollar against the pound. Similarly we could calculate the pound point of view as GBP1.00 = USD2.00 or GBP0.50 = USD1.00. If the pound is now GBP1.00 = 2.20 or GPB0.45455 = USD1.00000. This means that it will take 10\% fewer GBP to buy USD. 
+
+$$
+\frac{0.45455 - 0.50000}{0.50000} = - 0.10
+$$
+Because it takes fewer GBP, this is an _appreciation_ of the pound against the dollar, that is, the pound is _dearer_ than the dollar.
+
+## What is a foreign exchange arbitrage?
+
+It does happen that the exchange rate in one location, say New York, is different from the same exchange rate in, say, Dubai. Suppose that New York quotes USD1.98 = GBP1.00 and Dubai quotes USD2.00 = GBP1.00. This will be a 2-point arbitrage or trade.
+
+- Traders can buy GBP in NY for USD1.98, and immediately sell them in Dubai for USD2.00 to make an arbitrage profit of USD0.02, less any transaction costs.
+
+- As traders continue this arbitrage, there will be an increase in the demand for GBP relative to USD so that the USD price of GBP in NY will increase, and will fall in Dubai because of the increased supply of GBP.
+
+Arbitrage trading will continue until the price ratio of the two currencies is approximately the same. In a 3-point arbitrage there will be three traders in 3 money centers, but essentially the same result will occur =  one rate, approximately, in equilibrium.
+
+### 3-point or triagular arbitrage
+
+Now we have 3 traders vying for our treasury business. New York quotes EUR1.10 = USD1.00 and Dubai quotes USD1.98 = GBP1.00,  while Singapore is quoting GBP0.51 = EUR1.00. In practice, traders will compute this ratio for the three currency pairs first and test if it is equal to 1.
+
+$$
+\frac{EUR}{USD}\frac{USD}{GBP}\frac{GBP}{EUR} = \frac{EUR}{EUR} = 1 
+$$
+$$
+(1.10)(1.98)(0.51) = 1.11 \geq 1 
+$$
+
+This appears to be an 11\% premium to the base currency USD. The ratio is embedded in these three transactions.
+
+1. Use USD1.00 (base currency) to buy EUR1.10 (counter-currency 1) in NY.
+
+2. Sell EUR1.10 in Singapore for GBP0.561 (counter-currency 2, 1.10 x 0.51).
+
+3. Sell GBP0.561 in Dubai to buy USD1.11 (0.561 x 1.98) to yield USD0.11 profit in the base currency.
+
+Is this a tidy profit? We must lock in these rates, pay our staff, pay our brokers and banks, and still make enough to earn a return for our weary investors. In any case, these rates will be traded to a near zero profit in high frequency and efficient markets.
+
+## How can you hedge with foreign exchange?
+
+### Forward exchange rate market
+
+A spot transaction requires delivery of currency usually within 2 or fewer (business) days, often defined by contract between buyer and seller. The spot exchange rate is the that covers this delivery condition.
+
+- For example, we could enter into a spot transaction that says you will deliver to me GBP100 within 2 days at which time I will give you USD200. The spot exchange rate is thus USD2.00 = GBP1.00.
+
+A forward transaction is an agreement today to buy or sell a specific amount of currency at a specific location at a specific date in the future, under further specific conditions. Examples of forward transactions are forward rate agreements (FRAs), futures contracts (standardized forward rate agreements traded on exchanges), swaps, and options on FRAs, futures, and swaps.
+
+- For example, we could enter into a FRA that says you will deliver to me GBP100 in 3 months at which time I will give you USD202. The 3 month forward exchange rate is thus USD2.02 = GBP1.00.
+
+- In this transaction, and relative to the spot rate of USD2.00 = GBP1.00, GBP is at a USD0.02 _forward premium_, because at delivery, it takes fewer GBP to buy USD than at spot (today) rates. If the 3 month forward rate were USD1.98 = GBP1.00 then the GBP market would be a 3 month _forward discount_ of USD0.02.
+
+- The forward premium is thus
+
+$$
+\frac{2.02 - 2.00}{2.00} = 0.01
+$$
+
+per 90 days. In an ACTUAL/365 day count this is $90/365 = 0.24658$ years or $365/90 = 4.05556$ 90 day periods. Across 4.05556 periods this amounts to
+
+$$
+(1.01)^{4.05556} - 1 = 1.04118 - 1 = 0.04118
+$$
+
+or a little over 4\% per annum (year).
+
+- Forward transactions arise from hedging and speculating in foreign exchange rate movements, and covered interest arbitrage.
+
+### Using a hedge
+
+Hedging is the act of mitigating unwanted movements, in this case, in foreign exchange rates. Spot rates will fluctuate through time as the historical record shows. In a hedge, the hedger forgoes any gains in future spot rates beyond what she contracts for today. But at the same time, she will also not suffer any losses beyond what she contracted for.
+
+- A US importer has agreed to pay GBP1,000,000 for the delivery of aluminium ingots in 3 months time in the Port of Newark. The spot rate today is USD2.00 and the 3 month forward rate for GBP is USD2.02. How can she hedge the risk that she might have to pay more than GBP1,000,000 when converting USD to GBP?
+
+- The hedger can buy GBP1,000,000 for delivery in 3 months at a forward rate of USD2.02. She is thus willing to pay $USD1,000,000 \times USD0.02 = USD20,000$ more to insure against future spot rates moving against her, that is, that the rate does not move higher than USD2.02 in three months. In three months the hedger will pay USD2,020,000 and will receive GBP1,000,000 to make the payment to the aluminium supplier.
+
+- Suppose in 3 months the spot rate rose to USD2.05? If the US importer did not hedge, then she would have had to pay USD2,050,000 or USD30,000 more than if she had hedged.
+
+- Instead what if the in 3 months the spot rate fell to USD1.99? If the US importer did not hedge, then she would have had to pay USD 1,990,000 or USD30,000 less than if she had hedged. But she did hedge, and thus forgoes this possible gain of USD30,000.
+
+## Covered interest arbitrage
+
+### Interest arbitrage and foreign exchange risk
+
+Potential discrepancies and anomalies in the debt securities markets between nations can also give rise to an arbitrage or trading opportunity. Interest arbitrage transfers liquid funds from one money center to another. If a MNC invests or must pay vendors or receive revenue from customers in a foreign country, the MNC must exchange home country funds into foreign country funds. The question is how much of one currency versus another, and when. As soon as we think about the future, we must now include interest rates into the discussioin.
+
+### Try this trade
+
+In parity, where there is no arbitrage (profitable trading) opportunity, the following two transactions are of the same value in one year:
+
+1. GBP to USD Spot- USD Loan Repayment: borrow GBP1.00 and convert to USD at USD2.00 = GBP1.00 and repay in one year at 2\% and repay USD 2 x 1.02 or USD2.04 for each forward GBP1.00. 
+
+2. USD to GBP Spot-GBP Loan Repayment - GBP to USD Forward: convert USD2.00 to GBP1.00, then repay in one year at 4\% GBP1.00 x 1.04 or GBP1.04, and convert to USD at the forward rate of USD1.96154 = GBP1.00 to get USD2.04.
+
+At so-called _parity_, the two transactions are equivalent and thus there is no profitable trading opportunity. But what if the forward rate is not USD1.96154 = GBP1.00?
+
+In parity, the forward domestic value of a lending or a borrowing in a foreign account must equal the spot value of an account in a domestic account.
+
+$$
+Forward\,rate \times (1 + foreign\,rate) = Spot\,rate \times (1 + domestic\,rate)
+$$
+
+Solving for the forward rate (domestic currency = one unit of the foreign currency) we get
+
+$$
+Forward\,\,rate = Spot\,\,rate \times \frac{(1 + domestic\,\,rate)}{(1 + foreign\,\,rate)}
+$$
+
+### An opportunity?
+
+Suppose that the treasurer observes a forward rate of USD2.02 = GBP1.00. The savvy treasurer might exploit this arbitrage opportunity with these transactions.
+
+1. Borrow USD500,000 at 2% per annum and repay the loan in one year with USD510,000.
+
+2. Convert the USD500,000 at the spot rate USD2.00 = GBP1.00 into GBP250,000 because it offers a higher one-year interest rate of 4\%.
+
+3. Deposit GBP500,000 in a London Bank at 4% per annum, and simultaneously enter into a forward contract that converts the full maturity amount of the deposit GBP260,000 into USD at the one-year forward rate of USD2.02 = GBP1.00.
+
+4. After one year, settle the one year forward contract at the contracted one year forward rate of USD2.02 = GBP1.00, which would give the savvy treasurer USD525,200.
+
+5. Repay the loan amount of USD510,000 and reap a profit of USD15,200. Get permission from the CFO to have a party for the team.
+
+### Going backwards
+
+But wait! What if the one year forward rate is USD1.92 = GBP1.00. Then the treasurer does the reverse of the above transaction.
+
+1. Borrow GBP250,000 at 4% per annum and repay the loan in one year with GBP260,000.
+
+2. Convert the borrowed GBP into USD500,000 at the spot rate USD2.00 = GBP1.00.
+
+3. Deposit USD500,000 in a New York Bank at 2% per annum, and simultaneously enter into a forward contract that converts the full maturity amount of the deposit USD510,000 into GBP at the one-year forward rate of USD1.92 = GBP1.00.
+
+4. After one year, settle the one year forward contract at the contracted one year forward rate of USD1.92 = GBP1.00, which would give the savvy treasurer GBP265,625 ($=510000/1.92$).
+
+5. Repay the loan amount of GBP260,000 and reap a profit of GBP5,625. Get permission from the CFO to have a smaller party for the team.
+
+
+## What are exchange rate movements?
+
+Exchange rate movements are commonly measured by the percentage change in their values over a specified period, such as a month or a year. MNCs closely monitor exchange rate movements over the period in which they have cash flows denominated in the foreign currencies of concern.
+
+The equilibrium exchange rate between two currencies at any time is based on demand and supply conditions. Changes in the demand for a currency or the supply of a currency for sale will affect the equilibrium exchange rate.
+
+### What affects exchange rate movements?
+
+The key economic factors that can influence exchange rate movements through their effects on demand and supply conditions are 
+
+- relative inflation rates, 
+
+- interest rates, 
+
+- income levels, and 
+
+- government controls. 
+
+When these factors lead to a change in international trade or financial flows, they affect the demand for a currency or the supply of currency for sale and thus the equilibrium exchange rate. 
+
+If a foreign country experiences an increase in interest rates, the price of the foreign country's debt instruments decreases (relative to U.S. interest rates and security prices). THis condition creates an excess demand for foreign treasuries and thus the foreign currency to buy these treasuries. If investors are buying foreign currency they are exchanging the currency for domestic (here U.S. currency) and thus there will be an inflow of U.S. funds to purchase its securities.
+
+- Demand for domestic currency increases,
+
+- Supply of foreign currency decreases, and
+
+- There will be an upward pressure on the foreign currency’s equilibrium value relative to the domestic currency. 
+
+All relevant factors must be considered simultaneously when attempting to predict the most likely movement in a currency’s value.
+
+### How do trade and financial flows affect exchange rates?
+
+There are distinct international trade and financial flows between every pair of countries. These flows dictate the unique supply and demand conditions for the currencies of the two countries, which affect the equilibrium cross exchange rate between their currencies. 
+
+Trade factors include current account movements in the demand for imports and the supply of exports from a country. Export-import flows of goods and services impact the prices, and thus the inflation and deflation of the prices of goods and services. Government controls export-import flows through tariffs, most favored nation treatment, and through quotas. Each of these mechanisms affects the price levels of exports and imports and will thus impact the demand and supply of home country currency.
+
+For example, if the home government imposes a tariff on imported aluminium, the home supply of aluminium will be restricted and home aluminium prices will rise and home producers will demand less aluminium. If demand for foreign aluminium eases, then so does the demand for foreign currency to buy the aluminium from foreign aluminium producers. This will cause a downward pressure on foreign currency and an upward pressure on the home currency.
+
+## How can financial services benefit?
+
+Financial institutions can attempt to benefit from the expected appreciation of a currency by purchasing that currency. Analogously, they can benefit from expected depreciation of a currency by borrowing that currency and exchanging it for their home currency.

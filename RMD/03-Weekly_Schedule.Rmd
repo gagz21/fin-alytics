@@ -1,0 +1,102 @@
+---
+title: "FIN 654 - W2018"
+subtitle: "Weekly Schedule"
+author: "Bill Foote"
+date: "January 6, 2018"
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhead[CO,CE]{\thetitle}
+- \fancyfoot[CO,CE]{Copyright 2018 William G. Foote}
+- \fancyhead[RE,RO]{\thepage}
+- \renewcommand{\footrulewidth}{0.5pt}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Week 1 – R Warmups for Finance
+
+1.	Attend Week 1 – R Warmups for Finance asynchronous session.
+
+2.	Read Foote chapter 1 and follow instructions to set up R, RStudio, MikTex / MacTex in your personal computing environment. Submit Rmd file example to show completion of this infrastructure setup.
+
+3.	Read Foote chapter 2 and work through R examples. Submit Rmd file of all code you have traveled through in this chapter. Use text in non-R area of the Rmd file to document your achievement or gaps in your achievement of understanding the code and finance concepts.
+
+4.	Submit Problem Set 1 Rmd file and knitted PDF.
+
+# Week 2 – R Data Modeling
+
+1.	Attend Week 2 – R Data Modeling asynchronous session.
+
+2.	Read Foote chapter 3 and work through R examples. Submit Rmd file of all code you have traveled through in this chapter. Use text in non-R area of the Rmd file to document your achievement or gaps in your achievement of understanding the code and finance concepts.
+
+3.	Submit Problem Set 2 Rmd file and knitted PDF.
+
+# Week 3 – Macrofinancial Analysis I
+
+1.	Attend Week 3 –  Macrofinancial Analysis asynchronous session.
+
+2.	Read Foote chapter 4 and work through R examples. Submit Rmd file of all code you have traveled through in this chapter. Use text in non-R area of the Rmd file to document your achievement or gaps in your achievement of understanding the code and finance concepts.
+
+3.	Submit Problem Set 3 Rmd file and knitted PDF.
+
+# Week 4 – Macrofinancial Analysis II
+
+1.	Re-read Foote chapter 4 and work through identified gaps in understanding finance and/or R gaps through the chapter R examples.  Update your submission of the chapter’s  Rmd file to document your filling in the gaps in your achievement of understanding the code and finance concepts.
+
+2.	Read supplemental material _Using Flexdashboard to Build a Financial Application_.  Submit Rmd file that documents your first application development
+
+3.	Submit Problem Set 4 Rmd file and knitted PDF.
+
+# Week 5 – Term Structure I
+
+1.	Attend Week 4 –  TermStructure asynchronous session.
+
+2.	Read Foote chapter 5 and work through R examples. Submit Rmd file of all code you have traveled through in this chapter. Use text in non-R area of the Rmd file to document your achievement or gaps in your achievement of understanding the code and finance concepts.
+
+3.	Submit Problem Set 5 Rmd file and knitted PDF.
+
+# Week 6 – Term Structure II
+
+1.	Re-read Foote chapter 5 and work through identified gaps in understanding finance and/or R gaps through the chapter R examples.  Update your submission of the chapter’s  Rmd file to document your filling in the gaps in your achievement of understanding the code and finance concepts.
+
+2.	Submit Problem Set 6 using Flexdashboard Rmd file.
+
+# Week 7 – Market Risk I
+
+1.	Attend Week 5 –  Market Risk asynchronous session.
+
+2.	Read Foote chapter 6 and work through R examples. Submit Rmd file of all code you have traveled through in this chapter. Use text in non-R area of the Rmd file to document your achievement or gaps in your achievement of understanding the code and finance concepts.
+
+3.	Submit Problem Set 7 using Flexdashboard Rmd file and knitted PDF.
+
+# Week 8 –  Market Risk II
+
+1.	Re-read Foote chapter 5 and work through identified gaps in understanding finance and/or R through the chapter R examples.  Update your submission of the chapter’s Rmd file to document your filling in the gaps in your achievement of understanding the code and finance concepts.
+
+2.	Choose 1 additional topic: Credit Risk, Operational Risk, Measuring Volatility, Enterprise Risk. Attend asynchronous session associated with the topic.  Submit Rmd file of all code you have traveled through in this chapter. Use text in non-R area of the Rmd file to document your achievement or gaps in your achievement of understanding the code and finance concepts.
+
+3.	Submit Problem Set 8 using Flexdashboard Rmd file.
+
+# Week 9 – Portfolio Analysis I and Additional Topic
+
+1.	Attend Week 9 –  Portfolio Analytics asynchronous session.
+
+2.	Read Foote chapter 10 and work through R examples. Submit Rmd file of all code you have traveled through in this chapter. Use text in non-R area of the Rmd file to document your achievement or gaps in your achievement of understanding the code and finance concepts.
+
+3.	Submit Problem Set 9 using Flexdashboard Rmd file and knitted PDF.
+
+# Week 10 – Portfolio Analysis II and Additional Topic
+
+1.	Re-read Foote chapter 10 and the chapter associated with your additional topic and work through identified gaps in understanding finance and/or R gaps through the chapters’ R examples.  Update your submission of the chapter’s Rmd file to document your filling in the gaps in your achievement of understanding the code and finance concepts.
+
+2.	Submit first draft of completed Flexdashboard for feedback. Final version due at Week 11 live session.
+
+# Week 11 – Final
+
+1. Submit any outstanding, incomplete, or revised problem sets and other work due.
+
+2. Submit final version of Flexdashboard.Rmd file.

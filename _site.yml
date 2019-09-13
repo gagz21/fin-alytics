@@ -1,0 +1,17 @@
+name: "Financial Analytics"
+navbar:
+  title: "Financial Analytics"
+  left:
+    - text: "Home"
+      href: index.html    
+    - text: "Overview"
+      href: overview.html
+    - text: "Topics"
+      href: topics.html
+output:
+  html_document:
+    theme: flatly
+    highlight: textmate
+    include:
+      after_body: footer.html
+    css: styles1.css
