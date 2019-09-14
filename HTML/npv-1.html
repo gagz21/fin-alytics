@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="William G. Foote" />
+
+<meta name="date" content="2018-05-24" />
+
+<title>TUTORIAL: Net Present Value</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="styles.css" type="text/css" />
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Financial Analytics</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="overview.html">Overview</a>
+</li>
+<li>
+  <a href="topics.html">Topics</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">TUTORIAL: Net Present Value</h1>
+<h4 class="author"><em>William G. Foote</em></h4>
+<h4 class="date"><em>May 24, 2018</em></h4>
+
+</div>
+
+<div id="TOC">
+<ul>
+<li><a href="#what-is-net-present-value">What is net present value?</a></li>
+<li><a href="#what-do-companies-typically-use-it-for">What do companies typically use it for?</a></li>
+<li><a href="#how-do-you-calculate-npv">How do you calculate NPV?</a></li>
+<li><a href="#what-can-go-wrong">What can go wrong?</a></li>
+</ul>
+</div>
+
+<div id="what-is-net-present-value" class="section level2">
+<h2>What is net present value?</h2>
+<p>Net present value (NPV) is the present value of the cash flows at the required rate of return of your project compared to your initial investment. In practical terms, it’s a method of calculating your return on investment, or ROI, for a project or expenditure. By looking at all of the money you expect to make from the investment and translating those returns into today’s dollars, you can decide whether the project is worthwhile.</p>
+<p>You translate all of the future cash flows into today’s dollars (or euros, yen, you name it) by finding the present value of those flows. Present value is the amount of money today that fans out into future cashflows at a rate of return for each future period in which cash flow occurs. This process and metric is also referred to as the time value of money.</p>
+</div>
+<div id="what-do-companies-typically-use-it-for" class="section level2">
+<h2>What do companies typically use it for?</h2>
+<p>When a manager needs to compare projects and decide which ones to pursue, there are generally three options available: internal rate of return, payback method, and net present value. There are two reasons why financial analysts and investors use NPV.</p>
+<ol style="list-style-type: decimal">
+<li><p>NPV considers the time value of money, translating future cash flows into today’s dollars.</p></li>
+<li><p>It provides a concrete number that managers can use to easily compare an initial outlay of cash against the present value of the return.</p></li>
+</ol>
+<p>It’s far superior to the payback method, which is the most commonly used. The attraction of payback is that it is simple to calculate and simple to understand: when will you make back the money you put in? But it doesn’t take into account that the buying power of money today is greater than the buying power of the same amount of money in the future. That’s what makes NPV a superior method. With financial calculators and Excel spreadsheets, NPV is now nearly just as easy to calculate as payback.</p>
+<p>Managers also use NPV to decide whether to make large purchases, such as equipment or software. It’s also used in mergers and acquisitions (though it’s called the discounted cash flow model in that scenario). In fact, it’s the model that Warren Buffet uses to evaluate companies. Any time a company is using today’s dollars for future returns, NPV is a solid choice.</p>
+</div>
+<div id="how-do-you-calculate-npv" class="section level2">
+<h2>How do you calculate NPV?</h2>
+<p>There is an NPV function in Excel that makes it easy once you’ve entered your stream of costs and benefits. Many financial calculators, including ones on smart phones, also include an NPV function.</p>
+<p>Here is the math behind NPV. Let’s suppose we have this information about a contract your very good business associate wants to sell you for $950 today. You hope you can earn at least what the market makes. That amount is 10% per year. This means that if you put $1 into the earning machine, you expect $1.10 in one year.</p>
+<table class="table table-striped table-hover table-condensed table-responsive" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:right;">
+Year
+</th>
+<th style="text-align:right;">
+Cash Flow
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+100
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+1100
+</td>
+</tr>
+</tbody>
+</table>
+<p>How do you know if the price of the contract is right? Find the contract’s net present value. Here’s how we do it.</p>
+<p>The calculation looks like this:</p>
+<ol style="list-style-type: decimal">
+<li>Find the amount of money today that translates into $100 in one year at 10% per year, that is, find the present value of $100 in one year at 10%. Call this number <span class="math inline">\(PV_1\)</span>.</li>
+</ol>
+<p><span class="math display">\[
+PV_1 ( 1 + 0.10) = 100
+\]</span></p>
+<p>Solve for <span class="math inline">\(PV_1\)</span> to get</p>
+<p><span class="math display">\[
+PV_1 = \frac{100}{1.10} = 90.91
+\]</span></p>
+<ol start="2" style="list-style-type: decimal">
+<li>Find the amount of money today that translates into $1,100 in two years at 10% per year, that is, find the present value of $1,100 in two years at 10%. Call this number <span class="math inline">\(PV_2\)</span>.</li>
+</ol>
+<p>We do this in two steps. In one year <span class="math inline">\(PV_2\)</span> will grow at 10% this way: <span class="math display">\[
+PV_2(1+0.10)
+\]</span></p>
+<p>From the end of year one to the end of year two, <span class="math inline">\(PV_2(1.1)\)</span> will grow into this amount: <span class="math display">\[
+PV_2(1 + 0.1)(1 + 0.1)
+\]</span></p>
+<p>All of this will yield $1,100 <span class="math display">\[
+PV_2(1.1)(1.1) = PV_2(1.1)^2 = 1100
+\]</span></p>
+<p>Solve for the amount of money today that grows at 10% per year to yield $1,100 in two years, <span class="math inline">\(PV_2\)</span>: <span class="math display">\[
+PV_2 = \frac{1100}{1.1^2} = 909.91
+\]</span></p>
+<ol start="3" style="list-style-type: decimal">
+<li><p>Pull all of this into the Net Present Value (NPV). Today you pay $950, or a negative cash flow of 50. Today you would have in present value $90.01 for the first year’s worth of cash flow, and $909.91 for the second year’s worth of cash flow. <span class="math display">\[
+NPV = -950 + PV_1 + PV_2 = -950 + 90.91 + 909.91 = 50
+\]</span></p></li>
+<li><p>If NPV &gt; 0, then today’s value of future cash flows, given your expectation of return, exceeds what you paid for the investment. If NPV = 0, you have break-even. If NPV &lt; 0, then the investment costs more than your expectations of value. Since NPV = 50 &gt; 0, you would believe that the investment is more valuable than what you pay for it, so, yes, indeed you might take up your friend on this offer.</p></li>
+</ol>
+</div>
+<div id="what-can-go-wrong" class="section level2">
+<h2>What can go wrong?</h2>
+<p>There are three things that managers need to be aware of when using NPV.</p>
+<ol style="list-style-type: decimal">
+<li><p>The result might be difficult to explain to others. You would need to establish that the goal is to find value. But this depends on your expectations of the growth in your initial investment. If you <strong>believe</strong> that there is more value in this contract than the asking price, then you should buy the contract. NPV helps you understand that phrase “more value.”</p></li>
+<li><p>Your expectations of the future growth of money might be wrong. This means that the rate above is higher or lower than 10%. For example if the rate is really 15%, then <span class="math display">\[
+NPV = -950 + 100/1.15 + 1100/1.15^2 = -31.29
+\]</span> In this case NPV &lt; 0 and this would be a bad value deal. You would be paying more that you think the contract is worth, in fact $31.29 more.</p></li>
+<li><p>You do not receive all of the cash flow that is promised. Suppose the contract defaults (a little bit!) and your business associate can only assure you that she can pay you 75 cents on the dollar in a worse case scenario. <span class="math display">\[
+NPV = -950 + (0.75)100/1.10 + (0.75)1100/1.10^2 = -200 
+\]</span> Here we figure we only make $75 in the first year for sure and $825 in the second year. Quite a potential loss! If we truly believe that this scenario could occur, then this is indeed a really bad deal!</p></li>
+</ol>
+</div>
+
+<p>Copyright &copy; 2018 William G. Foote. All rights reserved.</p>
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

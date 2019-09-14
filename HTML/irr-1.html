@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+<meta name="author" content="William G. Foote" />
+
+<meta name="date" content="2018-05-25" />
+
+<title>TUTORIAL: Internal Rate of Return</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="styles.css" type="text/css" />
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Financial Analytics</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="overview.html">Overview</a>
+</li>
+<li>
+  <a href="topics.html">Topics</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">TUTORIAL: Internal Rate of Return</h1>
+<h4 class="author"><em>William G. Foote</em></h4>
+<h4 class="date"><em>May 25, 2018</em></h4>
+
+</div>
+
+<div id="TOC">
+<ul>
+<li><a href="#what-is-the-internal-rate-of-return">What is the internal rate of return?</a></li>
+<li><a href="#what-do-companies-typically-use-irr-for">What do companies typically use IRR for?</a></li>
+<li><a href="#how-do-you-calculate-irr">How do you calculate IRR?</a></li>
+<li><a href="#what-can-go-wrong">What can go wrong?</a></li>
+</ul>
+</div>
+
+<div id="what-is-the-internal-rate-of-return" class="section level2">
+<h2>What is the internal rate of return?</h2>
+<p>The internal rate of return (IRR) is the discount rate when the net present value (NPV) is zero, or breaks even. If the cash flows come from a bond or other fixed income instrument, then the IRR is also called the yield and also the yield to maturity (YTM).</p>
+<p>When the NPV breaks even, the present value of negative (investing) cash flows equals the present value of positive (earning) cash flows. It is a true <strong>inflection</strong> point of equilibrium that balances cash flows for a project, financial instrument, portfolio, or contract. At this point no one would want to buy or sell. In fact at that point there are no further value gains or losses. Gains exactly equal losses. This indeed is the definition of a market clearing equilibrium.</p>
+</div>
+<div id="what-do-companies-typically-use-irr-for" class="section level2">
+<h2>What do companies typically use IRR for?</h2>
+<p>If anything at all, the IRR is a benchmark measure that allows us to compare two sets of cash flows, one each from two projects, contracts, or investments. Many managers use, especially in financial services organizaitons, use IRR as a rate of return compared with a hurdle rate. The hurdle rate is usually the required rate of return for the risks undertaken in investment. The risks undertaken involve any potential loss of cash flows that emanate from the investment.</p>
+<ol style="list-style-type: decimal">
+<li><p>If the IRR &gt; hurdle rate, then the project will have a positive NPV.</p></li>
+<li><p>When the IRR = hurdle rate, NPV = 0.</p></li>
+<li><p>When IRR &lt; hurdle rate, NPV &lt; 0.</p></li>
+</ol>
+<p>The manager might as well use NPV. Still, like NPV, the IRR uses the time value of money as its basis for concluding the value-worthiness of a set of cash flows. In this way the IRR is also better than the payback method, which is the most commonly used. The attraction of payback is that it is simple to calculate and simple to understand: when will you make back the money you put in? But it doesn’t take into account that the buying power of money today is greater than the buying power of the same amount of money in the future. That’s what makes NPV and IRR better methods. With financial calculators and Excel spreadsheets, IRR is now nearly just as easy to calculate as payback.</p>
+</div>
+<div id="how-do-you-calculate-irr" class="section level2">
+<h2>How do you calculate IRR?</h2>
+<p>The calculation of IRR requires the calculation of the NPV of cashflows. There is an IRR function in Excel that makes it easy once you’ve entered your stream of costs and benefits. Many financial calculators, including ones on smart phones, also include an IRR function.</p>
+<p>Here is the math behind IRR. Let’s suppose we have this information about a contract your very good business associate wants to sell you for $950 today. You hope you can earn at least what the market makes. That amount is 10% per year. This means that if you put $1 into the earning machine, you expect $1.10 in one year.</p>
+<table class="table table-striped table-hover table-condensed table-responsive" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:right;">
+Year
+</th>
+<th style="text-align:right;">
+Cash Flow
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+100
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+1100
+</td>
+</tr>
+</tbody>
+</table>
+<p>How do you know if the price of the contract is right? Compare the contract’s internal rate of return with your hurdle rate of 10%. Here’s how we do it.</p>
+<ol style="list-style-type: decimal">
+<li>Calculate the NPV of the cash flows at the hurdle rate. We do this calculation for these cash flows in the NPv section. If the NPV &gt; 0, then the IRR will be greater than the hurdle rate. Guess a 200 basis point adder to the hurdle rate as your initial estimate of the IRR.</li>
+</ol>
+<p><span class="math display">\[
+NPV = -950 +  \frac{100}{1.10} + \frac{1100}{1.10^2}= 50
+\]</span></p>
+<ol start="2" style="list-style-type: decimal">
+<li>Since the NPV &gt; 0, recalculate the NPV at the initial IRR estimate of 10% + 2%. Recalculate NPV. If this recalculation yields a positive NPV, continue to increase the discount rate, in this case, to 13%. If the NPV &lt; 0, then the IRR will be less than 12%, so you would decrease the initial estimate by a small amount, say, to 11% and recalculate NPV. Here is the NPV at 12%.</li>
+</ol>
+<p><span class="math display">\[
+NPV = -950 +  \frac{100}{1.12} + \frac{1100}{1.12^2}= 16.20
+\]</span></p>
+<ol start="3" style="list-style-type: decimal">
+<li>NPV is smaller but still greater than zero. Increase the estimate of IRR to 13%.</li>
+</ol>
+<p><span class="math display">\[
+NPV = -950 +  \frac{100}{1.13} + \frac{1100}{1.13^2}= -0.043
+\]</span></p>
+<ol start="4" style="list-style-type: decimal">
+<li>NPV is slightly less than zero, so that 13% is a bit too high. Consider a trial estimate of 12.95%.</li>
+</ol>
+<p><span class="math display">\[
+NPV = -950 +  \frac{100}{1.1395} + \frac{1100}{1.1295^2}= 0.75
+\]</span></p>
+<ol start="5" style="list-style-type: decimal">
+<li>One more trial: set the trial IRR to just under 13% to get very close to break-even NPV.</li>
+</ol>
+<p><span class="math display">\[
+NPV = -950 +  \frac{100}{1.129973} + \frac{1100}{1.129973^2}= 0.00021
+\]</span></p>
+<p>This tedious workout iterates to an approximate solution. We can get ever so close to NPV = 0, but never quite get there. There is much need for just a bit of tolerance for ambiguity in this case!</p>
+<p>If anything, the rule that accept a project, or even proclaim that a price is right, can be made using IRR &gt; hurdle rate.</p>
+</div>
+<div id="what-can-go-wrong" class="section level2">
+<h2>What can go wrong?</h2>
+<p>There are three things that managers need to be aware of when using IRR.</p>
+<ol style="list-style-type: decimal">
+<li><p>The result might be difficult to explain to others. You would need to establish that the goal is to find a yield that exceeds the hurdle rate. In any case the manager must have a consensus on what the hurdle rate should be. The same caveats to NPV also hold. If you <strong>believe</strong> that there is more yield, that is, return, in this contract than the hurdle rate, then you should buy the contract. IRR helps you understand that phrase “more yield.”</p></li>
+<li><p>Your hurdle rate might be wrong. This means that the rate might be higher or lower than 10%. For example if the rate is really 15%, then an IRR = 13% means that the contract does not earn at least the hurdle rate and you should reject the offer.</p></li>
+<li><p>Just as in NPV analysis you might not receive all of the cash flow that is promised. Suppose the contract defaults (a little bit!) and your business associate can only assure you that she can pay you 75 cents on the dollar in a worse case scenario. As in step one above, we calculate the NPV at the hurdle rate. <span class="math display">\[
+NPV = -950 + (0.75)100/1.10 + (0.75)1100/1.10^2 = -200 
+\]</span> Here we figure we only make $75 in the first year for sure and $825 in the second year. Quite a potential loss on a NPV basis! If we truly believe that this scenario could occur, then this is indeed a really bad deal from a NPV perspective! Also the IRR of the cash flows would be negative! An IRR = -0.0278 falls far short of the hurdle.</p></li>
+</ol>
+</div>
+
+<p>Copyright &copy; 2018 William G. Foote. All rights reserved.</p>
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
