@@ -1,0 +1,473 @@
+---
+title: "Workbook: Measuring Market Risk"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+options(digits = 4, scipen = 999999)
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+
+price_tbl <- tq_get(symbols) %>% select(date, symbol, price = adjusted)
+# long format ("TIDY") price tibble for possible other work
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+#str(return_tbl)
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+r_corr <- apply.monthly(r_2, FUN = cor)[,c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+r_vols <- apply.monthly(r_2, FUN = colSds)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30)
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) 
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+#
+# convert prices from tibble to xts
+price_etf <- price_tbl %>% spread(symbol, price)
+price_etf <- xts(price_etf, price_etf$date)
+storage.mode(price_etf) <- "numeric" #select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_etf <- price_etf[, -1]
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+#price_last <- price_etf[length(price_etf$TAN), 3:5] #(TAN, ICLN, PBW) %>% as.vector()
+w <- as.numeric(shares * price_0)
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+
+stat_fun <- function(x, na.rm = TRUE, ...) {
+  library(moments)
+    # x     = numeric vector
+    # na.rm = boolean, whether or not to remove NA's
+    # ...   = additional args passed to quantile
+    c(mean     = mean(x, na.rm = na.rm),
+      stdev    = sd(x, na.rm = na.rm),
+      skewness = skewness(x, na.rm = na.rm),
+      kurtosis = kurtosis(x, na.rm = na.rm),
+      quantile(x, na.rm = na.rm, ...)) 
+}
+loss_fun <- function(return){
+  
+}
+```
+
+
+## Welcome
+
+This workbook provides practice with the stylized facts of financial markets (again!), building loss curves, and measuring the capital required relative to tolerance for loss and, always and forever more, visualization of results for a decision maker.
+
+You will practice to
+
+1. Simulate returns and returns loss and calculate confidence intervals for management planning using Monte Carlo simulation techniques.
+
+2. Retrieve a portfolio of market price data relevant for the problem at hand, transform the data into returns, and summarize with tables and plots the stylized facts of this portfolio.
+
+2. Construct and analyze market loss curves for various portfolio combinations of assets.
+
+3. Using loss densities identify loss thresholds and calculate capital requirements using value at risk and expected shortfall.
+
+Here is our working example where we continue to assist the CFO of our aluminum recycling company:
+
+With flagging earnings in aluminum recycling and increasing costs of inputs and the terrible performance of its cogeneration fleet, the company has decided to wade into the deeper end of the pool called the renewables market. One option the banks are recommending to the CFO is to combine solar, wind, and clean technologies into a start-up venture.
+
+Your CFO has three questions for us:
+
+1. What are the many ways we can lose in this new venture?
+
+2. What levels of loss are too much to bear? 
+
+3. How much capital do we need to support loss should it occur?
+
+For the renewables sector we again select [exchange traded funds (ETF)](https://www.investopedia.com/terms/e/etf.asp) from the [global renewables sector](https://www.etf.com/channels/renewable-energy-etfs): TAN for solar, ICLN for clean technologies, and PBW for wind. These funds act as indices to effectively summarize the inputs, process, management, decisions, and outputs of various aspects of the renewables sector. Examining and analyzing this series will go a long way to helping the CFO understand not only the riskiness of these markets, but the nature of loss and capital needed to manage the ups and downs of the business.
+
+## What is all the fuss about?
+
+We have already looked at volatility clustering and market spillover. Let's focus on the one return volatility clustering. We can simulate a  model of returns using thick-tailed Student's-t distribution innovations. Nn innovation is simply a surprise, news: we don't anticipate it, but it is in the class of the known-unknown. It's out there, and indiscriminate, something we might call **random**.
+
+The sort of stylized facts of a return series in the financial markets can be compactly summarized with the terminology of the ARCH model.
+
+*ARCH* stands for 
+
+- *A*uto*r*egressive (lags in volatility)
+- *C*onditional (any new values depend on other variables, including lagged variables)
+- *H*eteroscedasticity (Greek for varying volatility, here time-varying, and stochastic or random)
+
+These models are especially useful for financial time series that exhibit periods of large return movements alongside intermittent periods of relative calm price changes.
+
+An experiment is definitely in order. The simulation will school us in the components of a return as it evolves over time and results in frequencies of return occurrence.
+
+1. The AR+ARCH model can be specified starting with $z(t)$ standard normal or Student-t, or practically any other distribution variables and an initial (we will overwrite this in the simulation) volatility series $\sigma(t)^2 = z(t)^2$. 
+
+2. We then condition these variates with the square of their variances $\varepsilon_t = (\sigma^2)^{1/2} z_t$. Then we first compute for each date $t = 1 ... n$,
+
+$$
+\varepsilon_t = \omega + (\sigma^2)^{1/2} z_t
+$$
+
+3. Then, using this conditional error term we compute the autoregression (with lag 1 and centered at the mean $\mu$)
+
+$$
+y_t = \mu + \phi(y_{t-1} - \mu) + \varepsilon_t
+$$
+
+4. Now we are ready to compute the new variance term at the next date $t+1$ using the $\varepsilon_t$ from the autogresson as
+
+$$
+\sigma_{t+1}^2 = \omega + \alpha \varepsilon_t^2 
+$$
+where $\omega$ is the average variance of the series and $\sigma_{t+1}^2$ is conditional on $\varepsilon_t^2$ through the parameter $\alpha$.
+
+Let's try this simulation. It all starts with unconditional surprises $z$ in the market. 
+
+```{r arch, exercise = TRUE}
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30) 
+forecast::ggtsdisplay(z, plot.type = "histogram")
+```
+
+- What do  you see about this "news'?
+
+Let's use the news as a building block: 
+
+- Our market has a base standard deviation of returns of about 10\% per period, quite volatile if this is a month, and the variance is thus 0.01. This period's variance is related to last period's by the parameter `alpha` equal to 0.9, and thus highly coupled to last period's volatility.
+
+- Average returns are commensurately high at 3\%. This period's return is related to last period's by the parameter `phi` equal to 0.05, and thus hardly coupled to last period's return.
+
+- Let view as a risk-return scatter matrix.
+
+```{r basicsim, exercise = TRUE}
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30)
+e <-  z # store variates
+y <-  z # returns: store again in a different place
+sig2 <-  z^2 # create volatility series from the innovations
+omega <-  .01 #0.05^2 # base variance
+alpha <-  0.9 # vols Markov dependence on previous variance
+phi <-  0.05 # returns Markov dependence on previous period
+mu <-  0.03 # average return
+#omega/(1-alpha) ; sqrt(omega/(1-alpha))
+set.seed("1012")
+for (t in 2:n) # Because of lag start at second date
+{
+  e[t] <- sqrt(sig2[t])*z[t]          # 1. e is conditional on sig
+  y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+  sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2 to feed 1.
+}
+ggpairs(data.frame(risk = sqrt(sig2)[-(n+1)], return = y))
+```
+
+- News has been transformed into risk and return. Can you conclude anything about high risk and return? Here is a function to encapsulate the GARCH simulation. Use `garch_sim_t()` to try it out.
+
+```{r garchsim, exercise = TRUE}
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) 
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+```
+
+- In the phrase `sqrt(sig2)[-(n+1)]` what would happen if `[-(n+1)]` is not inserted?
+
+The results are stored in a list of two items. To access the results we use the `[[]]` list operator. For example for a list `x` with three items we can access item 2 with `x[[2]]`. If item 2 has a column called `x_3` then we can access column using `x[[2]]$x_3`.
+
+Run the following code with `n = 10000` simulations. Be sure to check `str()` to learn about the locations of results. Then access the simulated volatilities and plot a multipanel display of the time series plot, acf, and histogram.
+
+```{r garchsimrun, exercise = TRUE}
+sim_base <- garch_sim_t()
+```
+
+- Characterize the volatility of this simulated returns series.
+
+- How would things change if `alpha` and `phi` values were interchanged?
+
+- Access the simulated returns and compare.
+
+<div id="garchsimrun-hint">
+**Hint:**
+```{r garchsim-ex, eval = FALSE, echo = TRUE}
+n <- 10000
+sim_base <- garch_sim_t(n = n)
+forecast::ggtsdisplay(sim_base[[1]]$sig, plot.type = "histogram")
+```
+</div>
+
+Use this code to build a long format table of results from all of the building blocks of the simulation. Next build a table of mean, standard deviation, skewness, kurtosis, minimum, and maximum values by building block..=
+
+```{r volsumm, exercise = TRUE}
+n <- 10000
+sim_base <- garch_sim_t(n = n)
+sim_df <- sim_base[[2]] %>% gather(key = series, value = sim, -t) 
+```
+
+- What exactly does `gather()` do for us?
+
+- Do the statistics line up with at least some of the stylized facts of markets?
+
+<div id="volsumm-hint">
+**Hint:**
+```{r volsumm-ex, eval = FALSE, echo = TRUE}
+sim_summary <- sim_df %>% group_by(series) %>% summarise(mean = mean(sim), sd = sd(sim), skew = skewness(sim), kurt = kurtosis(sim), min = min(sim), max = max(sim) )
+sim_summary
+```
+
+</div>
+
+Let's plot these overall results to see if they line up with the summary statistics.
+
+```{r archplot, exercise = TRUE}
+n <- 10000
+sim_base <- garch_sim_t(n = n)
+sim_df <- sim_base[[2]] %>% gather(key = series, value = sim, -t)
+#
+sim_df %>% ggplot(aes(x = sim, fill = series, color = series)) + geom_histogram(binwidth = 0.01, aes(y=0.01*(..density..))) + facet_wrap(~series) #+ xlim(-2, 2) + ylim(0,.4)
+sim_df %>% ggplot(aes(x = t, y = sim, color = series)) + geom_line() + facet_wrap(~series)
+```
+
+- In what way does the phrase `y=0.01*(..density..)` alter the plot?
+
+- How did our experiment fare? Did it project the stylized facts?
+
+Now let's simulate bounds on the simulation. Yes, let's repeat the simulation several times to generate a distribution on the standard deviation of the simulated returns. 
+
+- We will run this code to get that confidence interval. 
+
+- Rerun the code for the estimated 95\% quantile of the negative of the returns. We might all this the **value at risk** of the potential losses (the "negative" of returns made positive) in the returns series.
+
+```{r simci, exercise = TRUE}
+options(digits = 2)
+set.seed(1841)
+sigma_sim <- replicate(1000, sd(garch_sim_t()[[1]]$y))
+summary(sigma_sim)
+sigma_low <- quantile(sigma_sim, 0.025)
+sigma_high <- quantile(sigma_sim, 0.975)
+sigma_sim_df <- data_frame(sigma_sim = sigma_sim)
+title <- "GARCH simulated monthly return risk"
+p <- ggplot(data = sigma_sim_df, aes(x = sigma_sim))
+p <- p + geom_histogram(binwidth = 0.01, aes(y = 0.01*(..density..)), alpha = 0.4)
+#p <- p + geom_density(color = "blue")
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = sigma_low, color = "red", size = 1.5 ) + geom_vline(xintercept = sigma_high, color = "red", size = 1.5)
+p <- p + annotate("text", x = sigma_low, y = 0.05, label = paste("L = ", round(sigma_low, 2))) + annotate("text", x = sigma_high, y = 0.05, label = paste("U = ", round(sigma_high, 2))) + ylab("density") + xlab("return standard deviation") + xlim(min(sigma_sim), 2) + theme_bw()
+p
+```
+
+- Why might we need to tweak the `annotate()` layers for the height of the texts for `L` and `U` if we change the parameters of the simulation?
+
+- What is the interpretation of the upper and lower bounds?
+
+<div id="simci-hint">
+**Hint:** Try this code
+```{r simci-ex, exercise = TRUE}
+options(digits = 2)
+set.seed(1841)
+alpha <- 0.95
+sigma_sim <- replicate(1000, quantile(-garch_sim_t()[[1]]$y, alpha))
+summary(sigma_sim)
+sigma_low <- quantile(sigma_sim, 0.025)
+sigma_high <- quantile(sigma_sim, 0.975)
+sigma_sim_df <- data_frame(sigma_sim = sigma_sim)
+title <- paste0("GARCH simulated monthly return loss value at risk (", alpha*100, ")")
+p <- ggplot(data = sigma_sim_df, aes(x = sigma_sim))
+p <- p + geom_histogram(binwidth = 0.01, aes(y = 0.01*(..density..)), alpha = 0.4)
+#p <- p + geom_density(color = "blue")
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = sigma_low, color = "red", size = 1.5 ) + geom_vline(xintercept = sigma_high, color = "red", size = 1.5)
+p <- p + annotate("text", x = sigma_low, y = 0.05, label = paste("L = ", round(sigma_low, 2))) + annotate("text", x = sigma_high, y = 0.05, label = paste("U = ", round(sigma_high, 2))) + ylab("density") + xlab("return loss value at risk") + xlim(min(sigma_sim), 2) + theme_bw()
+p
+```
+</div>
+
+## Beyond the experiment
+
+Okay, those were stylized parameters for the GARCH returns process. They are useful in projecting, even forecasting future returns. We even generated 95\% confidence intervals for the range of returns standard deviations and the 95\% quantile of returns losses. That last measure is also called the **value at risk**. 
+
+Getting back to the data, we have global renewable energy sector ETF prices and returns to work with. Suppose we have a portfolio of the three ETFs: 600000 shares of TAN for solar, 750000 shares of ICLN for clean technologies, and 500000 shares of PBW for wind.
+
+- Given the last prices in the data set, what is the value of this portfolio?
+
+```{r currentvalue, exercise = TRUE}
+
+```
+
+<div id= "currentvalue-hint">
+**Hint:** You might try this code using `tail()`.
+```{r currentvalue-ex, eval = FALSE, echo = TRUE}
+price_0 <- tail(price, 1)
+shares <- c(60000, 75000, 50000)
+value <- sum(price_0 * shares)
+value
+```
+
+</div>
+
+Let's use the history of ETF returns to provide a couple of thousands of scenarios in how these prices might combine. Using this history generate daily portfolio values. Calculate a table of summary statistics and a set of plots to review the loss distribution.
+
+```{r valuesim, exercise = TRUE}
+price_etf <- price_tbl %>% spread(symbol, price)
+price_etf <- xts(price_etf, price_etf$date)
+storage.mode(price_etf) <- "numeric" #select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_etf <- price_etf[, -1]
+# get last price
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+w <- as.numeric(shares * price_0)
+# convert tibble returns to xts for some matrix operations
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+return_hist <- r_2 # yes! a bit complicated! but it works
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+```
+
+<div id="valuesim-hint">
+
+**Hint:** Try this code to generate the historical simulation of value across the sample of prices and returns.
+
+```{r valusim-ex, eval = FALSE, echo = TRUE}
+summary(loss_rf)
+forecast::ggtsdisplay(loss_rf, plot.type = "histogram")
+# a little nicer
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+ggplot(loss_df, aes(x = loss, fill = distribution)) + geom_density(alpha = 0.2) + xlim(0, max(loss_rf))
+```
+</div>
+
+Now for the burning question:
+
+- How much capital do we need to support this portfolio if our risk  tolerance for loss is only 5\%?
+
+
+The plot reveals some interesting deep and shallow outliers. The distribution is definitely very peaked. We use the base function `expm1` that computes the natural exponent of returns all minus 1. 
+
+\[
+e^{r} - 1
+\]
+
+Some of these returns, or percentage price changes if you will, are very close to zero. High precision arithmetic is needed to get accurate calculations. The function `expm1` does this well.
+
+Now we can get to estimating value at risk (VaR) and expected shortfal (ES). We set the tolerance level $\alpha$, for example, equal to 95\%. This would mean that a decision maker would not tolerate loss in  more than 5\% of all risk scenarios.
+
+We define the VaR as the quantile for probability $\alpha \in (0,1)$, as
+
+$$
+VaR_{\alpha} (X) = inf \{ x \in R: F(x) \geq \alpha \},
+$$
+
+which means find the greatest lower bound of loss $x$ (what the symbol $inf$ = _infimum_ means in English), such that the cumulative probability of $x$ is greater than or equal to $\alpha$. 
+
+Using the $VaR_{\alpha}$ definition we can also define $ES$ as
+
+$$
+ES_{\alpha} = E [X \lvert X \geq VaR_{\alpha}],
+$$
+
+where $ES$ is "expected shortfall" and $E$ is the expectation operator, also known as the "mean." Again, in English, the expected shortfall is the average of all losses greater than the loss at a $VaR$ associated with probability $\alpha$, and $ES \geq VaR$.
+
+- Run the following lines of code. Look up `quantile` in `R` and see that it matches the calculation for `var_hist`.
+
+- `ES` is calculated as a subset of the losses cut off at `VaR`: only looking for losses greater than `VaR`.
+
+Here is the code:
+
+```{r varesdist, exercise = TRUE}
+## Simple Value at Risk
+alpha_tolerance <- .95
+(VaR_hist <- quantile(loss_rf, probs=alpha_tolerance, names=FALSE))
+## Just as simple Expected shortfall
+(ES_hist <- mean(loss_rf[loss_rf > VaR_hist]))
+VaR_text <- paste("Value at Risk =", round(VaR_hist, 2))
+ES_text <- paste("Expected Shortfall =", round(ES_hist, 2))
+ggplot(loss_df, aes(x = loss, fill = distribution)) + geom_density(alpha = 0.2) + xlim(0, max(loss_rf))+
+  geom_vline(aes(xintercept = VaR_hist), linetype = "dashed", size = 1, color = "blue") +
+  geom_vline(aes(xintercept = ES_hist), size = 1, color = "blue") + xlim(0,max(loss_rf)) + 
+  annotate("text", x = 200000, y = 0.000010, label = VaR_text) +
+  annotate("text", x = 350000, y = 0.000005, label = ES_text)
+```
+
+- So, how much capital is needed at a 5\% tolerance for loss?
+
+- What about an even less tolerance 1\% of the time?
+
+- Suppose that the company only had 150,000 equity invested?
+
+## What does it matter?
+
+- Margins earned over time result in the present value of margins valued at a risk-informed rate of return. These margins and subsequent value are all with volatility clustering will act like the prices: when in a downward spiral, that spiral will amplify more than when prices try to trend upward.
+
+- All of this adds up to volatile EBITDA (Earnings Before Interest and Tax adding in non-cash Depreciation and Amortization), missed earnings targets, shareholders selling, the stock price dropping, and equity-based compensation falling.
+
+- If equity falls short of the capital needed to meet risk tolerance requirements, then more capital might need to be raised in the markets, either publicly or privately placed.

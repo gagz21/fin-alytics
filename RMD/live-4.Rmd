@@ -1,0 +1,316 @@
+---
+title: "Workbook: volatility and spillover"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+options(digits = 4, scipen = 999999)
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+
+price_tbl <- tq_get(symbols) %>% select(date, symbol, price = adjusted)
+# long format ("TIDY") price tibble for possible other work
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+#str(return_tbl)
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+r_corr <- apply.monthly(r_2, FUN = cor)[,c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+r_vols <- apply.monthly(r_2, FUN = colSds)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+```
+
+## Welcome
+
+This workbook will provide more practice with the core methodology of macrofinancial analysis: market spillover and entanglement. 
+
+You will practice to
+
+1. Build and visualize time series objects, again. You will also convert a time series object to a data frame for further processing. Inside of this object you will `summarise()` the data using descriptive statistics, estimate and visualize the lagged relationship of current and past realizations of the time series, and interpret autocorrelation and cross autocorrelation as indications of the styled facts of various financial markets.
+
+2. Build monthly time series of correlations and volatilities from daily series.
+
+3. Visualize and analyze the sensitivity of entangled markets as an endogenous system of risk.
+
+3. Analyze and visualize the impact of one market's volatility on another through correlational entanglements.
+
+## Working example
+
+We continue our working example to help out the CFO of your aluminum recycling company:
+
+Our aluminum recyling company just bought a renewable energy manufacturing and services company to expand its earnings opportunities. The renewables devision dabbles in wind, clean energy technologies (very similar to the aluminum recycling clean technologies), and solar, a very new field for the company. The CFO would like to measure the  impact of this new market on the earnings of the renewables division. To do this she commissions a project team.
+
+Your CFO has three questions for us:
+
+1. How do we characterize renewables variability?
+
+2. Does one market affect another? 
+
+3. What stylized facts of these markets matter?
+
+For the renewables sector we select [exchange traded funds (ETF)](https://www.investopedia.com/terms/e/etf.asp) fromm the [global renewables sector](https://www.etf.com/channels/renewable-energy-etfs): TAN for solar, ICLN for clean technologies, and PBW for wind. These funds act as indices to effectively summarize the inputs, process, management, decisions, and outputs of various aspects of the renewables sector. Examining and analyzing this series will go a long way to helping the CFO understand the riskiness of these markets. 
+
+## Data transformations
+
+Our objective is to review the historical record for volatility and relationships among three repesentative markets. We load historical data on three ETFs, tranformed prices into returns, and then further transformed the returns into within-month correlations and standard deviations. Here is the code for this exercise.
+
+```{r load-transform, eval = FALSE, echo = TRUE}
+#
+options(digits = 4, scipen = 999999)
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+
+price_tbl <- tq_get(symbols) %>% select(date, symbol, price = adjusted)
+# long format ("TIDY") price tibble for possible other work
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+#str(return_tbl)
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+r_corr <- apply.monthly(r_2, FUN = cor)[,c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+r_vols <- apply.monthly(r_2, FUN = colSds)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+```
+
+Be sure to review the details using `str()`, `head()`, and `tail()`. Run this code. Similarly run for `r_vols`.
+
+```{r inspect, exercise = TRUE}
+corr_tbl %>% group_by(assets) %>% 
+  summarise(mean = mean(corr), 
+            sd = sd(corr), skew = skewness(corr), 
+            kurt = kurtosis(corr), 
+            min = min(corr), 
+            q_25 = quantile(corr, 0.25), 
+            q_50 = quantile(corr, 0.50), 
+            q_75 = quantile(corr, 0.75), max = max(corr) 
+            )
+```
+
+<div id="inspect-hint">
+**Hint:** Be sure to use the right column of `vols_tbl`, namely, `vols`. You can find this column using `str()`.
+</div>
+
+## Explore
+
+Run this code to view densities and line plots of historical correlations.
+
+```{r explorecorr, exercise = TRUE}
+corr_tbl %>% ggplot(aes(x = corr, fill = assets)) + 
+  geom_density(alpha = 0.4) + 
+  facet_wrap(~assets)
+#
+corr_tbl %>% ggplot(aes(x = date, y = corr, color = assets)) +
+  geom_line() + 
+  facet_wrap(~assets)
+#
+```
+
+- Do these plots support the summary statistics?
+
+Drop code here to view densities and line plots of historical volatilities.
+
+```{r explorevols, exercise = TRUE}
+
+```
+
+<div id="explorevols-hint">
+**Hint:** Be sure to use the right column of `vols_tbl`, namely, `vols`. You can find this column using `str()`. For example, 
+
+```{r vols-ex, eval = FALSE, echo = TRUE}
+#
+vols_tbl %>% ggplot(aes(x = vols, fill = assets)) + 
+  geom_density(alpha = 0.4) + 
+  facet_wrap(~assets)
+#
+vols_tbl %>% ggplot(aes(x = date, y = vols, color = assets)) +
+  geom_line() + 
+  facet_wrap(~assets)
+#
+```
+
+</div>
+
+- Do these plots support the summary statistics?
+
+## Do volatility and correlation persist?
+
+Only one way to find out: run `acf()` for our series. Let's start with correlations.
+
+- Store the `acf()` coefficients
+
+- Construct a data frame of the coefficients using the `with()` function
+
+- Plot using `geom_segment()` to visualize hanging lines (instead of bars) for the size and direction of acf coefficients
+
+with the `TAN_ICLN` interactions and using the ggplot2 function `ggtsdisplay()` from the `forecast`, we get all of this
+
+```{r persistcorr, exercise = TRUE}
+TAN_ICLN <- r_corr$TAN_ICLN
+forecast::ggtsdisplay(TAN_ICLN, lag.max=30, plot.type = "partial")
+```
+
+1. Try this for the other correlations.
+
+2. Experiment with `plot.type = "partial"` or `"histogram"`.
+
+3. The verdict on correlation persistence?
+
+Now lets examine `TAN` volatilities for persistence. Drop the code here.
+
+```{r persistvols, exercise = TRUE}
+
+```
+
+<div id = "persistvols-hint">
+For example with the `TAN` volatilities and using the ggplot2 function `ggtsdisplay()` from the `forecast`, we get 
+
+```{r persistvols-ex, eval = FALSE, echo = TRUE}
+TAN <- r_vols$TAN
+forecast::ggtsdisplay(TAN,lag.max=30, plot.type = "scatter")
+```
+
+</div>
+
+1. Try this for the other volatilities.
+
+2. Experiment with `plot.type = "partial"` or `"histogram"`.
+
+3. The verdict on volatility persistence?
+
+## Do markets spill into one another? 
+
+Market spillover occurs when the volatility of one market, through correlational entanglement, affects the volatility of another market. We have three markets here: TAN, ICLN, and PBW all interacting with one another. If ICLN is volatile, will TAN be affected? If so, unanticipated competitive movements in one sector (ICLN) will cause unanticipated movements in another (TAN), here coupled through correlational structures.
+
+Let's examine this idea with a simple scatter matrix using `ggpairs()` from the `GGally` package.
+
+- Merge `r_corr` with `r_vols`
+
+- Make the merge into a tibble and add a date to it
+
+- Make pairs
+
+```{r pairs, exercise = TRUE}
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% 
+  mutate(date = index(corr_vols)) 
+ggpairs(corr_vols_tbl[, c("TAN_ICLN", "ICLN")])
+```
+
+What do we observe?
+
+1. Are they apparently normally distributed?
+
+2. What do the outliers look like in a potential relationship between correlations and volatility?
+
+3. Are there potentially multiply regions of outliers?
+
+With plenty of outliers it might be that we should use a technique that respects this situation. That technique is quantile regression using the `quantreg` package.
+
+Quantile regression can help us measure the impact of high stress (high and low quantile) episodes on markets. [Here is a tutorial on quantile regression that is helpful for the formulation of models and the interpretation of results](https://turing.manhattan.edu/~wfoote01/finalytics/primer-quantile-regression.html).
+
+- Just like `lm()`, we set up `rq()` with left-hand side (correlations) and right hand side variables (volatilities).
+
+- We also specify the quantiles of the left-hand side to identify outliers and the median of the relationship using the `taus` vector. Each value of `tau` will run a separate regression.
+
+Run this code for one combination of correlations and volatilities. You can modify `y` and `x` for other combinations.
+
+```{r quantile, exercise = TRUE}
+library(quantreg)
+taus <- c(0.10, 0.25, 0.50, 0.75, 0.90) # quantiles of y for a 95% confidence interval
+y <- corr_vols_tbl$TAN_ICLN; x <- corr_vols_tbl$ICLN
+fit_corr_vols <- rq(log(y) ~ log(x), tau = taus)
+fit_summary <- summary(fit_corr_vols)
+fit_summary
+plot(fit_summary)
+```
+
+The plot depicts the parameter estimate (intercept and slope) on the vertical axis and the quantile of correlation on the horizontal axis. The gray range is the 95\% confidence interval of the parameter estimates. The dashed red lines depict the ordinary least squares regression confidence intervals.
+
+1. When is it likely for markets to spill over?
+
+2. At what likelihood of correlations are market spillovers most uncertain?
+
+3. What about the other markets and their spillover effects?
+
+4. What should the CFO glean from from these results?
+
+One more plot to tie up the market spillover questions.
+
+```{r rqplot, exercise = TRUE}
+p <- ggplot(corr_vols_tbl,  aes(x = ICLN, y = TAN_ICLN)) +
+    geom_point() + 
+    ggtitle("TAN-ICLN Interaction") + 
+    geom_quantile(quantiles = c(0.10, 0.90)) + 
+    geom_quantile(quantiles = 0.5, linetype = "longdash") +
+    geom_density_2d(colour = "red")  
+p
+```
+
+- To tailor this picture a bit, you can use `+ ylim(0.25, 1)` to specify the y-axis limits.
+
+Quite a picture! Try it for the other combinations as well. Do your conclusions change?
+
+## What have we accomplished?
+
+- We have moved the CFO's discussion into market risk and interaction
+
+- We learned how to transform time series data in returns and periodic correlations and volatility of returns
+
+- Constructed autocorrelations of correlations and volatilities to measure the persistence of risks and market interactions
+
+- We tested the hypothesis that one market's riskiness not affect another's, probably
+
+More to do next time with model of volatility clustering as it affects capital requirements through market risk channels. 

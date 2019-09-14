@@ -1,0 +1,337 @@
+---
+title: "Risky Equity Valuation"
+subtitle: "Notes using the binomial option pricing model"
+author: "Bill Foote"
+header-includes:
+- \usepackage{fancyhdr}
+- \usepackage{tikz}
+- \usepackage{tikz-qtree}
+- \usetikzlibrary{trees}
+- \pagestyle{fancy}
+- \fancyhf{}
+- \fancyhead[CO,CE]{Binomial Option Model}
+- \fancyfoot[LO,LE]{Copyright 2018 William G. Foote}
+- \fancyfoot[CE,CO]{\leftmark}
+- \fancyfoot[RE,RO]{\thepage}
+- \renewcommand{\headrulewidth}{1.25pt}
+- \renewcommand{\footrulewidth}{1pt}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#
+tridiag <- function(upper, lower, main){
+    out <- matrix(0,length(main),length(main))
+    diag(out) <- main
+    indx <- seq.int(length(upper))
+    out[cbind(indx+1,indx)] <- lower
+    out[cbind(indx,indx+1)] <- upper
+    return(out)
+}
+# initial parameters
+A_0 <- 40
+sigma <- 0.4
+r <- 0.05
+T <- 1
+n <- 4
+# transformaions
+delta_t <- T/n
+R <- r*delta_t
+u <- exp(sigma*sqrt(delta_t))
+d <- 1/u
+p <- (R - d) / (u - d)
+N_steps <- T*n + 1 # includes date 0 for present value
+# initialize asset and equity trees
+A <- matrix(0, nrow = N_steps, ncol = T*n+1, byrow=TRUE)
+S <- matrix(0, nrow = N_steps, ncol = T*n+1, byrow=TRUE)
+
+for(i in 1:T*n+1) {
+  
+}
+genlattice <- function(X0=100, u=1.1, d=.75, N=4) {
+X <- c()
+X[1] <- X0
+count <- 2
+for (i in 1:N) {
+ for (j in 0:i) {
+ X[count] <- X0 * u^j * d^(i-j)
+ count <- count + 1
+ }
+}
+return(X)
+}
+```
+
+# Imagine this
+
+You are considering to found an equity fund to track risky investments in privately owned organizations
+
+- You have a history of stock prices
+- You know that today's stock price is the present value of stockholders' free cashflow for the foreseeable and not-so-foreseeable future
+- You need a back of the envelope way to describe how stock prices and value evolve
+- You also want to use this evolution to understand how a claim contingent on stock prices also evolves
+- And the present value of such a claim
+
+What do you want to know?
+
+- Is there a distribution you can use to describe the evolution and also price a claim on the stock prices?
+
+Why?
+
+- So you can acquire or divest an asset, a project, or anything that generates cash flows over time and has the same risk profile as the stock price.
+
+# What's a binomial?
+
+Suppose we know the present value of an organization's assets $A$ to be \$40 per share. We might consider a simple forecast of the uncertain level of the asset's value in one year: it might go up or it might go down.That's a "binomial."
+
+We picture the binomial view of asset value as branches from a root of $A_0=\$40$ per share today at time $t=0$. How can we forecast asset value at the end of the year $A_1$? We can do so by supposing that the asset value might simply rise or fall. Both up and down asset value outcomes, $A_u$ and $A_d$, might occur in $t=1$ year. 
+
+\begin{center}
+\begin{tikzpicture}[grow=right]
+\tikzset{level distance=60pt,sibling distance=18pt}
+\tikzset{execute at begin node=\strut}
+\Tree [.$A_0=40$ [.$A_d=?$ ] [.$A_u=?$ ] ]
+\end{tikzpicture}
+\end{center}
+
+where the $?$ is an amount to be determined (next). How can we forecast up and down outcomes?
+
+#Ups and downs
+
+To forecast the up and down movements of the stock price in one year we can use the normal distribution, with a twist: the log normal random variable. Here's what we have to assume over a small interval of time $\Delta t$:
+
+1. Use small movements in the present value of assets $A_t$ so that $\Delta A_t = A_{t+\Delta t} - A_t$
+2. Let the small change in time, $\Delta t$ get as small as you like
+3. Approximate returns as the log value relative $ln(v_{t+\Delta t} / v_{t}) \approx (v_{t+\Delta t} / v_{t}) - 1$, and this works well with small movements in value from $t$ to $t + \Delta t$
+3. In that small interval of time, $\Delta t$ use a constant average rate of return $\mu \Delta t$ and a constant variance of return $\sigma^2 \Delta t$ which is the same as using a constant standard deviation of $\sigma \sqrt{\Delta} t$
+
+Armed with all of these assumptions we see that from $t=0$ to $t$ we can accumulate value in small time increments $\Delta t$ with this simulation:
+
+$$
+A_t = A_0 exp((\mu - 0.5 \sigma^2) \Delta t + \sigma \sqrt{\Delta t} \, z)
+$$
+
+where, $z ~ Normal(0,1)$, the standard normal (mean 0 and variance 1) distribution. Now for the lognormal bit. Divide both sides by $S_0$ and take (natural) logarithms to get
+
+$$
+ln(A_{t+\Delta t}/A_t) = (\mu - 0.5 \sigma^2) \Delta t + \sigma \sqrt{\Delta} t \, z)
+$$
+
+We thus are simulating asset returns across a time period of $\Delta t = (t+\Delta t) - t$. For a given initial level of $A_t$ at the beginning of the period, the logarithm of $A_{t+\Delta t}$ is normally distributed. But not only that, we can bifurcate stock price movements at time $t$ in the following way.
+
+If we let up movement factors $u$ be
+
+$$
+u = e^{\sigma \sqrt{\Delta t}}
+$$
+and down movement factors $d$ be symmetrically the inverse of $u$
+
+$$
+d = e^{-\sigma \sqrt{\Delta t}} = \frac{1}{u}
+$$
+and along with the future value $R$ of depositing a \$1 bill into a bond that yields $r$ per year in a holding period of $\Delta t$
+
+$$
+R = e^{r \Delta t}
+$$
+we have all of the pieces we need to forecast movements in $S$, or whatever variable of our fancy, across whatever time periods we want, daily, monthly, quarterly, semiannually, annually.
+
+For example supose we estimate $\sigma = 0.40$ in one year (or _per annum_), and $r = 0.05$ _per annum_. If we let $t=1$ year and divide the year equally into $n=4$ quarters, then we would compute
+
+$$
+\Delta t = \frac{t}{n} = \frac{1}{4} = 0.25
+$$
+
+This approach will allow us to calculate quarterly returns and up and down factors. If $n=12$ we could break a _per annum_ estimate into monthly estimates using $\Delta t = 1/12 = 0.0833$. Using this convention we get
+
+$$
+u = e^{\sigma \sqrt{\Delta t}} = e^{0.40 \sqrt{0.25}}=1.22
+$$
+$$
+d = e^{-\sigma \sqrt{\Delta t}} = \frac{1}{u}=\frac{1}{1.22}=0.82
+$$
+$$
+R = e^{r \Delta t} = e^{0.05(0.25)} = 1.013
+$$
+Now we can grow any stock price (or any asset present value for that matter) trees we might care to. Using our tree branches we have this forecast in general
+
+\begin{center}
+\begin{tikzpicture}[grow=right]
+\tikzset{level distance=60pt,sibling distance=18pt}
+\tikzset{execute at begin node=\strut}
+\Tree [.$A_0$ [.$A_d=dA_0$ ] [.$A_u=uA_0$ ] ]
+\end{tikzpicture}
+\end{center}
+
+and this in particular for one quarter of one year
+
+
+\begin{center}
+\begin{tikzpicture}[grow=right]
+\tikzset{level distance=60pt,sibling distance=18pt}
+\tikzset{execute at begin node=\strut}
+\Tree [.$40$ [.$0.82(40)=32.80$ ] [.$1.22(40)=48.80$ ] ]
+\end{tikzpicture}
+\end{center}
+
+Now for the pricing magic.
+
+# Very pricey indeed
+
+Suppose we want to value the equity of an organization. We can view equity $E$ as an American call option written on the value of the assets $A$ (working capital plus fixed assets) of an organization with exercise value equal to the long-term debt of the organization. The payoff for equity at some future date $t=T$ is $max(E-D,0)$. Also suppose that debt $D=35$.
+
+Let's use our forecast of $A$ we worked out above for one quarter again. We can build a tree for Equity contingent on the Asset tree:
+
+\begin{center}
+\begin{tikzpicture}[grow=right]
+\tikzset{level distance=60pt,sibling distance=18pt}
+\tikzset{execute at begin node=\strut}
+\Tree [.$E$ [.$E_d=0$ ] [.$E_u=13.80$ ] ]
+\end{tikzpicture}
+\end{center}
+
+Now we build a portfolio of $a$ units of the asset and $b$ units of a riskless bond and find $a$ and $b$ such that this homemade portfolio's payoff is the same as a the contingent claim called equity. At $t=1$ we have two constraints, one for the up movement in the portfolio and one for the down movement in portfolio. Each \$1 of the bonds grows into $\$1.013$ by the end of a quarter. 
+
+$$
+48.80a+1.013b=13.80
+$$
+$$
+32.80a+1.013b=0
+$$
+We can solve these simultaneous equations for $a=0.8625$ and $b=-27.9270$. At time $t=0$ the portfolio will equal the present value of equity $E$.
+
+$$
+40(0.8625)-27.9270 = 6.573
+$$
+This is the market value of equity. Book value would be $40-35 = 5$ also known as intrinsic value. Thus the market to book ratio is $6.5730/5 = 1.314$. The amount of market value in excess of book value $6.570-5=1.570$ is called extrinsic value due to the volatility of the underlying asset $A$. We have just "priced" equity. 
+
+In one more step we can get the risk neutral, market-clearing, probability of an up movement. This probability obeys the risk neutral solution for $a$ and $b$ we just found to value equity. The present expected value of equity $E$ is in one period
+
+$$
+E = [pE_u + (1-p)E_d]e^{-r\Delta t}
+$$
+$$
+6.573 = \frac{p(13.80) + (1-p)(0)}{1.013}
+$$
+which yields $p = 0.48$. We can use this probability to value any future up movement and still use the risk free rate to value expectations of forward value. In general if
+
+$$
+E = Aa + b = \frac{pE_u + (1-p)E_d}{R}
+$$
+we can show that
+
+$$
+p = \frac{R - d}{u - d}=\frac{1.013-0.82}{1.22-0.82}=0.48
+$$
+We will use this relationship in the next section with cash flows, debt, decisions, and more than one period.
+
+# Multi-period valuation
+
+Now for the icing on the cake. We have all of the pieces to value contingent claims like equity with multiple periods of cash flow and debt as well. We recall that equity is modeled as an American call option. Let's extend our example from one quarter to four quarters. The asset tree $A$ now looks like this
+
+\begin{center}
+\begin{tabular}{r | r r r r r}
+A &	0 &	1 &	2 &	3 &	4 \\ \hline
+0 &	 40.00 &	 48.86 & 	 59.67 & 	 72.88 	& 89.02 \\
+1	& - 	& 32.75 & 40.00 & 48.86 	& 59.67 \\
+2	& - 	& - 	& 26.81  &	32.75 &	40.00 \\
+3	& - 	& - 	& - & 21.95 &	 26.81 \\
+4	& - 	& - 	& - &	 - &	17.9 \\ \hline
+\end{tabular}
+\end{center}
+
+We can specify quarterly projected cash flows and debt levels next. The 4th quataer nodes are just eh American call option payoff at the end of the horizon or $max(A-D,0)$. We work backwards from this last date to the third quarter. The American option decision is between early exercise with payoff $72.88-20$ or keeping the option alive, receiving cash flow of $5$ and the present expected value of waiting until quarter 4 to exercise the option. In this case, the rational thing to do is to keep the option alive.
+
+$$
+58.14 = max\left(72.88-20, 5 + \frac{0.48(69.02) + (1-0.48)(39.67)}{1.013}\right)
+$$
+
+With these calculations and decisions at each node in the lattice and the asset tree we can develop the following equity value tree.
+
+\begin{center}
+\begin{tabular}{r | r r r r r}
+\hline
+Free cash flow & 5 & 5 & 5 &	5 &	5 \\ \hline
+Debt	& 20.00 & 20.00 & 20.00 & 20.00 & 20.00 \\ \hline
+Equity value	& 0	& 1 &	2 &	3 &	4 \\ \hline
+0	& 40.75 & 44.41 & 50.11 & 58.14 	& 69.02 \\ 
+1	& - 	& 28.58 	& 30.44 &	 34.11 	& 39.67 \\
+2	& - 	& - & 17.78 	& 18.00 	& 20.00 \\
+3	& - 	& - &	 - 	& 8.24 &	 6.81 \\
+4	& - 	& - &	 - 	& - &	 -   \\ \hline
+\end{tabular}
+\end{center}
+
+Equity value is \$40.75. Book value is only \$20. Market value ends up being more than twice book in this scenario. Now to sensitize ourselves to changes in assumptions to complete this portion of the analysis.
+
+# Exercise
+
+For this exercise we will access the following data:
+
+- daily closing prices for up to five (5) years for a traded stock
+- recent balance sheet, income statement, and statement of financial condition for the traded stock's company
+- the Excel spreadsheet `equityvalue-1.xlsx`.
+
+Using this work flow we will compute and analyze the followng:
+
+1. We transform balance sheet information in way: Invested capital (assets) = working capital (current assets - current liabilities) + fixed assets (total assets - working capital). This is the book value of invested capital. We will calculate the market value of invested capital later in the process below.
+
+2. Next we calculate Long term debt (debt) = invested capital - book value of equity. Again later we will assumed that the book value of debt is a good approximation for the the market value of debt.
+
+3. We calculate the natural logarithm of closing stock price relatives for each day starting with the observation at day 2 of the data set, that is, for day $t$ and the previous day $t-1$, daily return is
+
+$$
+r_t^{\,ticker} = ln\left(\frac{P_t}{P_{t-1}}\right) 
+$$
+
+4. Then we compute the sample daily mean and standard deviation of the $r_t^{\,ticker}$ series. Then annualize the daily return, that is, transform the daily mean to an annual mean return basis by multiplying $\Delta t = 252$ times $r_t^{\,ticker}$ to the daily mean estimate. Similarly transform the daily estimate of the return standard deviation, $r_{sd}$, by multiplying this estimate by $\sqrt{\Delta t} = \sqrt{252}$.
+
+$$
+r_{mean}^{\,\,\,annual} = r_{mean}\Delta t = \left[\sum_{t=2}^T \left(\frac{r_t^{\,ticker}}{T}\right)\right]\Delta t
+$$
+$$
+\sigma_{E} = r_{sd}\sqrt{\Delta t} = \left[\sum_{t=2}^T \left(\frac{(r_t^{\,ticker}-r_{mean})^2}{T-1}\right)\right]\sqrt{\Delta t}
+$$
+The mean and variance can be computed over the entire sample or as a rolling calculation to get a sense of the time varying properties of stock return movements.
+
+5. Further transform the annualized equity return volatility estimate into an invested capital (asset) volatility estimate. First, we can model the present value of invested capital ($V$) as a portfolio of long term debt ($D$) and equity ($E$). We remember that the present value of invested capital is implied in the present values of debt and equity. We can observe the present values of debt and equity in the market place; we can't observe the present value of invested capital. We infer that 
+$$
+V = D + E
+$$
+We estimate $E$ from the current market capitalization of equity, that is, the current market (traded) price of shares of stock, $p_E$, times the number of outstanding shares of stock (ex-dividend), $N_E$. We will assume that the present value of debt, $D$, is at current book value. This yields
+$$
+V = D + p_E N_E
+$$
+6. We can think of the variance of debt as 0 for this purpose and focus on folding in the variance of stock return $\sigma_{E}^{2}$ on the assumption that there is no correlation between debt and equity returns and with $\sigma_D=0$ we have.
+
+$$
+\sigma_{V}^2 = \left(\frac{D}{V}\right)^2\sigma_D^2 +   \left(\frac{E}{V}\right)^2\sigma_E^2
+$$
+$$
+\sigma_{V} = \left(\frac{E}{V}\right)\sigma_E
+$$
+where,
+$$
+E = p_E N_E
+$$
+and
+$$
+V = D + E
+$$
+with $D$ at book value.
+
+7. Next we use $\sigma_V$ to estimate asset return volatility, constant debt, a one year treasury rate, across 4 quarters in a year, with four quarters of estimated future cash flow for equity holders to decide to reinvest in the company (additions to retained earnings) or as dividends to build an invested capital binomial tree, up and down binomial factors, and risk neutral probabilities.
+
+8. We then use the forecasted asset tree, free cash flows to shareholders, and the one year treasury rate to develop an equity valuation modeling equity as an American option.
+
+9. Sensitize the equity valuation by varying input parameters including debt, asset volatility, initial asset value, and the treasury rate. 
+
+# References
+
+Brealey, R, Myers, S. and Allen, F. (2016). Principles of Corporate Finance. 12th ed. McGraw-Hill. Chapters 
+
+Haug, E.G. (2007). The Complete Guide to Option Pricing Formulas. 2nd ed. McGraw-Hill.
+
+Hull, J.C. (2007). Options, Futures, and Other Derivatives. 7th ed. Pearson Education.

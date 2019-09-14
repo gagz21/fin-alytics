@@ -1,0 +1,495 @@
+---
+title: "Topics in Financial Analytics"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data
+
+All of the data in the topics comes from R packages or from the zipped file you can [download from here](data/data.zip).
+
+1. Set up a working directory on your computer. Typically this is located in the user's documents directory. In this working directory you will save *.Rmd files.
+
+2. Within the working directory, set up a data directory called `data`. This is a subdirectory of your working directory.
+
+3. Download all of the data into the `/data` directory on your computer.  You will be accessing this data, for the most part `CSV` (comma separated values) files using, as an example, the following code.
+
+```{r, echo = FALSE, eval = FALSE}
+data_in <- read.csv("/data/metals.csv")
+```
+
+Be sure to set up your files in a directory, then set the working directory as the source file location. In that way your call to `/data/metals.csv` (for example) will connect. Otherwise you will get the following error:
+
+```{}
+Error in file(file, "rt") : cannot open the connection
+In addition: Warning message:
+In file(file, "rt") :
+  cannot open file 'data/metals.csv': No such file or directory
+```
+
+The **fix** is to properly set your working directory. In Rstudio on the tool bar go to **Session > Set Working Directory > Source File Location**. If you have set up the `data/` folder with the data as a sub-direcctory of the directory which is your source file location, `read.csv()` will be able to connect to your data set.
+
+# Finance tutorials
+
+Here are several short tutorials in financial analysis. 
+
+- [Net present value](HTML/npv-1.html)
+
+- [Internal rate of return](HTML/irr-1.html)
+
+- [Exchange rate](HTML/exchange-rates-1.html)
+
+- [Expected Shortfall confidence interval estimation](HTML/sampling-ES-1.html)
+
+- [Private placement of capital: deal structure (IRR, PV, option pricing, strategy ROI)](HTML/private-placement-1.html)
+
+- [Equity valuation using the binomial option pricing model](PDF/equityvaluation-1.pdf)
+
+# Topic 1: R warmups for finance {.tabset}
+
+## Week 1
+
+### View asynchronous material for Unit 1 -- R Warmups for Finance
+
+Supporting files are in
+
+- [RMD](RMD/W1-RWarmUps.Rmd)
+
+- [PDF](PDF/W1-RWarmUps.pdf)
+
+2. Bring specific issues to the Live Session for discussion and resolution
+
+3. Note that **cookbook-r.com** no longer has a `package` page. Revised directions are included in the week 1 RMD file above.
+
+4. Before the Live Session, be sure to have a working directory set up with a `data` subdirectory. Be sure to have downloaded and extracted the data for the course into the the `data` subdirectory.
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. In the `R` console type `install.packages(c("shiny", "learnr", "GGally"))`. We will use these packages and the following `Rmd` file in workbook sessions. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-1/). Copy these files into your working directory to render your local version of this session:Copy this file into your working directory.
+
+- [Workbook session #1 learnr RMD file](RMD/live-1.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Break-out #1: Review `summary()` assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Break-out #2: Review `ggplot()` assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review the next week's asynchronous material. (10 minutes)
+
+## Week 2 
+
+### View asynchronous material for Unit 2 -- R Data Model
+
+In this "learn R on the job" week you will
+
+1. Build on plotting and computational aspects of R
+
+- Making log differences (returns and growth rates)
+
+- Using ggplot2 to make production grade graphics with layering techniques
+
+- Fitting distributions to data using the `gamma` distribution
+
+2. Learn to control data flow using `if` and functions
+
+3. Build two financial functions.
+
+- Net Present Value and Internal Rate of Return
+
+Supporting files are in
+
+- [RMD](RMD/W2-RMore.Rmd)
+
+- [PDF](PDF/W2-RMore.pdf)
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-2/). Copy these files into your working directory to render your local version of this session:
+
+- [Live Session #2 learnr RMD file](RMD/live-2.Rmd)
+
+- [Power and natural gas price data CSV file](RMD/power-gas-ne.csv)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review pivot and lookup assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review simulation function assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review the Heating Oil No. 2 and next week's asynchronous material. (10 minutes)
+
+## Project 1: Heating Oil No. 2 Analysis
+
+Here is your first graded project for formal feedback. You can use this project to practice the many aspects of R we covered these past two weeks.
+
+### Project 1: HO2 Analysis
+
+HO2 = NY Harbor No. 2 Heating Oil prices
+
+- Here is a [description of the contract](http://www.cmegroup.com/trading/energy/refined-products/heating-oil_contract_specifications.html) at the NYMEX (CME Group)
+
+- More information on HO2 is deposited [here](https://en.wikipedia.org/wiki/Heating_oil)
+
+- Fuel oil is used to hedge a variety of refined oil products including Jet-A (Kerosene) and propane.
+
+View **Project 1: HO2 Analysis**  [here](HTML/PR01-Rstartup-HO2.html). The code for this project is in the following RMD file.
+
+- [RMD](RMD/PR01-Rstartup-HO2.Rmd)
+
+# Topic 2: Macro Financial Analysis {.tabset}
+
+## Week 3
+
+### View asynchronous material for Unit 3 -- Macrofinancial Analysis
+
+We build on many of the finance concepts we covered in weeks 1 and 2. Here we begin to build out the 
+
+- Stylized facts of the market including volatility clustering, leverage, and the persistence of returns and volatility 
+
+- Visualize risk and return
+
+Supporting files are in
+
+- [RMD](RMD/W3-Macrofinancial.Rmd)
+
+- [PDF](PDF/W3-Macrofinancial.pdf)
+
+### Practice
+
+For the adventurous among you try out the code used in the macro-financial asynch using data from the Fama and French market returns data set.
+
+- [Fama and French stock market factors data set: fama-french-daily.csv](data/F-F_Research_Data_5_Factors_2x3_daily.csv)
+
+- The factors in each column are defined [here](http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/Data_Library/f-f_5developed.html)
+
+- You can read more about this influential model from Fama and French [here](https://www8.gsb.columbia.edu/programs/sites/programs/files/finance/Finance%20Seminar/spring%202014/ken%20french.pdf)
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-3/). Copy these files into your working directory to render your local version of this session:
+
+- [Live Session #3 learnr RMD file](RMD/live-3.Rmd)
+
+- [IYM data CSV file](https://turing.manhattan.edu/~wfoote01/finalytics/_site/RMD/IYM.csv)
+
+- [USO data CSV file](https://turing.manhattan.edu/~wfoote01/finalytics/_site/RMD/USO.csv)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Break-out #1: Review data inspection and exploration assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Break-out #2: Review autocorrelation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+
+## Week 4
+
+### View asynchronous material for Unit 3 - Macrofinancial Analysis again
+
+We build on many of the finance concepts we covered in week 3. Here we begin to build out the 
+
+- Relate markets to one another
+
+- Visualize risk and return and correlation impacts
+
+- Attempt to forecast GNP!
+
+- Try to make our own inferential statistics using bootstrapping techniques
+
+Supporting files continue to be in the `Unit 3` materials (even though we are in Week 4!)
+
+- [RMD](RMD/W3-Macrofinancial.Rmd)
+
+- [PDF](PDF/W3-Macrofinancial.pdf)
+
+View a primer on [quantile regression here](HTML/primer-quantile-regression.html).
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-3/). Copy this file into your working directory to render your local version of this session:
+
+- [Workbook Session #5 learnr RMD file](RMD/live-3.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review market data descriptive statistics assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review autocorrelation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-4/). Copy this file into your working directory to render your local version of this session:
+
+- [Workbook Session #5 learnr RMD file](RMD/live-4.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review cross correlation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review market spillover assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+## Project 2: Foreign Exchange Markets {.tabset}
+
+Live Sessions 3 and 4 will cover material to help successfully complete Project 2.
+
+View a tutorial on **foreign exchange markets** [here](HTML/exchange-rates-1.html).
+
+View **Project 2: foreign exchange market analysis**  [here](HTML/PR02_exrates-solution.html)
+
+- [RMD](RMD/PR02_exrates-solution.Rmd)
+
+# Topic 3: Market Risk {.tabset}
+
+## Week 5
+
+### View Market Risk asynchronous material deposited in Unit 4 -- Market Risk
+
+Yes, we are in Week 5 by the calendar, and you will need to go to the Market Risk material that is located in Week 5. We happen to "synch" up!
+
+- We will wander into various markets and repeat our macrofinancial data analysis. 
+
+- Building on this, we will begin to look at the tails of the returns distributions and define risk measures
+
+- You can practice this, and next week's, modeling efforts using the exchange rates, HO2, and other data sets you have already become very familiar with.
+
+Supporting files (`Unit 4` materials)
+
+- [RMD](RMD/W5-MarketRisk.Rmd)
+
+- [PDF](PDF/W5-MarketRisk.pdf)
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-5/). Copy this file into your working directory to render your local version of this session:
+
+- [Workbook Session #5 learnr RMD file](RMD/live-5.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review GARCH simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review historical simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+## Week 6
+
+This week we continue with
+
+- Value at Risk (VaR) is a quantile and more importantly, the VaR of a combined portfolio can be larger than the sum of the VaRs of its components (sub-additivity). This makes VaR not very useful in developing estimates of capital needed to manage the risk of a business.
+
+- Expected Shortfal (ES) is the loss in excess of a threshold. Thresholds are often the VaR quantile of loss in the tail of a loss distribution. The ESof a combined portfolio is indeed the sum of the ES of the components of portfolio. They are additive -- a very useful metric property for estimating capital, especially NPV changes.
+
+- Again, for practice, use these metrics on prior weeks' data sets.
+
+Supporting files continue to be (`Unit 4` materials)
+
+- [RMD](RMD/W5-MarketRisk.Rmd)
+
+- [PDF](PDF/W5-MarketRisk.pdf)
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-6/). Copy this file into your working directory to render your local version of this session:
+
+- [Workbook Session #6 learnr RMD file](RMD/live-6.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review  expected shortfall estimation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review loss tail estimation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+## Project 3: Metals Risk and Capital {.tabset}
+
+Heavy metals
+
+- Go to [this site to get some rock hard information](https://minerals.usgs.gov/minerals/pubs/commodity/) about nickel, copper, and aluminum (aka aluminium).
+
+- The London Metals Exchange (LME) has a great [introductory presentation on metals hedging here](http://www.metalbulletin.com/events/download.ashx/document/speaker/7273/a0ID000000X0k1JMAR/Presentation) and [more general hedging information here](https://www.lme.com/en-GB/Trading/Physical-market-services/Hedging#tabIndex=1).
+
+View these two versions of Project 3: Escapades in market risk analysis and a `flexdashboard` project example:
+
+- [This version closely follows the R notation used in the asynchronous portion of the course.](HTML/PR03_market-risk.html) with [RMD file](RMD/PR03_market-risk.Rmd)
+
+- [This version follows the development of the same analysis using tidyverse techniques from the synchronous workbook sessions](HTML/PR03_market-risk-rev.html) with [RMD file](RMD/PR03_market-risk-rev.Rmd)
+
+- Here is an [example](HTML/ofcourse-42.html) of the use of `flexdashboard` for this project with [RMD file](RMD/ofcourse-42.Rmd).
+
+
+# Topic 4: Portfolio Analytics {.tabset}
+
+## Week 7
+
+### View asynchronous material assigned to Unit 5 -- Portfolio Analytics
+
+This week we travel into the 2 asset case
+
+- We define risk tolerance (remember our extreme value work) and a threshold for loss
+
+- We then specify a statistical confidence interval to build upper and lower bounds on our choices
+
+- Then we use some very interesting math to solve for the optimal allocation of cash and risky asset.
+
+Supporting files are in
+
+Supporting files (`Unit 5` materials for use in this week 7)
+
+- [RMD](RMD/W9-PortfolioAnalytics.Rmd)
+
+- [PDF](PDF/W9-PortfolioAnalytics.pdf)
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-7/). Copy this file into your working directory to render your local version of this session:
+
+- [Workbook Session #7 learnr RMD file](RMD/live-7.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review portfolio construcion assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review risky asset-cash decision simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+## Week 8
+
+This week we continue into the multiple risky asset case
+
+- Some matrix math helps us with describing and specifying portfolios
+
+- We use a [quadratic programming solver](https://cran.r-project.org/web/packages/quadprog/quadprog.pdf) in R very similar to the capability of Frontline's Excel add-in solver.
+
+- We then try to run the analysis full circle to use the optimal (tangency) risk asseet portfolio in the Week 7 model of cash and risky asset.
+
+- The **risky asset** is really a portfolio that might be traded. In fact, this is what an [ETF (exchange-traded fund)](https://www.nasdaq.com/etfs/what-are-ETFs.aspx) is.
+
+Supporting files (`Unit 5` materials) continue to be
+
+- [RMD](RMD/W9-PortfolioAnalytics.Rmd)
+
+- [PDF](PDF/W9-PortfolioAnalytics.pdf)
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-8/). Copy this file into your working directory to render your local version of this session:
+
+- [Workbook Session #8 learnr RMD file](RMD/live-8.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review risky portfolio allocation together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review risky asset-cash decision (again) simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+## Project 4: Metals Risk-Return Allocation
+
+We continue the Ni-Cu-Al metals discussion with the computation and interpretation of the optimal allocation of these metals in a revenue portfolio.
+
+- Be sure to note how we insert (slyly!) extreme value finance and confidence intervals through the use of a subsetting of the data by quantile (VaR) threshold and by sampling returns.
+
+- The last question is of great import: what is the optimal allocation of optimal risk assets (Ni-Cu-Al) and cash (and high quality marketable securities)? The answer relies on the first part of the asynchronous material about the Iberian contract.
+
+View [Project 4: metals portfolio analysis here](HTML/PR04_portfolio-analytics-rev.html)
+
+- [RMD](RMD/PR04_portfolio-analytics-rev.Rmd)
+
+# Topic 5: Enterprise Risk Analytics {.tabset}
+
+## Week 9
+
+### View asynchronous material for Unit 6 -- Enterprise Risk Analytics
+
+- This is a capstone chunk of material that forces us to simulate loss for a portfolio
+
+- We use a monte carlo technique called a copula to jointly generate portfolio returns
+
+- We also allow ourselves the luxury of using non-normal distributions, like our old friend the `gamma` distribution.
+
+- Applying this material to the metals data might prove very useful in understanding the level and the confidence intervals surrounding loss and capital.
+
+Supporting files (`Unit 6` materials) are
+
+- [RMD](RMD/W10-Aggregation.Rmd)
+
+- [PDF](PDF/W10-Aggregation.pdf)
+
+- [R](RMD/W10-ERM_appSHINY.R) file for the Shiny app in the asynchronous material
+
+### Workbook session
+
+1. Welcome: meet and greet, respond to polls, list asynch highs and lows in chat room. (5 minutes)
+
+2. The interactive workbook is [deployed here](https://wgfoote.shinyapps.io/finalytics-live-9/). Copy this file into your working directory to render your local version of this session:
+
+- [Workbook Session #9 learnr RMD file](RMD/live-9.Rmd)
+
+3. Review and discuss asynch questions and issues. Record solutions on the wall. (15 minutes)
+
+4. Assignment #1: Review monte carlo simulation of correlated innovations together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+5. Assignment #2: Review margin simulation assignment together. Break out into separate rooms to discuss, analyze, and formulate report. Share report together. (30 minutes)
+
+6. Debrief this session and review next week's asynchronous materials. (10 minutes)
+
+## Week 10
+
+This last week finishes your preparation for your individual final project.
+
+- You can use this [example of a financial web application](https://wgfoote.shinyapps.io/extreme-4/) built with the tools learned in this course as a template
+
+- To answer all of the questions in the final project, you might need to increment the features of the example application.
+
+## Project 5 -- FINAL
+
+### This is it -- the FINALE
+
+We have built everything from net present value and internal rate of return calculators to extreme market event indicators, optimal portfolios: all set against market risk and return stylized facts. The final project puts it all together for a business context and data set of your choice. 
+
+### Assignment
+
+This assignment will be the focus of Live Session 10. The final project is due at the Final Project Session in week 11. Submit into **Coursework > Assignments and Grading > Project 5 > Submission** an `RMD`  file with filename **lastname-firstname_Final-Project.Rmd** and associated `csv` or other relevant files. 
+
+1. Choose a business decision and context. Based on that decision and context choose at least three (3) **daily** time series of sufficient length to help (often not completely) answer the key business questions that arise out of the business context and decision.
+
+2. Build a flexdashboard application that addresses the business context you have chosen. The following outline is a guideline for the work flow in the web application. Populate the application with appropriate models, descriptive, explanatory, and predictive text, tables, and plots.
+
+3. List in the text the `R` packages and skills needed to complete this project along with references used, including data sources.
+
+4. Discuss how well did the results begin to answer the business questions posed for the project.
+
+View [Project 5: FINAL here](HTML/PR05-FINAL.html)
+
+- [RMD](RMD/PR05-FINAL.Rmd)
+

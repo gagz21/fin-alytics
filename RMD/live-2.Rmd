@@ -1,0 +1,402 @@
+---
+title: "Workbook: R Data Aggregation, Regression, and Simulation"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+# save working directory
+wd <- getwd()
+# use saved wd to reset working directory to this source file while in shiny
+# setwd(wd)
+# read data frame from csv file
+data <- read.csv("power-gas-ne.csv")
+data$date <- as_date(data$date)
+data_ele <- data %>% filter(hub == "nepool")
+data_ng <- data %>% filter(hub == "algonquin")
+data_all <- merge(data_ele, data_ng, by.x = "date", by.y = "date")
+#str(data_all)
+price <- data_all[ , c("date", "price_avg.x", "price_avg.y")]
+colnames(price) <- c("date", "price_el", "price_ng")
+price$week <- as.factor(epiweek(price$date))
+#str(price)
+#p <- ggplot(price, aes(x = price_ng, y = price_el, color = as.factor(week)))
+#p <- p + xlab("natural gas daily price USD/MMBtu") + ylab("electricity daily #price USD/MWh") + ggtitle("Nepool versus Algonquin Citygates: 2015-2017")
+#p <- p + geom_point()
+#p
+#ggpairs(price[, c(2,3,4)], aes(color = as.factor(week), alpha = 0.4))
+#
+price_month <- price %>% mutate(year = year(date)) %>% mutate(month = month.abb[month(date)]) %>% group_by(year, month) %>% summarise(ng_mean = mean(price_ng), ng_sd = sd(price_ng), el_mean = mean(price_el), el_sd = sd(price_el))
+#
+#ggpairs(price_month[, -1], aes(color = as.factor(month), alpha = 0.4))
+#
+price <- price %>% mutate(log_el = log(price$price_el), log_ng = log(price$price_ng))
+#
+alpha = 0.05
+#
+sim <- function (size = 36) {
+  x <- sample(price$log_ng, size = size, replace = TRUE)
+  y <- sample(price$log_el, size = size, replace = TRUE)
+  fit <- lm(y ~ x)
+  ## return simulation result for sigma of regression
+  return(exp(summary(fit)$sigma))
+  }
+#
+# prices_week <- prices %>% mutate(week = week(prices$date)) %>% group_by(hub, week) %>% summarise(price_mean = mean(price_avg), price_sd = sd(price_avg), trades_sum = sum(trades), cp_sum = sum(counterparties))
+```
+
+## Welcome
+
+This workbook will provide practice with data transformation, aggregation and functions, confidence interval estimation (no one answer!), simulation, and, always and forever more, visualization of results for a decision maker.
+
+You will practice to
+
+1. Build and visualize a pivot table. Inside of this table you will summarize the data using various descriptive statistics.
+
+2. Estimate a relationship between two variables in the pivot table.
+
+3. Build a function to simulate potential outcomes among the variables in the pivot table
+
+4. Visualize results from the simulation.
+
+Here is our working example to help out the CFO of your aluminum recycling company:
+
+Our aluminum recyling company uses natural gas to melt collected aluminum objects into ingots for sale to the metal market. The company also has a fleet of small cogeneration plants that turn natural gas into electricity for use in facility operations as well as sale to the wholesale electricity market. Most of the facilities are located around Boston MA. Thus both revenue and expense are driven by natural gas and electricity prices.
+
+Your CFO has three questions for us:
+
+1. What is the month to month variation in electricity and natural gas prices?
+
+2. How sensitive are electricity prices to natural gas prices? 
+
+3. How risky are electicity prices?
+
+Natural gas supply contracts price at the [Algonquin Citygates hub](https://www.theice.com/products/6590174/Algonquin-Citygates-Index-Future) and electricity contracts price at the [NEPOOL hub](https://www.theice.com/products/28687653/NEPool-Mass-Hub-Real-Time-Peak), all in New England. You collect data Intercontinental Exchange trading data from the [Department of Energy EIA](https://www.eia.gov/electricity/wholesale/#history) historical archive to help answer these questions.
+
+## Examine data
+
+There is data loaded into an object called `data` in this workspace. Use the `str()`, `head()`, `tail()`, and `summary()` functions to examine the data quickly.
+
+```{r inspect, exercise = TRUE}
+
+```
+
+<div id="inspect-hint">
+**Hint:** For example type `str(data)` into the R console pane in RStudio.
+</div>
+
+Code this sequence:
+
+- Transform the character column `date` into a date with `as_date()`. 
+
+- Subset `data` into electricity (`nepool`) and natural gas (`algonquin`) with `filter()` and assign to `data_ele` and `data_ng` respectively. 
+
+- Then join the two subsets along the `date` column using `merge(x, y, by.x = "date", by.y = "date")` where `x` and `y` are the names of the electicity and natural subsets of `data`.
+
+- Check the result with `str()`, `summary()`, `head()`, and `tail()`.
+
+```{r transform, exercise = TRUE}
+
+```
+
+<div id="transform-hint">
+**Hint:** We can assign a new value to all of the rows in a column this way: `data$date <- as_date(data$date)`. For example, subset electricity values in `data` with `data %>% filter(hub == "nepool")`. One way to code this.
+```{r transform-ex, eval = FALSE, echo  = TRUE}
+data$date <- as_date(data$date)
+data_ele <- data %>% filter(hub == "nepool")
+data_ng <- data %>% filter(hub == "algonquin")
+data_all <- merge(data_ele, data_ng, by.x = "date", by.y = "date")
+```
+</div>
+
+Another round:
+
+- Subset the merged `data` for `date`, `price_avg.x` and `price_avg.y` columns. 
+
+- Rename the columns with `colnames()`as 'date', 'price_el`, and 'price_ng`. 
+
+- Add a new column for month of the year using `mutate()`. Be sure to make the new column a factor with `as.factor`. 
+
+- Then visualize the relationship between electricity and natural gas prices using the last three columns of the `price` data frame and `ggpairs() with `color = month` in the `aes()` inside of the `ggpairs()` function.
+
+```{r pairs, exercise = TRUE}
+
+```
+
+<div id="pairs-hint">
+**Hint:** Here is one version of this code:
+```{r pairs-ex, eval = FALSE, echo = TRUE}
+price <- data_all[ , c("date", "price_avg.x", "price_avg.y")]
+colnames(price) <- c("date", "price_el", "price_ng")
+price$month <- as.factor(month(price$date))
+#
+ggpairs(price[, c(2,3,4)], aes(color = as.factor(month), alpha = 0.4))
+```
+A good practice is to comment the code with the work flow described above using the `#` before the comment.
+</div>
+
+## The CFO's question
+
+To answer the question: 
+
+- What is the monthly variation in natural gas and electricity prices?
+
+Let's build a more nuanced and extended version of the `summary()` function using the `dplyr` package and its piping operator `%>%` (ctrl+shift+m on Windows and command+shift+m on Mac) and `mutate()`, `filter()`, `group_by`, and `summarise()` functions. This work flow will replicate pivot table features, including the ability to add columns that provide aggregating measures like the average and minimum or maximum. 
+
+- Add two new columns: year and month with `year()`and `month()`. By the way the CFO likes to see abbreviations for each month.
+
+- Pivot using (group_by()) first by year and then by month in the year
+
+- Look at the resulting table.
+
+- Build a scatter matrix using `ggpairs()`.
+
+```{r month, exercise = TRUE}
+
+```
+
+<div id="month-hint">
+**Hint:** Here is one way to code this analysis.
+```{r month-ex, eval = FALSE, echo = TRUE}
+price_month <- price %>% mutate(year = year(date)) %>% mutate(month = month.abb[month(date)]) %>% group_by(year, month) %>% summarise(ng_mean = mean(price_ng), ng_sd = sd(price_ng), el_mean = mean(price_el), el_sd = sd(price_el))
+#
+print(price_month)
+ggpairs(price_month[, -1], aes(color = as.factor(month), alpha = 0.4))
+```
+Notice the use of `month.abb()` to get month abbreviations instead of a sequence of 1 through 12.
+</div>
+
+**Report**
+
+1. The top row of the `ggpairs()` output shows a box and whiskers diagram of the price mean and standard deviation metrics. Which months are the most volatile?
+
+2. From the print out of `price_month` delineate the most volatile price months.
+
+3. From the print out of `price_month` delineate the most volatile of the volatility in price months.
+
+4. What are we going to tell the CFO?
+
+## Relations and risk
+
+All of the correlations in the `ggpairs()` output are very high (greater than |0.10|). Let's estimate the range of sensitivity of electricity prices to natural gas prices. To do this we set up a sample simple linear regression model:
+
+$$
+P_{el} = b_0 + b_1 P_{ng} + e_{el} 
+$$
+
+We measure sensitivity using elasticity: the percentage change in electricity prices that occurs when there is a percentage change in natural gas prices.
+
+$$
+\varepsilon_{el,ng} = \frac{dP_{el}/P_{el}}{dP_{ng}/P_{ng}} = \frac{d\,\,ln (P_{el})}{d\,\,ln(P_{ng})} 
+$$
+where for a continuous variable $x$, $dx$ is an ever smaller change in $x$ and $ln()$ is the natural logarithm (logarithm to the base `r exp(1)`). To measure this elasticity we take natural logarithms of both of our variables and regress these transformed variables on one another.
+
+$$
+ln(P_{el}) = b_0 + b_1 ln(P_{ng}) + e_{el} 
+$$
+$$
+p_{el} = b_0 + b_1 p_{ng} + e_{el} 
+$$
+where the lowercase $p$ is the logarithm of uppercase price $P$. Taking derivatives of both sides we get
+
+$$
+\frac{dp_{el}}{dp_{ng}} = \frac{d\,\,ln(P_{el})}{d\,\,ln(P_{ng})} = b_1
+$$
+so that the price elasticity of electricity with respect to natural gas prices is
+
+$$
+\varepsilon_{el,ng} = b_1
+$$
+
+When we measure the regression slope coefficient $b_1$ we thus measure the elasticity of electricity prices with respect to a small change in natural gas prices.
+
+Here is a workflow:
+
+- Mutate `price` with `log()` transformations of `ng_mean` and `el_mean`
+
+- Regress `el_mean` on `ng_mean` using the linear model `lm(wl_mean ~ ng_mean, data = price)`. Assign this call to an object called `fit`.
+
+- The results can be reviewed using `summary(fit)`. Assign this to another object called `fit_summary`. You can see all of the items in `fit_summary` by using `str()`. 
+
+- Extract `sigma`. This is the riskiness of `log(price_el)` **conditional** on a linear dependency on `log(price_ng)`. `sigma` is itself in `log()` terms. Transform this measure into the original price units by calculating `exp(fit_summary$sigma)`.
+
+```{r regress, exercise = TRUE}
+
+```
+
+<div id="regress-hint">
+**Hint:** Code for this could look like
+```{r regress-ex, eval = FALSE, echo = TRUE}
+price <- price %>% mutate(log_el = log(price$price_el), log_ng = log(price$price_ng))
+fit <- lm(log_el ~ log_ng, data = price)
+fit_summary <- summary(fit)
+log_el_sigma <- fit_summary$sigma
+(price_el_sigma <- exp(log_el_sigma))
+```
+</div>
+
+
+**Report**
+
+1. What is the elasticity and how reliable is it? How would you interpret it?
+
+2. What is the standard deviation of electricity prices across all months conditional on natural gas prices?
+
+## Confidence and tolerating risk
+
+Finance uses the statistical technique of interval estimation to get at the range of potential values with a probability of confidence. We can repeatedly [sample with replacement](https://en.wikipedia.org/wiki/Simple_random_sample) many thousands of times and recalculate the regression we just did once above. 
+
+In this way we generate thousands of regression `sigma`s. We can then examine the distribution of those generated estimates and built upper and lower bounds such that there are, say, 95\% of the `sigma`s between those bounds. The `r (1-alpha)*100`\% confidence interval for estimating the population parameter $\sigma$ is this probability statement.
+
+$$
+Prob[L \leq \sigma_{el} \leq U ] = `r 1-alpha`
+$$
+
+For the CFO you might report that " we are `r (1-alpha)*100`\% confident, given our experience in the markets over the past three years with both natural gas and electricity, that excess risk of electricity price movement will be between $L$ and $U$ USD/MWh." A mouthful!.
+
+We also say that the CFO would tolerate a risk outside of this interval `r alpha*100` times out of every 100 throws of the market dice. For an $\alpha = 5\%$, the CFO would tolerate a risk of being out of bounds only 1 in 20 times, on average (expectation). 
+
+In financial decisions, it is paramount to consider as many ways in which a decision outcome or input might occur. Through the history of prices we have data that implicitly contains many useful scenarios. Replaying those scenarios through sampling helps us understand the range of potential deviations from the average scenario. It is these deviations that management must become aware of, then understand, and finally act on through risk and performance plans.
+
+### Just one scenario at a time
+
+A **scenario** for us will be a combination of prices. 
+
+- We have 471 unevenly spaced daily observations covering three years or 36 months of data on electricity and natural gas prices in New England. 
+
+- Suppose we look at monthly scenarios. There are `choose(471, 36)` ways to choose 36 electricity-natural gas price pair combinations (with replacement): a very, very large number = `r choose(471, 36)`!
+
+- Of course, some combinations are more likely (probable) than others.
+
+- Use `sample(x, size = 36, replace = TRUE)` to pick one scenario of 36 log price combinations from the 471 available. Do so for each log price.
+
+- Regress electricity log price on natural gas log price.
+
+- Use the `exp()` function to retrieve the price level version of the regression sigma.
+
+Run this code a few times and also retrieve the slope coefficient from the `summary()` (you do need to use the `exp()` function -- why?).
+
+```{r sample1, exercise = TRUE}
+x <- sample(price$log_ng, size = 36, replace = TRUE)
+y <- sample(price$log_el, size = 36, replace = TRUE)
+fit <- lm(y ~ x)
+  ## return simulation result for sigma of regression
+exp(summary(fit)$sigma)
+fit$coef[2]
+```
+
+Wrapping our minds around the code:
+
+- Parse (dissect that is) the `sample()` statements. What does `size` indicate? Why use `replace = TRUE`?
+
+- Why the `exp()`?
+
+- what is `fit$coef[2]`?
+
+Now we can get to the gist of the content of this analysis.
+
+**Report**
+
+1. What sigmas are generated?
+
+2. What elasticities are generated?
+
+### Replicate (until morale improves!)
+
+Let's memorialize our simulation routine into a function called `sim()`. Allow the function to vary the `size` parameter in the `sample()`, but set a default of 36. Try it out.
+
+```{r sim, exercise = TRUE}
+sim <- function (size = 36) {
+  x <- sample(price$log_ng, size = size, replace = TRUE)
+  y <- sample(price$log_el, size = size, replace = TRUE)
+  fit <- lm(y ~ x)
+  # return simulation result for the regression sigma
+  return(exp(summary(fit)$sigma))
+  }
+sim( size = 50)
+sim()
+```
+
+Now we can repeat the calculation of `sim()` as many times as we want using the `replicate()` function. We can also do this with a `for` loop. But try that on your own!
+
+- Be able to reproduce our work across teams by invoking `set.seed(1841)`.
+
+- Assign the results of `replicate(n, sim())` to `sigma_sim` in a data frame. Use `n = 1000` to start. More replications will take more time and be more accurate.
+
+- For a 95\% level of confidence calculate `quantile(sigma_sim, 0.025)` and `quantile(sigma_sim, 0.975)`
+
+- Using`ggplot2`'s `geom_density()` and `geom_vline()` build the empirical distribution with upper and lower bounds.
+
+- Interpret for the CFO.
+
+```{r density, exercise = TRUE}
+options(digits = 2)
+set.seed(1841)
+sigma_sim <- replicate(1000, sim())
+summary(sigma_sim)
+sigma_low <- quantile(sigma_sim, 0.025)
+sigma_high <- quantile(sigma_sim, 0.975)
+sigma_sim_df <- data_frame(sigma_sim = sigma_sim)
+```
+
+
+<div id="density-hint">
+**Hint:** Here's all the code you might use.
+```{r density-ex, eval = FALSE, echo = TRUE}
+options(digits = 2)
+set.seed(1841)
+sigma_sim <- replicate(1000, sim())
+summary(sigma_sim)
+sigma_low <- quantile(sigma_sim, 0.025)
+sigma_high <- quantile(sigma_sim, 0.975)
+sigma_sim_df <- data_frame(sigma_sim = sigma_sim)
+title <- "NEPOOL price risk"
+p <- ggplot(data = sigma_sim_df, aes(x = sigma_sim))
+p <- p + geom_histogram(aes(y=..density..), alpha = 0.4)
+#p <- p + geom_density(color = "blue")
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = sigma_low, color = "red", size = 1.5 ) + geom_vline(xintercept = sigma_high, color = "red", size = 1.5)
+p <- p + annotate("text", x = sigma_low, y = 2.5, label = paste("L = ", round(sigma_low, 2))) + annotate("text", x = sigma_high, y = 2.5, label = paste("U = ", round(sigma_high, 2)))
+p
+```
+</div>
+
+**Report**
+
+1. What are the upper and lower bounds on price electricity volatility?
+
+2. Look up `annotate()` and adjust for readability as needed.
+
+3. What do you tell the CFO about how volatile electricity risk is?
+
+
+#### Congratulations!
+
+We made it through our second workbook. 
+
+- You've now built pivot tables, and even performed a Excel style `VLOOKUP()` using `merge()`
+
+- You practiced how to inspect and explore data
+
+- You built a simulation using `sample()`, a helper function to deploy in `replicate()`
+
+- You practiced GGally and ggplot2 plotting.
+
+- Again, you used financial data to build a story
+
+More finance with some more R in the next installment as we wander into the stylized facts of the financial markets.

@@ -39,7 +39,7 @@ With this project we will practice reading, cleaning, and exploring data, buildi
 
 ## Assignment
 
-Submit into **Coursework > Assignments and Grading > Project 2 > Submission** an `RMD`  file with filename **lastname-firstname_Project2.Rmd**. If you have difficulties submitting a `.Rmd` file, then submit a `.txt` file.
+Submit into **Coursework > Assignments and Grading > Project 1 > Submission** an `RMD`  file with filename **lastname-firstname_Project1.Rmd**. If you have difficulties submitting a `.Rmd` file, then submit a `.txt` file.
 
 1. Use headers (##), r-chunks for code, and text to build a report that addresses the two parts of this project.
 
@@ -51,7 +51,7 @@ Submit into **Coursework > Assignments and Grading > Project 2 > Submission** an
 
 ## R Markdown set up
 
-1. Open a new `R Markdown` pdf (or Word) document file and save it with file name **lastname-firstname_Project2** to your working directory. The `Rmd` file extension will automatically be appended to the file name. Create a new folder called `data` in this working directory and deposit the `.csv` file for Project #2 to this directory.
+1. Open a new `R Markdown` html document file and save it with file name **lastname-firstname_Project1** to your working directory. The `Rmd` file extension will automatically be appended to the file name. Create a new folder called `data` in this working directory and deposit the `.csv` file for Project #2 to this directory.
 
 2. Modify the `YAML` header in the `Rmd` file to reflect the name of this project, your name, and date.
 

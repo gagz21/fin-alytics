@@ -1,6 +1,5 @@
 ---
 title:  "Foreign Exchange Markets"
-subtitle: "Back to the future"
 author:  "William G. Foote"
 date:  "June 4, 2018"
 output:  
@@ -19,7 +18,7 @@ The _foreign exchange market_ is the network of individuals, organizations, fina
 
 The principal function of the foreign exchange market is the transfer of funds, and thus purchasing power, from one nation and currency to another. Other functions provide short-term credits to finance trade and facilities for speculating and hedging foreign exchange risks.
 
-- In purely domestic trade, payments transact only in the domestic currency. When doemstic entities conduct foreign trade, purchases and receipts for goods and services are denominated in the foreign currency. Thus in foreign trade the domestic currency must be exchanged for the foreign currency at a value of one for the other.
+- In purely doestic trade, payments transact only in the domestic currency. When doemstic entities conduct foreign trade, purchases and receipts for goods and services are denominated in the foreign currency. Thus in foreign trade the domestic currency must be exchanged for the foreign currency at a value of one for the other.
 
 - When buyers and sellers move goods or provision services across as span of time, credit is needed to finance the future receipt or disbursement of funds. In a typical export trade, the exporter might allow 90 days for payment from the importer in the exporter's currency. To get cash now, the exporter will take the 90 day note from the importer and discount the note at the exporter's bank. The exporter receives the discounted cash flow in the exporter's currency. In 90 days the bank then takes delivery of the importer's currency and may then exchange the importer's currency to the bank's functional currency.
 
@@ -50,7 +49,7 @@ $$
 $$
 Because it takes fewer GBP, this is an _appreciation_ of the pound against the dollar, that is, the pound is _dearer_ than the dollar.
 
-## What is a foreign exchange arbitrage?
+## What is a foreign exchange arrbitrage?
 
 It does happen that the exchange rate in one location, say New York, is different from the same exchange rate in, say, Dubai. Suppose that New York quotes USD1.98 = GBP1.00 and Dubai quotes USD2.00 = GBP1.00. This will be a 2-point arbitrage or trade.
 

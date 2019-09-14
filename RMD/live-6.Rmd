@@ -1,0 +1,466 @@
+---
+title: "Workbook: Simulating Capital Requirements"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+options(digits = 4, scipen = 999999)
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+library(xts)
+library(QRM)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+#stocks_env <- new.env()
+symbols <- c("TAN", "ICLN", "PBW")
+
+price_tbl <- tq_get(symbols) %>% select(date, symbol, price = adjusted)
+# long format ("TIDY") price tibble for possible other work
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+#str(return_tbl)
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+r_corr <- apply.monthly(r_2, FUN = cor)[,c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+r_vols <- apply.monthly(r_2, FUN = colSds)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30)
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) 
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+#
+# convert prices from tibble to xts
+price_etf <- price_tbl %>% spread(symbol, price)
+price_etf <- xts(price_etf, price_etf$date)
+storage.mode(price_etf) <- "numeric" #select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_etf <- price_etf[, -1]
+# get last price
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+w <- as.numeric(shares * price_0)
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+#
+#summary(ES_sim)
+#
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss_rf) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid_0 <- numeric(nint)    # grid store
+e <- grid_0                # store mean exceedances e
+upper <- grid_0            # store upper confidence interval
+lower <- grid_0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+  }
+mep_df <- data.frame(threshold = u, threshold_exceedances = e, lower = lower, upper = upper)
+loss_excess <- loss_rf[loss_rf > u] - u
+quantInv <- function(distr, value) ecdf(distr)(value)
+u_prob <- quantInv(loss_rf, 200000)
+ES_mep <- mean(loss_rf[loss_rf > u_prob])
+u <- quantile(loss_rf, u_prob, names=FALSE)
+fit <- fit.GPD(loss_rf, threshold=0.75*u) # Fit GPD to the excesses
+xi_hat <- abs(fit$par.ests[["xi"]]) # fitted xi, always positive
+beta_hat <- fit$par.ests[["beta"]] # fitted beta
+loss_excess <- loss_rf[loss_rf > u] - u # compute the excesses over u
+n_relative_excess <- length(loss_excess) / length(loss_rf) # = N_u/n
+VaR_gpd <- u + (beta_hat/xi_hat)*(((1-alpha) / n_relative_excess)^(-xi_hat)-1) 
+ES_gpd <- (VaR_gpd + beta_hat-xi_hat*u) / (1-xi_hat)
+#
+stat_fun <- function(x, na.rm = TRUE, ...) {
+  library(moments)
+    # x     = numeric vector
+    # na.rm = boolean, whether or not to remove NA's
+    # ...   = additional args passed to quantile
+    c(mean     = mean(x, na.rm = na.rm),
+      stdev    = sd(x, na.rm = na.rm),
+      skewness = skewness(x, na.rm = na.rm),
+      kurtosis = kurtosis(x, na.rm = na.rm),
+      quantile(x, na.rm = na.rm, ...)) 
+}
+
+```
+
+
+## Welcome
+
+This workbook provides practice with the use of key market risk metrics to measure the amount of capital commensurate with risk tolerance and the drivers of potential loss. .
+
+You will practice to
+
+1. Using market price data, simulate returns and returns loss and calculate confidence intervals for capital management planning using Monte Carlo simulation techniques.
+
+2. Construct a market excess loss threshold plot and select appropriate loss thresholds.
+
+3. Using loss densities identify loss thresholds and calculate capital requirements using confidence interval estimation of expected shortfall.
+
+We continue our working example where we continue to assist the CFO of our aluminum recycling company:
+
+With flagging earnings in aluminum recycling and increasing costs of inputs and the terrible performance of its cogeneration fleet, the company has decided to wade into the deeper end of the pool called the renewables market. One option the banks are recommending to the CFO is to combine solar, wind, and clean technologies into a start-up venture.
+
+Your CFO has this last set of questions for us:
+
+1. Where is the threshold for loss for budgeting and the delegation of authorities?
+
+2. (Again) How much capital do we need to support loss should it occur?
+
+For the renewables sector we again select [exchange traded funds (ETF)](https://www.investopedia.com/terms/e/etf.asp) from the [global renewables sector](https://www.etf.com/channels/renewable-energy-etfs): TAN for solar, ICLN for clean technologies, and PBW for wind. These funds act as indices to effectively summarize the inputs, process, management, decisions, and outputs of various aspects of the renewables sector. Examining and analyzing this series will go a long way to helping the CFO understand not only the riskiness of these markets, but the nature of loss and capital needed to manage the ups and downs of the business.
+
+## Beyond the experiment
+
+Getting back to the data, we have global renewable energy sector ETF prices and returns to work with. Suppose we have a portfolio of the three ETFs: 60000 shares of TAN for solar, 75000 shares of ICLN for clean technologies, and 50000 shares of PBW for wind.
+
+- Given the last prices in the data set, what is the value of this portfolio? The prices for the ETFs are stored in `price_etf`.
+
+```{r currentvalue, exercise = TRUE}
+
+```
+
+<div id= "currentvalue-hint">
+**Hint:** You might try this code using `tail()`.
+```{r currentvalue-ex, eval = FALSE, echo = TRUE}
+price_0 <- tail(price_etf, 1)
+shares <- c(60000, 75000, 50000)
+value <- sum(price_0 * shares)
+value
+```
+
+</div>
+
+Let's use the history of ETF returns to provide a couple of thousands of scenarios in how these prices might combine. Using this history generate daily portfolio values. Calculate a table of summary statistics and a set of plots to review the loss distribution.
+
+```{r valuesim, exercise = TRUE}
+price_etf <- price_tbl %>% spread(symbol, price)
+price_etf <- xts(price_etf, price_etf$date)
+storage.mode(price_etf) <- "numeric" #select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_etf <- price_etf[, -1]
+# get last price
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+w <- as.numeric(shares * price_0)
+# convert tibble returns to xts for some matrix operations
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+return_hist <- r_2 # yes! a bit complicated! but it works
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+```
+
+<div id="valuesim-hint">
+
+**Hint:** Try this code to generate the historical simulation of value across the sample of prices and returns.
+
+```{r valusim-ex, eval = FALSE, echo = TRUE}
+summary(loss_rf)
+forecast::ggtsdisplay(loss_rf, plot.type = "histogram")
+# a little nicer
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+ggplot(loss_df, aes(x = loss, fill = distribution)) + geom_density(alpha = 0.2) + xlim(0, max(loss_rf))
+```
+</div>
+
+Now for the burning question:
+
+- How much capital do we need to support this portfolio if our risk  tolerance for loss is only 5\%?
+
+
+The plot reveals some interesting deep and shallow outliers. The distribution is definitely very peaked. We use the base function `expm1` that computes the natural exponent of returns all minus 1. 
+
+$$
+e^{r} - 1
+$$
+
+Some of these returns, or percentage price changes if you will, are very close to zero. High precision arithmetic is needed to get accurate calculations. The function `expm1` does this well.
+
+Now we can get to estimating value at risk (VaR) and expected shortfal (ES). We set the tolerance level $\alpha$, for example, equal to 95\%. This would mean that a decision maker would not tolerate loss in  more than 5\% of all risk scenarios.
+
+We define the VaR as the quantile for probability $\alpha \in (0,1)$, as
+
+$$
+VaR_{\alpha} (X) = inf \{ x \in R: F(x) \geq \alpha \},
+$$
+
+which means find the greatest lower bound of loss $x$ (what the symbol $inf$ = _infimum_ means in English), such that the cumulative probability of $x$ is greater than or equal to $\alpha$. 
+
+Using the $VaR_{\alpha}$ definition we can also define $ES$ as
+
+$$
+ES_{\alpha} = E [X \lvert X \geq VaR_{\alpha}],
+$$
+
+where $ES$ is "expected shortfall" and $E$ is the expectation operator, also known as the "mean." Again, in English, the expected shortfall is the average of all losses greater than the loss at a $VaR$ associated with probability $\alpha$, and $ES \geq VaR$.
+
+## Simulate ... until morale improves ...
+
+Now lets's figure out the probable range of expected shortfall $ES$ given management's tolerance for risk $\alpha$. Statistically this means calculating the upper $U$ and lower $L$ bounds on a confidence interval with significance level $\alpha$.
+
+$$
+Prob[L \leq ES \leq U] = 1 -\alpha
+$$
+We will run $ES$ for several samples of `loss_rf`. This will give us an idea about the probable range of capital needed.
+
+First, we need an $ES$ calculator to simplify our task. Run this against `data = loss_rf` and test with `prob = 0.95`, that is an $\alpha = 0.05$. Try some other tolerances as well.
+
+```{r escalc, exercise = TRUE}
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+  return(result)
+}
+```
+
+<div id="escalc-hint">
+You can use this code for example.
+
+```{r escalc-ex, eval = FALSE, echo = TRUE}
+ES_calc(loss_rf, 0.95)
+```
+
+</div>
+
+Second, we will sample `loss-rf` several times. For each sample we will calculate expected shortfall. This will result in a series of expected shortfalls. Try this calculation for different values of `prob` and `n_sample`. View the results through `summary()`.
+
+```{r essample, exercise = TRUE}
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+```
+
+Third, we visualize the experience reusing `ggplot2` code from our GARCH experiment.
+
+```{r essimviz, exercise = TRUE}
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+# put the repurposed code here
+
+```
+
+<div id="essimviz-hint">
+
+You can use this code for example.
+
+```{r essimviz-ex, eval = FALSE, echo = TRUE}
+sim <- ES_sim
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "Expected Shortfall simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(binwidth = 1000, aes(y = 1000*(..density..)), alpha = 0.4)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low, y = 0.01, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 0.01, label = paste("U = ", round(high, 2))) + ylab("density") + xlab("expected shortfall") + theme_bw()
+p
+```
+
+</div>
+
+- Interpret the range of expected shortfall for the CFO with the range as a percentage of the total present value of the renewables venture.
+
+## At the threshold of a dream...
+
+Our next foray into capital requirements is attempting to understand where the _tail_ of the loss distribution is. This translates into finding a reasonable threshold from which expected shortfall can be measured. Up to this point we assume a risk tolerance and calculate the threshold as the value at risk quantile. We borrow a tool from reliability analysis called the Mean Exceedance Plot (MEP affectionately).
+
+- All along we have been stylizing financial returns, including commodities and exchange rates, as skewed and with thick tails.
+- We next go on to an extreme tail distribution called the Generalized Pareto Distribution (GPD). 
+- For very high thresholds, GPD not only well describes behavior in excess of the threshold, but the mean excess over the threshold is linear in the threshold. 
+- From this we get more intuition around the use of expected shortfall as a coherent risk measure. 
+- In recent years we well exceeded all Gaussian and Student's t thresholds.
+
+
+For a random variate $x$, this distribution is defined for the shape parameters $\xi \geq 0$ as:
+
+$$
+g(x; \xi \geq 0) = 1- (1 + x \xi/\beta)^{-1/\xi}
+$$
+
+and when the shape parameter $\xi = 0$, the GPD becomes the exponential distribution dependent only on the scale parameter $\beta$:
+
+$$
+g(x; \xi = 0) = 1 - exp(-x/\beta).
+$$
+
+### A reasonable threshold
+
+If $u$ is an upper (very high) threshold, then the excess of threshold function for the GPD is
+$$
+e(u) = \frac{\beta + \xi u}{1 - \xi}. 
+$$
+
+- This simple measure is _linear_ in thresholds. 
+
+- It will allow us to visualize where rare events begin. 
+
+First a MEP to get a reasonable (we think) threshold. Here we calculate the exceedances of a loss across a moving set of potential thresholds. Notice the trick we use to calculate upper and lower values of loss exceeding a threshold. Check out `loss_excess` with `summary()`.
+
+```{r mepdf, exercise = TRUE}
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss_rf[loss_rf > 0]) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid_0 <- numeric(nint)    # grid store
+e <- grid_0                # store mean exceedances e
+upper <- grid_0            # store upper confidence interval
+lower <- grid_0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+  }
+mep_df <- data.frame(threshold = u, threshold_exceedances = e, lower = lower, upper = upper)
+```
+
+Now for the plot
+
+```{r meplot, exercise = TRUE}
+# Voila the plot => you may need to tweak these limits!
+p <- ggplot(mep_df, aes( x= threshold, y = threshold_exceedances)) + geom_line() + geom_line(aes(x = threshold, y = lower), colour = "red") + geom_line(aes(x = threshold,  y = upper), colour = "red") + annotate("text", x = 300000, y = 200000, label = "upper 95%") + annotate("text", x = 300000, y = 0, label = "lower 5%") + ggtitle("Mean Excess Plot") + ylab("threshold exceedances")
+p
+```
+
+- At what threshold does the confidence interval dramatically diverge?
+
+What quantile is this threshold in `loss_rf`? We can run an inverse quantile function using `ecdf()`. 
+
+```{r quantileinv, exercise = TRUE}
+quantInv <- function(distr, value) ecdf(distr)(value)
+u_prob <- quantInv(loss_rf, 200000)
+u_prob
+ES_mep <- mean(loss_rf[loss_rf > u_prob])
+ES_mep
+```
+
+Finally, the Generalized Pareto Distribution view of loss extremes. We estimate the distribution of the tail of losses beyond the threshold. 
+
+In this next chunk of code, if `fit.GPD()` does not solve (i.e., computationally singular), just reduce the threshold by, say, 25\% or so to generate more data points in the tail for estimation purposes.
+
+```{r gpdfit, exercise =  TRUE}
+library(QRM)
+u <- quantile(loss_rf, u_prob, names=FALSE)
+fit <- fit.GPD(loss_rf, threshold=0.75*u) # Fit GPD to the excesses
+(xi_hat <- abs(fit$par.ests[["xi"]])) # fitted xi, always positive
+(beta_hat <- fit$par.ests[["beta"]]) # fitted beta
+```
+
+- What is the interpretation of the parameters?
+
+Now we can calculate the closed form VaR and ES (no random variate simulation!).
+
+```{r gpdvares, exercise = TRUE}
+# Pull out the losses over the threshold and compute excess over the threshold
+loss_excess <- loss_rf[loss_rf > u] - u # compute the excesses over u
+n_relative_excess <- length(loss_excess) / length(loss_rf) # = N_u/n
+(VaR_gpd <- u + (beta_hat/xi_hat)*(((1-alpha) / n_relative_excess)^(-xi_hat)-1)) 
+(ES_gpd <- (VaR_gpd + beta_hat-xi_hat*u) / (1-xi_hat))
+
+```
+
+### All together now
+
+Let's graph the historical simulation and GPD results together. Use the MEP derived threshold for the historical simulation as well.
+
+```{r histgpd, exercise = TRUE}
+
+VaR_hist <- quantile(loss_rf, u_prob)
+ES_hist <- mean(loss_rf[loss_rf > u])
+loss_plot <- ggplot(loss_df, aes(x = loss, fill = distribution)) + geom_density(alpha = 0.2)
+loss_plot <- loss_plot + geom_vline(aes(xintercept = VaR_hist), colour = "blue", linetype = "dashed", size = 1) 
+loss_plot <- loss_plot + geom_vline(aes(xintercept = ES_hist), colour = "blue", linetype = "dashed", size = 1) 
+loss_plot <- loss_plot + geom_vline(aes(xintercept = VaR_gpd), colour = "red", size = 1)
+loss_plot <- loss_plot + geom_vline(aes(xintercept = ES_gpd), colour = "red", size = 1)
+loss_plot
+```
+
+- Which do you prefer?
+
+- Or is it a range of choices again?
+
+## What does it matter? (Again)
+
+- Margins earned over time result in the present value of margins valued at a risk-informed rate of return. These margins and subsequent value are all with volatility clustering will act like the prices: when in a downward spiral, that spiral will amplify more than when prices try to trend upward.
+
+- All of this adds up to volatile EBITDA (Earnings Before Interest and Tax adding in non-cash Depreciation and Amortization), missed earnings targets, shareholders selling, the stock price dropping, and equity-based compensation falling.
+
+- If equity falls short of the capital needed to meet risk tolerance requirements, then more capital might need to be raised in the markets, either publicly or privately placed.

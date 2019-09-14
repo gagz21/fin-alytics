@@ -1,0 +1,219 @@
+---
+title: "Example for Project 3"
+subtitle: "market risk"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+options(digits = 4, scipen = 999999)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+library(plotly)
+#
+#stocks_env <- new.env()
+symbols <- c("TAN", "ICLN", "PBW")
+getSymbols(symbols) #, env = stocks_env) # using quantmod
+data <- TAN
+data <- data[ , 6] # only adjusted close  
+colnames(data) <- "TAN"
+r_TAN <- diff(log(data))[-1] 
+# convert xts object to a tibble or data frame
+p_TAN <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])
+# repeat
+data <- ICLN
+data <- data[ , 6]  
+colnames(data) <- "ICLN"
+r_ICLN <- diff(log(data))[-1]
+p_ICLN <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])
+# and again
+data <- PBW
+data <- data[ , 6]  
+colnames(data) <- "PBW"
+r_PBW <- diff(log(data))[-1]
+p_PBW <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])#rate_IYM <- data %>% mutate(diff(log(p_IYM))[-1])
+# merge by date (as row name)
+price <- merge(p_TAN, p_ICLN)
+price <- merge(price, p_PBW)
+return <- merge(TAN = r_TAN, ICLN = r_ICLN, PBW = r_PBW, all = FALSE)
+# calculute within month correlations and choose lower triangle of correlation matrix
+r_corr <- apply.monthly(return, FUN = cor)[, c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+# calculate within month standard deviations using MatrixStats
+r_vols <- apply.monthly(return, FUN = colSds)
+# long format ("TIDY") price tibble for possible other work
+price_tbl <- price %>% as_tibble() %>% gather(k = symbol, value = price, TAN, ICLN, PBW ) %>% select(symbol, date, price)
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+str(return_tbl)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30)
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) 
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+#
+price_etf <- price %>% select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+price_last <- price[length(price$TAN), 3:5] #(TAN, ICLN, PBW) %>% as.vector()
+w <- as.numeric(shares * price_last)
+return_hist <- apply(log(price[, 3:5]), 2, diff)
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+#
+#summary(ES_sim)
+#
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss_rf) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid_0 <- numeric(nint)    # grid store
+e <- grid_0                # store mean exceedances e
+upper <- grid_0            # store upper confidence interval
+lower <- grid_0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+  }
+mep_df <- data.frame(threshold = u, threshold_exceedances = e, lower = lower, upper = upper)
+loss_excess <- loss_rf[loss_rf > u] - u
+quantInv <- function(distr, value) ecdf(distr)(value)
+u_prob <- quantInv(loss_rf, 200000)
+ES_mep <- mean(loss_rf[loss_rf > u_prob])
+
+```
+
+Problem
+=======================================================================
+column
+-----------------------------------------------------------------------
+### Situation
+
+A freight forwarder with a fleet of bulk carriers wants to optimize their portfolio in  metals markets with entry into the nickel business and use of the tramp trade.  Tramp ships are the company's "swing" option without any fixed charter or other constraint. They allow the company flexibility in managing several aspects of freight uncertainty. The call for tramp transportation is a _derived demand_ based on the value of the cargoes. This value varies widely in the spot markets. The company allocates \$250 million to manage receivables. The company wants us to:
+
+1.	Retrieve and begin to analyze data about potential commodities for diversification,
+2.	Compare potential commodities with existing commodities in conventional metal spot markets,
+3.	Begin to generate economic scenarios based on events that may, or may not, materialize in the commodities.
+4.	The company wants to mitigate their risk by diversifying their cargo loads. This risk measures the amount of capital the company needs to maintain its portfolio of services.
+
+Here is some additional detail.
+
+1.	Product: Metals commodities and freight charters
+2.	Metal, Company, and Geography:
+    a. Nickel: MMC Norilisk, Russia
+    b. Copper: Codelco, Chile and MMC Norilisk, Russia
+    c. Aluminium: Vale, Brasil and Rio Tinto Alcan, Australia
+3.	Customers: Ship Owners, manufacturers, traders
+4.  All metals are traded on the London Metal Exchange 
+
+column
+---------------------------------------------------------
+### Key questions
+
+1.	How would the performance of these commodities affect the size and timing of shipping arrangements?
+2.	How would the value of new shipping arrangements affect the value of our business with our current customers?
+3.	How would we manage the allocation of existing resources given we have just landed in this new market?
+
+#### Getting to a reponse: more detailed questions
+
+1. What is the decision the freight-forwarder must make? List key business questions and data needed to help answer these questions and support the freight-forwarder's decision. Retrieve data and build financial market detail into the data story behind the questions.
+
+2. Develop the stylized facts of the markets the freight-forwarder faces. Include level, returns, size times series plots. Calculate and display in a table the summary statistics, including quantiles, of each of these series. Use autocorrelation, partial autocorrelation, and cross correlation functions to understand some of the persistence of returns including leverage and volatility clustering effects. Use quantile regressions to develop the distribution of sensitivity of each market to spill-over effects from other markets. Interpret these stylized "facts" in terms of the business decision the freight-forwarder makes.
+
+3. How much capital would the freight-forwarder need? Determine various measures of risk in the tail of each metal's distribution. Then figure out a loss function to develop the portfolio of risk, and the determination of risk capital the freight-forwarder might need. Confidence intervals to inform a risk management plan with varying tail experience thresholds.
+
+Explore
+======================================================================
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Loss distribution and expected shortfall
+
+```{r}
+## Simple Value at Risk
+alpha_tolerance <- .95
+VaR_hist <- quantile(loss_rf, probs=alpha_tolerance, names=FALSE)
+## Just as simple Expected shortfall
+ES_hist <- mean(loss_rf[loss_rf > VaR_hist])
+VaR_text <- paste("Value at Risk =", round(VaR_hist, 2))
+ES_text <- paste("Expected Shortfall =", round(ES_hist, 2))
+p <- ggplot(loss_df, aes(x = loss, fill = distribution)) + geom_density(alpha = 0.2) + xlim(0, max(loss_rf))+
+  geom_vline(aes(xintercept = VaR_hist), linetype = "dashed", size = 1, color = "blue") +
+  geom_vline(aes(xintercept = ES_hist), size = 1, color = "blue") + xlim(0,max(loss_rf)) + 
+  annotate("text", x = 200000, y = 0.000010, label = VaR_text) +
+  annotate("text", x = 350000, y = 0.000005, label = ES_text)
+ggplotly(p)
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Historical Simulation: VaR and ES
+
+```{r}
+(VaR_hist <- quantile(loss_rf, probs=alpha_tolerance, names=FALSE))
+## Just as simple Expected shortfall
+(ES_hist <- mean(loss_rf[loss_rf > VaR_hist]))
+
+```
+
+### Comments
+
+The CEO needs to call her friends for more money it seems

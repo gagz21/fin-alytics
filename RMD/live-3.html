@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+
+<meta name="progressive" content="true" />
+<meta name="allow-skip" content="true" />
+
+<title>Live Session 3</title>
+
+
+<!-- highlightjs -->
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+</head>
+
+<body>
+
+
+
+<div class="pageContent band">
+<div class="bandContent page">
+
+<div class="topics">
+
+<div id="section-welcome" class="section level2">
+<h2>Welcome</h2>
+<p>This live session will provide practice with the core methodology of macrofinancial analysis: time series description and inference.</p>
+<p>You will practice to</p>
+<ol style="list-style-type: decimal">
+<li><p>Build and visualize a time series object. Inside of this object you will Summarize the data using descriptive statistics.</p></li>
+<li><p>Estimate and visualize the lagged relationship of current and past realizations of the time series.</p></li>
+<li><p>Interpret autocorrelation and cross autocorrelation as indications of the styled facts of various financial markets.</p></li>
+</ol>
+<p>We continue our working example to help out the CFO of your aluminum recycling company:</p>
+<p>Our aluminum recyling company uses natural gas to melt collected aluminum objects into ingots for sale to the metal market. The CFO has raised concerns over the risk of aluminum prices and more broadly the metals and basic materials markets in the presence of major recent movements in oil prices.</p>
+<p>Your CFO has three questions for us:</p>
+<ol style="list-style-type: decimal">
+<li><p>How do past prices affect current prices?</p></li>
+<li><p>Does one market affect another?</p></li>
+<li><p>What stylized facts of these markets matter?</p></li>
+</ol>
+<p>For the oil and metals/basic materials markets we can look at Brent Crude Oil prices and aluminum, steel, copper, and chemimcal prices. Another approach is to use -exchange-traded funds (ETF)](<a href="https://www.investopedia.com/terms/e/etf.asp" class="uri">https://www.investopedia.com/terms/e/etf.asp</a>) that manage the fund’s per share value of a portfolio of crude oil and basic materials - related stocks. The <a href="http://www.uscfinvestments.com/uso">long crude oil USO ETF</a> and the <a href="https://www.ishares.com/us/products/239503/ishares-us-basic-materials-etf">basic materials IYM ETF</a> are such funds. These indices effectively summarize the inputs, process, management, decisions, and outputs of the crude oil market. Examining and analyzing this series will go a long way to helping the CFO understand the riskiness of these markets.</p>
+</div>
+<div id="section-data-and-returns" class="section level2">
+<h2>Data and returns</h2>
+<blockquote>
+<p>How do past prices affect current prices?</p>
+</blockquote>
+<p>We collected price data into the <code>price_tbl</code> tibble and further converted this into a time series of daily log price returns. Returns give us a good idea of the investment gain and loss from one time to another that is comparable across investment opportunities. For ticker symbol <span class="math inline">\(x\)</span> the log price return is calculated as</p>
+<p><span class="math display">\[
+r_x = ln\left(\frac{p_{x,t}}{p_{x,t-1}}\right) = ln(p_{x,t}) - ln(p_{x,t-1})
+\]</span> For example if today’s (<span class="math inline">\(t\)</span>) price is <span class="math inline">\(p_{x,t} = 100.05\)</span> and yesterday’s (<span class="math inline">\(t-1\)</span>) price is <span class="math inline">\(p_{-1} = 100.00\)</span>, then</p>
+<p><span class="math display">\[
+r_x = ln\left(\frac{p_{x,t}}{p_{x,t-1}}\right) = ln(p_{x,t}) - ln(p_{x,t-1}) = ln(100.05) - ln(100) = 4.6056701 -4.6051702 = 4.9987504\times 10^{-4}
+\]</span> or 0.0499875% per day if <span class="math inline">\(t\)</span> is marked by days. Calculate the percentage change in price for comparison.</p>
+<p><span class="math display">\[
+r_x = \frac{p_{x,t} - p_{x,t-1}}{p_{x,t-1}} = \frac{100.05 - 100}{100} = 5\times 10^{-4}
+\]</span></p>
+<p>If this is the daily rate of return on the value of the financial instrument, what is the annualized return compounded across 365 days? We are in <span class="math inline">\(ln()\)</span> and <span class="math inline">\(exp()\)</span> land now. <span class="math inline">\(rT\)</span> is the rate times the number of days. When we use <span class="math inline">\(exp(rT)\)</span> we get a $1 plus that rate continuously compounded over a year. Traders use continuous compounding to replicate the possibility that they can trade at any instant. Subtract the $1 principal to get the compounding gain or loss.</p>
+<p><span class="math display">\[
+exp(r_x T) - 1 = exp(4.9987504\times 10^{-4} \times 365) - 1 = 0.2001594
+\]</span> Pretty good for a nickel reinvested consecutive 365 times.</p>
+<p>We use this code to shape two <a href="https://r4ds.had.co.nz/tidy-data.html">long format tibbles in a process called gathering</a>: one is for prices, the other for daily log price returns.</p>
+<pre class="r"><code># read data frame from csv file
+data &lt;- read.csv(&quot;USO.csv&quot;)
+data$date &lt;- as_date(data$Date)
+data &lt;- data[ , c(&quot;date&quot;, &quot;Adj.Close&quot;)]
+colnames(data) &lt;- c(&quot;date&quot;, &quot;USO&quot;)
+price_USO &lt;- data %&gt;% as_tibble()
+# process another series
+data &lt;- read.csv(&quot;IYM.csv&quot;)
+data$date &lt;- as_date(data$Date)
+data &lt;- data[ , c(&quot;date&quot;, &quot;Adj.Close&quot;)]
+colnames(data) &lt;- c(&quot;date&quot;, &quot;IYM&quot;)
+price_IYM &lt;- data %&gt;% as_tibble()
+# merge the two by date
+price &lt;- merge(price_USO, price_IYM, by.x = &quot;date&quot;, by.y = &quot;date&quot;)
+# make separate price columns one price column in a long format (&quot;TIDY&quot;) price tibble
+price_tbl &lt;- price %&gt;% gather(k = symbol, value = price, USO, IYM ) %&gt;% select(symbol, date, price)
+str(price_tbl)
+# use tidyquant and quantmod to calculate daily log price returns
+return_tbl &lt;- price_tbl %&gt;% group_by(symbol) %&gt;% tq_transmute(mutate_fun = periodReturn, period = &quot;daily&quot;, type = &quot;log&quot;, col_rename = &quot;daily_return&quot;) %&gt;% mutate(abs_return = abs(daily_return))
+k &lt;- 1:20 # for starters</code></pre>
+<div class="tutorial-exercise" data-label="check" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<ol style="list-style-type: decimal">
+<li><p>Check out the data using <code>str()</code>, <code>head()</code>, <code>summary()</code>.</p></li>
+<li><p>Look up <code>gather()</code> and <code>select()</code> for reshaping the data.</p></li>
+<li><p>How can <code>abs_return</code> help us understand volatility?</p></li>
+</ol>
+</div>
+<div id="section-how-often-and-when" class="section level2">
+<h2>How often and when</h2>
+<p>Two more questions:</p>
+<ul>
+<li><p>How often does a return or volatility of return occur?</p></li>
+<li><p>When do returns and volatility occur?</p></li>
+</ul>
+<div id="section-so-dense" class="section level3">
+<h3>So dense</h3>
+<p>Let’s look at this data with density curves to answer the frequency question and line plots to answer the timing question. We will pose another timing question later.</p>
+<p>Similar to histograms, densities visualize the shape of the data. They depict the frequency (count or <code>n()</code>) of intervals of the data arranged from lowest to highest. They allow us to find ranges of highs, lows, and visualize how often those ranges might occur with probability. In the tails they help us think about how frequent extreme events might occur. This helps us plan our business actions and reactions accordingly and relative to the strength and frequency of decision events.</p>
+<ul>
+<li><p><code>geom_density()</code> runs a smooth line through an underlying histogram</p></li>
+<li><p><code>theme_tq()</code> is a CSS enabled formatting from the tidyquant package</p></li>
+<li><p><code>scale_fill_tq</code> directs the filling in of the area under each density curve</p></li>
+<li><p><code>facet-wrap()</code> works on the <code>symbol</code> grouping (with a “by” <code>~</code> (tilde) just like in the <code>lm()</code> function) to arrange (<code>ncol = 2</code>) separate plots on a grid</p></li>
+</ul>
+<p>Run the code. Add 2.5% and 97.5% vertical lines using <code>quantile()</code> as the x-intercept.</p>
+<div class="tutorial-exercise" data-label="density1" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># daily returns (frequency-domain)
+return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# density (frequency-domain)
+p1 &lt;- ggplot(return_tbl, aes(x = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = &quot;Daily Log Price Returns&quot;,
+    x = &quot;Daily Returns&quot;, y = &quot;Density&quot;) +
+  theme_tq() +
+  scale_fill_tq()
+p1
+# volatility (frequency-domain)
+abs_return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# volatility density
+p2 &lt;- ggplot(return_tbl, aes(x = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = &quot;Daily Log Price Returns&quot;,
+    x = &quot;Daily Returns&quot;, y = &quot;Density&quot;) +
+  theme_tq() +
+  scale_fill_tq()
+p2</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<div id="section-density1-hint">
+<p><strong>Hint:</strong> Always examine the structure, a summary, and the first few rows. Try this code:</p>
+<pre class="r"><code># create a quantile pivot tibble
+return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# density (frequency-domain)
+p1 &lt;- ggplot(return_tbl, aes(x = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = &quot;Daily Log Price Returns&quot;,
+    x = &quot;Daily Returns&quot;, y = &quot;Density&quot;) +
+  geom_vline(data = return_q, aes(xintercept = q_025), color = &quot;red&quot;, size = 1.10) +
+  geom_vline(data = return_q, aes(xintercept = q_975), color = &quot;red&quot;, size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p1
+## for abs_return (frequeqncy-domain)
+abs_return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# density
+p2 &lt;- ggplot(return_tbl, aes(x = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = &quot;Daily Log Price Return Volatility&quot;,
+    x = &quot;Daily Returns&quot;, y = &quot;Density&quot;) +
+  geom_vline(data = abs_return_q, aes(xintercept = q_025), color = &quot;red&quot;, size = 1.10) +
+  geom_vline(data = abs_return_q, aes(xintercept = q_975), color = &quot;red&quot;, size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p2</code></pre>
+</div>
+<p>For returns and volatility of returns some “how often does it happen” questions:</p>
+<ol style="list-style-type: decimal">
+<li><p>Thick tails? (frequent enough large high and low returns)</p></li>
+<li><p>Skewed? (lots of high versus low)</p></li>
+<li><p>Most frequent?</p></li>
+</ol>
+</div>
+<div id="section-line-it-up" class="section level3">
+<h3>Line it up</h3>
+<p>Line plots begin to address timing and the evolution of returns. The times here are calendar dates, very raw for us. Later we will examine timing from the point of view of “how long ago”.</p>
+<ul>
+<li><code>geom_line()</code> constructs a line plot of returns by time</li>
+</ul>
+<p>Run the code. Add 2.5% and 97.5% horizontal lines using <code>quantile()</code> as the y-intercept.</p>
+<div class="tutorial-exercise" data-label="line1" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code># create a quantile pivot tibble
+return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# line plot (time-domain)
+p1 &lt;- ggplot(return_tbl, aes(x = date, y = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = &quot;blue&quot;) +
+  labs(title = &quot;Daily Log Price Returns&quot;, x = &quot;Date&quot;, y = &quot;Daily returns&quot;) +
+  theme_tq() +
+  scale_fill_tq()
+p1
+## for abs_return (frequeqncy-domain)
+abs_return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# line plot (time-domain)
+p4 &lt;- ggplot(return_tbl, aes(x = date, y = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = &quot;blue&quot;) +
+  labs(title = &quot;Daily Log Price Return Volatility&quot;, x = &quot;Date&quot;, y = &quot;Daily return volatility (absolute value)&quot;) +
+  theme_tq() +
+  scale_fill_tq()
+p4</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<ol style="list-style-type: decimal">
+<li><p>Which one seems more volatile than the other?</p></li>
+<li><p>Interpret the clumps of returns.</p></li>
+<li><p>As an exercise: construct a new series for the spread long IYM and short USO, and the <code>max(0, spread)</code>. Then review the density and line plots.</p></li>
+</ol>
+<div id="section-line1-hint">
+<p><strong>Hint:</strong> Always examine the structure, a summary, and the first few rows. Try this code:</p>
+<pre class="r"><code># create a quantile pivot tibble
+return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# line plot (time-domain)
+p1 &lt;- ggplot(return_tbl, aes(x = date, y = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = &quot;blue&quot;) +
+  labs(title = &quot;Daily Log Price Returns&quot;, x = &quot;Date&quot;, y = &quot;Daily returns&quot;) +
+  geom_hline(data = return_q, aes(yintercept = q_025), color = &quot;red&quot;, size = 1.10) +
+  geom_hline(data = return_q, aes(yintercept = q_975), color = &quot;red&quot;, size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p1
+## for abs_return (frequeqncy-domain)
+abs_return_q &lt;- return_tbl %&gt;% group_by(symbol) %&gt;% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# line plot (time-domain)
+p2 &lt;- ggplot(return_tbl, aes(x = date, y = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = &quot;blue&quot;) +
+  labs(title = &quot;Daily Log Price Return Volatility&quot;, x = &quot;Date&quot;, y = &quot;Daily return volatility (absolute value)&quot;) +
+  geom_hline(data = abs_return_q, aes(yintercept = q_025), color = &quot;red&quot;, size = 1.10) +
+  geom_hline(data = abs_return_q, aes(yintercept = q_975), color = &quot;red&quot;, size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p2</code></pre>
+</div>
+</div>
+</div>
+<div id="section-how-persistent" class="section level2">
+<h2>How persistent?</h2>
+<p>We see lots of volatility clustering in the clumps of returns in the line plots and the thickness of the tails of the densities. An external event, such as a series of poor earnings announcements or negatively surprising economic reports, will cause a rapid spike higher in volatility, which then stays at elevated levels for anywhere from a week to as long as six months. A new volatility spike can occur in the middle of a current Volatility Cluster, since they are often triggered by external events in the economy such as monetary policy or geopolitical changes. This can make it hard to identify any one Volatility Cluster’s start and end point. The opposite can happen with no significant news, good or bad.</p>
+<p>We now delve into the relationship between today’s returns and the past. Here we need to build a data set of current returns and their daily lags by ticker symbol.</p>
+<ul>
+<li><p>Use <code>tq_mutate()</code> to build lags of returns to feed the possibility that the past affects today.</p></li>
+<li><p><code>lag.xts()</code> is from the xts package, very useful for building time series object with dates as rownames.</p></li>
+<li><p>Specify the number of lags <code>k</code> and use <code>paste0()</code> to concatenate character and numeric data.</p></li>
+</ul>
+<div class="tutorial-exercise" data-label="returnsautocors" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>k &lt;- 1:20 # days in a business month
+col_names &lt;- paste0(&quot;lag_&quot;, k)
+#
+# remove abs_return the fourth column
+return_lags &lt;- return_tbl[, -4] %&gt;%
+tq_mutate(
+select     = daily_return,
+mutate_fun = lag.xts,
+k          = k,
+col_rename = col_names
+)</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<ol style="list-style-type: decimal">
+<li><p>Inspect with <code>str()</code>, etc.</p></li>
+<li><p>How are lags related to one another in the structure of the tibble?</p></li>
+</ol>
+<p>Let’s build this house next.</p>
+<ul>
+<li><p>Use <code>gather()</code> to stack columns into rows by lag.</p></li>
+<li><p>Pivot <code>symbol</code>, then <code>lag</code>, with <code>group_by()</code>.</p></li>
+<li><p><code>summarize()</code> to build vector column of correlations and upper and lower bounds</p></li>
+</ul>
+<p>To understand the relationship of the current and lagged prices we correlate each of the lags to the current price column.</p>
+<ul>
+<li><p>Use <code>gather()</code> to pivot each of the lagged columns into a <a href="">long format</a> data frame, and also we exclude “date” from the pivot.</p></li>
+<li><p>Convert the new “lag” column from a character string (e.g. “lag_1”) to numeric (e.g. 1) using mutate(), which will make ordering the lags much easier.</p></li>
+<li><p>Group the long data frame by lag. This allows us to calculate pairwise correlations using subsets of lag.</p></li>
+<li><p>Apply the correlation to each group of lags. The summarize() function can be used to implement cor(), which takes x = <code>p_USO</code> and y = lagged values. Make sure to pass use = “pairwise.complete.obs”, which is almost always desired.</p></li>
+<li><p>Approximate the 95% upper and lower bounds by:</p></li>
+</ul>
+<p><span class="math display">\[
+CI = \pm \frac{2}{\sqrt{N}}
+\]</span></p>
+<p>with <span class="math inline">\(N\)</span> the number of observations.</p>
+<div class="tutorial-exercise" data-label="returnautocor" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>return_autocors &lt;- return_lags %&gt;%
+  gather(key = &quot;lag&quot;, value = &quot;lag_value&quot;, -c(symbol, date, daily_return)) %&gt;%
+  mutate(lag = str_sub(lag, start = 5) %&gt;% as.numeric) %&gt;%
+  group_by(symbol, lag) %&gt;%
+  summarize(
+    cor = cor(x = daily_return, y = lag_value, use = &quot;pairwise.complete.obs&quot;),
+    upper_95 = 2/(n())^0.5,
+    lower_95 = -2/(n())^0.5
+    )</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<ol style="list-style-type: decimal">
+<li><p>Why exclude symbol, date, daily_return in <code>gather()</code>?</p></li>
+<li><p>What does <code>use = "pairwise.complete.obs"</code> mean?</p></li>
+</ol>
+<p>Finally we have something to show!</p>
+<div class="tutorial-exercise" data-label="plotreturnautocors" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>k &lt;- 1:20
+p &lt;- return_autocors %&gt;%
+  ggplot(aes(x = lag, y = cor, color = symbol, group = symbol)) +
+  # Add horizontal line a y=0
+    geom_hline(yintercept = 0) +
+    # Plot autocorrelations
+    geom_point(size = 2) +
+    geom_segment(aes(xend = lag, yend = 0), size = 1) +
+    # Add cutoffs
+    geom_line(aes(y = upper_95), color = &quot;blue&quot;, linetype = 1, size = 1.1) +
+    geom_line(aes(y = lower_95), color = &quot;blue&quot;, linetype = 1, size = 1.1) +
+    # Add facets
+    facet_wrap(~ symbol, ncol = 3) +
+    # Aesthetics
+    #expand_limits(y = c(-1, 1)) +
+    scale_color_tq() +
+    theme_tq() +
+    labs(
+      title = paste0(&quot;Returns ACF Plot: Lags &quot;, rlang::expr_text(k)),
+    subtitle = &quot;This market has little or no memory&quot;,
+    x = &quot;Daily Log Price Return Lags&quot;,
+    y = &quot;Correlations and Confidence Interval&quot;) +
+    theme(
+      legend.position = &quot;none&quot;,
+      axis.text.x = element_text(angle = 45, hjust = 1)
+      )
+p</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<ol style="list-style-type: decimal">
+<li><p>What does <code>geom_segment()</code> do for our visualization?</p></li>
+<li><p>Any discernible patterns?</p></li>
+</ol>
+</div>
+<div id="section-the-past-matters-or-not" class="section level2">
+<h2>The past matters (or not)</h2>
+<p>Next we conder about the lags that matter. Why? These will help us plan operational decisions like the timing of receivables and payables. When do they persist and how volatile a range of persistence might there be? If there is persistence, then such patterns are actionable intelligence.</p>
+<p>More reshaping is needed here to get at a visualization of all of those 20 days of potential persistence modeled as correlated lags of each of the returns in these markets.</p>
+<ul>
+<li><p>Check out as usual <code>str()</code>, etc.</p></li>
+<li><p>Convert lag names into levels</p></li>
+<li><p>Make absolute values (just the sizes, not the direction) of those correlations</p></li>
+<li><p>Focus on the new lags as factors and the absolute values of correlations</p></li>
+<li><p>Another pivot but only by <code>lag</code>. This will help us time the persistence of the spread between input crude oil and output basic materials.</p></li>
+</ul>
+<div class="tutorial-exercise" data-label="returnabscors" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>return_absautocors &lt;- return_autocors %&gt;%
+  ungroup() %&gt;%
+  mutate(
+    lag = as_factor(as.character(lag)),
+    cor_abs = abs(cor)
+  ) %&gt;%
+  select(lag, cor_abs) %&gt;%
+  group_by(lag) </code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<p>Now for the <em>piece de resistance</em>: display this plot. It is our outlier analysis. Change the <code>expand_limits(y = c(0, 0.10))</code> to zoom in.</p>
+<div class="tutorial-exercise" data-label="plot returnabscors" data-caption="Code" data-completion="1" data-diagnostics="1" data-startover="1" data-lines="0">
+<pre class="text"><code>upper_bound &lt;- 1.5*IQR(return_absautocors$cor_abs) %&gt;% signif(3)
+p &lt;- return_absautocors %&gt;%    
+      ggplot(aes(x = fct_reorder(lag, cor_abs, .desc = TRUE) , y = cor_abs)) +
+      # Add boxplot
+      geom_boxplot(color = palette_light()[[1]]) +
+      # Add horizontal line at outlier break point
+      geom_hline(yintercept = upper_bound, color = &quot;red&quot;) +
+      annotate(&quot;text&quot;, label = paste0(&quot;Outlier threshold = &quot;, upper_bound), 
+        x = 24.5, y = upper_bound + .03, color = &quot;red&quot;) +
+      # Aesthetics
+      expand_limits(y = c(0, 1)) +
+      theme_tq() +
+      labs(
+        title = paste0(&quot;Absolute Autocorrelations: Lags &quot;, rlang::expr_text(k)),
+        subtitle = &quot;Weekly pattern is consistently above outlier threshold&quot;,
+        x = &quot;Lags&quot;
+        ) +
+      theme(
+        legend.position = &quot;none&quot;,
+        axis.text.x = element_text(angle = 45, hjust = 1)
+        )
+p</code></pre>
+<script type="application/json" data-opts-chunk="1">{"fig.width":6.5,"fig.height":4,"fig.retina":2,"fig.align":"default","fig.keep":"high","fig.show":"asis","out.width":624,"warning":false,"error":false,"message":false,"exercise.df_print":"default","exercise.timelimit":30,"exercise.checker":"NULL"}</script>
+</div>
+<ol style="list-style-type: decimal">
+<li><p>What is <code>IQR</code>? Why use <code>1.5</code>? (<strong>Hint:</strong> <a href="https://en.wikipedia.org/wiki/Interquartile_range">check out this site</a>)</p></li>
+<li><p>Where are the outliers and how volatile is this judgment of “where”?</p></li>
+<li><p>Is there any relationship to the clumps of returns we observed on the line plots? How about the thickness of those returns tails?</p></li>
+<li><p>What about the absolute value of returns? Thoughts for our next review.</p></li>
+</ol>
+</div>
+<div id="section-what-have-we-accomplished" class="section level2">
+<h2>What have we accomplished?</h2>
+<ul>
+<li><p>Only begun to answer the CFO’s questions</p></li>
+<li><p>Used time series data and examined the data with densities and line plots</p></li>
+<li><p>Constructed autocorrelations to understand the persistence of returns (or not)</p></li>
+<li><p>Even built a visualization of time series outliers</p></li>
+</ul>
+More to do next time with the <code>abs_return</code> series and volatility, as well as cross-correlations and market spill-over. 
+<script type="application/shiny-prerendered" data-context="server-start">
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(tidyquant)
+library(timetk)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+# save working directory
+wd <- getwd()
+# use saved wd to reset working directory to this source file while in shiny
+# setwd(wd)
+# read data frame from csv file
+data <- read.csv("USO.csv")
+data$date <- as_date(data$Date)
+#data_OIL <- data %>% filter(hub == "nepool")
+#data_ng <- data %>% filter(hub == "algonquin")
+#data_all <- merge(data_ele, data_ng, by.x = "date", by.y = "date")
+data <- data[ , c("date", "Adj.Close")]
+colnames(data) <- c("date", "USO")
+price_USO <- data %>% as_tibble()
+data <- read.csv("IYM.csv")
+data$date <- as_date(data$Date)
+data <- data[ , c("date", "Adj.Close")]
+colnames(data) <- c("date", "IYM")
+price_IYM <- data %>% as_tibble()#price$week <- as.factor(epiweek(price$date))
+#rate_IYM <- data %>% mutate(diff(log(p_IYM))[-1])
+price <- merge(price_USO, price_IYM, by.x = "date", by.y = "date")
+# long format ("TIDY") price tibble
+price_tbl <- price %>% gather(k = symbol, value = price, USO, IYM ) %>% select(symbol, date, price)
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+str(return_tbl)
+k <- 1:20 # days in a business month
+col_names <- paste0("lag_", k)
+#
+# remove abs_return the fourth column
+return_lags <- return_tbl[, -4] %>%
+  tq_mutate(
+  select     = daily_return,
+  mutate_fun = lag.xts,
+  k          = k,
+  col_rename = col_names
+  )
+return_autocors <- return_lags %>%
+  gather(key = "lag", value = "lag_value", -c(symbol, date, daily_return)) %>%
+  mutate(lag = str_sub(lag, start = 5) %>% as.numeric) %>%
+  group_by(symbol, lag) %>%
+  summarize(
+    cor = cor(x = daily_return, y = lag_value, use = "pairwise.complete.obs"),
+    upper_95 = 2/(n())^0.5,
+    lower_95 = -2/(n())^0.5
+  )
+return_absautocors <- return_autocors %>%
+  ungroup() %>%
+  mutate(
+    lag = as_factor(as.character(lag)),
+    cor_abs = abs(cor)
+  ) %>%
+  select(lag, cor_abs) %>%
+  group_by(lag)
+
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+learnr:::register_http_handlers(session, metadata = NULL)
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-check-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-check-code-editor`)), session)
+output$`tutorial-exercise-check-output` <- renderUI({
+  `tutorial-exercise-check-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-density1-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-density1-code-editor`)), session)
+output$`tutorial-exercise-density1-output` <- renderUI({
+  `tutorial-exercise-density1-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-line1-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-line1-code-editor`)), session)
+output$`tutorial-exercise-line1-output` <- renderUI({
+  `tutorial-exercise-line1-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-returnsautocors-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-returnsautocors-code-editor`)), session)
+output$`tutorial-exercise-returnsautocors-output` <- renderUI({
+  `tutorial-exercise-returnsautocors-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-returnautocor-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-returnautocor-code-editor`)), session)
+output$`tutorial-exercise-returnautocor-output` <- renderUI({
+  `tutorial-exercise-returnautocor-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-plotreturnautocors-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-plotreturnautocors-code-editor`)), session)
+output$`tutorial-exercise-plotreturnautocors-output` <- renderUI({
+  `tutorial-exercise-plotreturnautocors-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-returnabscors-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-returnabscors-code-editor`)), session)
+output$`tutorial-exercise-returnabscors-output` <- renderUI({
+  `tutorial-exercise-returnabscors-result`()
+})
+</script>
+ 
+<script type="application/shiny-prerendered" data-context="server">
+`tutorial-exercise-plot returnabscors-result` <- learnr:::setup_exercise_handler(reactive(req(input$`tutorial-exercise-plot returnabscors-code-editor`)), session)
+output$`tutorial-exercise-plot returnabscors-output` <- renderUI({
+  `tutorial-exercise-plot returnabscors-result`()
+})
+</script>
+ <!--html_preserve-->
+<script type="application/shiny-prerendered" data-context="dependencies">
+{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["jquery"]},{"type":"character","attributes":{},"value":["1.11.3"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/jquery-1.11.3"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquery.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootstrap"]},{"type":"character","attributes":{},"value":["3.3.5"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/bootstrap-3.3.5"]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["viewport"]}},"value":[{"type":"character","attributes":{},"value":["width=device-width, initial-scale=1"]}]},{"type":"character","attributes":{},"value":["js/bootstrap.min.js","shim/html5shiv.min.js","shim/respond.min.js"]},{"type":"character","attributes":{},"value":["css/cerulean.min.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["highlightjs"]},{"type":"character","attributes":{},"value":["9.12.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/highlightjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["highlight.js"]},{"type":"character","attributes":{},"value":["textmate.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial"]},{"type":"character","attributes":{},"value":["0.9.2.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial.js"]},{"type":"character","attributes":{},"value":["tutorial.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-autocompletion"]},{"type":"character","attributes":{},"value":["0.9.2.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-autocompletion.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-diagnostics"]},{"type":"character","attributes":{},"value":["0.9.2.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-diagnostics.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-format"]},{"type":"character","attributes":{},"value":["0.9.2.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmarkdown/templates/tutorial/resources"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-format.js"]},{"type":"character","attributes":{},"value":["tutorial-format.css","rstudio-theme.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["jquery"]},{"type":"character","attributes":{},"value":["1.11.3"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/jquery-1.11.3"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["jquery.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["font-awesome"]},{"type":"character","attributes":{},"value":["5.0.13"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["rmd/h/fontawesome"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["js/fontawesome-all.min.js","js/fa-v4-shims.min.js"]},{"type":"character","attributes":{},"value":["css/fa-svg-with-js.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["rmarkdown"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["bootbox"]},{"type":"character","attributes":{},"value":["4.4.0"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/bootbox"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["bootbox.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["localforage"]},{"type":"character","attributes":{},"value":["1.5"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/localforage"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["localforage.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial"]},{"type":"character","attributes":{},"value":["0.9.2.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial.js"]},{"type":"character","attributes":{},"value":["tutorial.css"]},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-autocompletion"]},{"type":"character","attributes":{},"value":["0.9.2.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-autocompletion.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["tutorial-diagnostics"]},{"type":"character","attributes":{},"value":["0.9.2.1"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/tutorial"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["tutorial-diagnostics.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["ace"]},{"type":"character","attributes":{},"value":["1.2.6"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/ace"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["ace.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","version","src","meta","script","stylesheet","head","attachment","package","all_files"]},"class":{"type":"character","attributes":{},"value":["html_dependency"]}},"value":[{"type":"character","attributes":{},"value":["clipboardjs"]},{"type":"character","attributes":{},"value":["1.5.15"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["file"]}},"value":[{"type":"character","attributes":{},"value":["lib/clipboardjs"]}]},{"type":"NULL"},{"type":"character","attributes":{},"value":["clipboard.min.js"]},{"type":"NULL"},{"type":"NULL"},{"type":"NULL"},{"type":"character","attributes":{},"value":["learnr"]},{"type":"logical","attributes":{},"value":[true]}]}]}
+</script>
+<!--/html_preserve-->
+</div>
+
+</div> <!-- topics -->
+
+<div class="topicsContainer">
+<div class="topicsPositioner">
+<div class="band">
+<div class="bandContent topicsListContainer">
+
+<!-- begin doc-metadata -->
+<div id="doc-metadata">
+<h2 class="title toc-ignore" style="display:none;">Live Session 3</h2>
+</div>
+<!-- end doc-metadata -->
+
+</div> <!-- bandContent.topicsListContainer -->
+</div> <!-- band -->
+</div> <!-- topicsPositioner -->
+</div> <!-- topicsContainer -->
+
+
+</div> <!-- bandContent page -->
+</div> <!-- pageContent band -->
+
+
+
+
+<script>
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+</script>
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+
+</html>

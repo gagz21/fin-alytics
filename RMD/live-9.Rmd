@@ -1,0 +1,479 @@
+---
+title: "Workbook 9"
+subtitle: "Aggregating Risk"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+options(digits = 4, scipen = 999999)
+library(learnr)
+library(ggplot2)
+library(GGally)
+library(dplyr)
+library(mvtnorm)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+## data_moments function
+## INPUTS: r vector
+## OUTPUTS: list of scalars (mean, sd, median, skewness, kurtosis)
+data_moments <- function(data){
+  library(moments)
+  library(matrixStats)
+  mean <- colMeans(data)
+  median <- colMedians(data)
+  sd <- colSds(data)
+  IQR <- colIQRs(data)
+  skewness <- skewness(data)
+  kurtosis <- kurtosis(data)
+  result <- data.frame(mean = mean, median = median, std_dev = sd, IQR = IQR, skewness = skewness, kurtosis = kurtosis)
+  return(result)
+}
+#
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) # using Stuent t innovations with thicker tails than Gaussian
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+# uses library(mvtnorm)
+set.seed(1016)
+n_risks <- 3 ## Number of risk factors
+m <- n_risks
+n_sim <- 1000
+sigma <- matrix(c(1, 0.4, 0.2,
+                  0.4, 1, -0.8,
+                  0.2, -0.8, 1), 
+                 nrow=m)
+z <- rmvnorm(n_sim, mean=rep(0, nrow(sigma)),sigma = sigma, method = "svd") 
+#
+# Sklar
+#
+u <- pnorm(z)
+u_df <- as_data_frame(u)
+ggpairs(u_df)
+#
+# Reshape
+#
+p <- 0.3 #probability that revenue growth is positive
+growth_gamma <- qgamma(u[,1],shape=0.25, scale=0.4)
+growth <- ifelse(rbinom(u[,1], 1, p) > 0, growth_gamma, -growth_gamma)
+vc_ratio <- qbeta(u[,2],3,2) # variable cost / revenue
+fc_ratio <- abs(qt(u[,3],df=5))
+factors <- cbind(growth, vc_ratio, fc_ratio)
+colnames(factors) <- c("Revenue", "Variable Cost", "Fixed Cost")
+factors_df <- as_data_frame(factors)
+ggpairs(factors_df)
+#
+rev_0 <- 1000
+revenue <- rev_0*(1+factors_df[,1])
+variable_cost <- revenue * factors_df[,2]
+fixed_cost <- revenue * factors_df[,3]
+total_cost  <- variable_cost + fixed_cost
+operating_margin  <- revenue - variable_cost - fixed_cost
+analysis  <- cbind(revenue, total_cost, operating_margin)
+colnames(analysis) <- c("Revenue", "Cost", "Margin")
+#
+### Simple Value at Risk
+expected_margin <- 400
+## Center margin loss on expected margin
+loss_rf <- -operating_margin[operating_margin < 0] 
+## Assign metric of interest to reusable code
+data_moments(as.matrix(loss_rf, nrow =1)) 
+## Always review a key variable's content
+alpha_tolerance <- .99 
+## Very intolerant!
+## Remember that putting a variable assignment in parentheses also prints the result
+(VaR_hat <- quantile(loss_rf, probs=alpha_tolerance, names=FALSE))
+### Just as simple Expected shortfall
+(ES_hat <- mean(loss_rf[loss_rf > VaR_hat]))
+### Margin loss retention
+(retention <- quantile(loss_rf, probs=0.75, names=FALSE))
+#
+# t copula
+#
+set.seed(1016) ## Freezes the random seed to reproduce results exactly
+n_risks <- 3 ## Number of risk factors
+m <- n_risks
+n_sim <- 1000
+sigma <- matrix(c(1, 0.4, 0.2,
+                  0.4, 1, -0.8,
+                  0.2, -0.8, 1), 
+                nrow = m)
+t <- rmvt(n_sim, delta = rep(0, nrow(sigma)),sigma = sigma, df = 6, type = "shifted")
+u_t <- pt(t, df = 6)
+#
+# Reshape
+#
+p <- 0.3 #probability that revenue growth is positive
+growth_gamma_t <- qgamma(u[,1],shape=0.25, scale=0.4)
+growth_t <- ifelse(rbinom(u[,1], 1, p) > 0, growth_gamma, -growth_gamma)
+vc_ratio_t <- qbeta(u[,2],3,2) # variable cost / revenue
+fc_ratio_t <- abs(qt(u[,3],df=5))
+factors_t <- cbind(growth, vc_ratio, fc_ratio)
+colnames(factors_t) <- c("Revenue", "Variable Cost", "Fixed Cost")
+factors_t_df <- as_data_frame(factors)
+ggpairs(factors_t_df)
+#
+rev_0
+revenue_t <- rev_0*(1+factors_t_df[,1])
+variable_cost_t <- revenue * factors_t_df[,2]
+fixed_cost_t <- revenue_t * factors_t_df[,3]
+total_cost_t  <- variable_cost_t + fixed_cost_t
+operating_margin_t  <- revenue_t - variable_cost_t - fixed_cost_t
+analysis_t  <- cbind(revenue_t, total_cost_t, operating_margin_t)
+colnames(analysis_t) <- c("Revenue", "Cost", "Margin")
+#
+loss_rf_t <- -operating_margin[operating_margin < 0] 
+## Assign metric of interest to reusable code
+data_moments(as.matrix(loss_rf_t, nrow =1)) 
+## Always review a key variable's content
+alpha_tolerance_t <- .99 
+## Very intolerant!
+## Remember that putting a variable assignment in parentheses also prints the result
+(VaR_hat_t <- quantile(loss_rf_t, probs=alpha_tolerance, names=FALSE))
+### Just as simple Expected shortfall
+(ES_hat_t <- mean(loss_rf[loss_rf_t > VaR_hat]))
+### Margin loss retention
+(retention_t <- quantile(loss_rf_t, probs=0.75, names=FALSE))
+```
+
+## Welcome
+
+This workbook provides more practice with modeling financial choices under uncertainty. This time You will learn to generate your own view of the relationship among various risky components of return. The return here is cast in terms of an operating margin. The resulting simulation generates an expected shortfall in margins -- a margin at risk analysis. 
+
+You will practice to
+
+1. Simulate "news" that is correlated.
+
+2. Using the simulated news you will build a copula structure that can generate any shape of the drivers you identified with varying distributional assumptions.
+
+3. Then you will combine the drivers into margins and analyze loss and gains that might happen, or not.
+
+## The problem with enterprise eisk
+
+International Mulch & Compost Company (a very ficticious company) makes and distributes an emerging energy source made from guano and prairie grass briquets. IM&C is about to go IPO. Corporate policy dictates that management must assess risks to equity annually and whether a circumstance dictates. Such a circumstance is an IPO. 
+
+Management knows of at least three material risks:
+
+* Customers defect so there is uncertainty in revenue growth.
+
+* Suppliers stop competing on price, quantity, and quality so there is uncertainty in variable expense.
+
+* There are major compliance breaches which impact fixed expense.
+
+No one knows much about these risks from history because this company is the first in its market to produce this very innovative product from bio-engineered guano. Very abundant prairie grass grows alongside every highway in North America. Management does have considerable experience in marketing, production, and operations. 
+
+IM&C ponders its SEC disclosure for the IPO where it will report its view of material risks. One question management knows _someone_ will ask is how likely is it that the net operating margin will fall below, say, indicated earnings of $400 million. IM&C thinks it needs to know how much capital is involved in this risk venture.
+
+## Let's make copulas
+
+Our problem is: 
+
+1. We have three major risk factors and each has their own distribution. 
+2. We also know that they are somehow correlated. 
+3. How can we aggregate the three into one risk measure that is tangible,  and preserve the correlation?
+
+A **copula** is a method of joining together multiple related innovations into whatever story we would like to tell and analyze. That story is told through the relatedness of various risk drivers on the one hand, and through the unique ways each driver evolves.
+
+We start with a Gaussian (normal) copula. Our first task is to generate multivariate normal variates that are correlated with one another. Here we relate three standard normal random variables together.A standard normal random variable has a mean, $\mu = 0$, and variance, $\sigma^2 = 1$. The variable `sigma` in the code below is the _correlation_ matrix.
+
+Run this code and then display a scatter plot to discuss the results.
+
+```{r norm, exercise = TRUE}
+# uses library(mvtnorm)
+set.seed(1016)
+n_risks <- 3 ## Number of risk factors
+m <- n_risks
+n_sim <- 1000
+sigma <- matrix(c(1, 0.4, 0.2,
+                  0.4, 1, -0.8,
+                  0.2, -0.8, 1), 
+                nrow=m)
+z <- rmvnorm(n_sim, mean=rep(0, nrow(sigma)),sigma = sigma, method = "svd") 
+```
+
+<div id="norm-hint">
+
+**Hint:** Be sure to convert the correlated variates into a data frame
+
+```{r norm-ex, eval = FALSE, echo = TRUE}
+str(z)
+z_df <- as_data_frame(z)
+ggpairs(z_df)
+
+```
+</div>
+
+In the `rmvnorm` function `svd` stands for the "singular value decomposition" that allows us to fan the correlations across the `z` values, even if the correlation matrix is not invertible, that is, if the correlation matrix is singular. [Here is a more technical discussion.](https://en.wikipedia.org/wiki/Singular_value_decomposition)
+
+1. How close are the correlations to the one's specified? 
+
+2. Try more or less simulations to check the correspondence of variates to the specified parameters.
+
+## Sklar's in the house...
+
+Now we have normally distributed variates. They are correlated with one another. But we can use these directly to generate, say, gamma variates, or GPD variates. 
+
+We can solve this problem with a result from probability called 
+
+**Sklar's theorem (1959)**: 
+
+- If $x$ is a random variable with distribution $F$,
+- then $F(x)$ is uniformly distributed in the interval $[0, 1]$. 
+
+Let's translate this idea into `R` and look at the resulting interactions.
+
+```{r sklar, exercise = TRUE }
+u <- pnorm(z)
+```
+
+<div id="sklar-hint">
+**Hint:** Make a data frame and use a scatterplot.
+
+```{r sklar-ex, eval = FALSE, echo = TRUE}
+u_df <- as_data_frame(u)
+ggpairs(u_df)
+```
+</div>
+
+1. How are `z` and `u` the same?
+
+2. How are they different?
+
+We see that the Gaussian (normal) distribution has been reshaped into a uniform distribution, just as Sklar predicted.  
+
+The idea around this theorem is the same as around the number 1. We can multiply any real number by one and get the real number back. This is an identity operation. (Please remember we are not trying to be mathematicians! My apologies to the mathematical community.) 
+
+In a somewhat analogous way, the uniform distribution serves a role as an distribution identity operator.When we operate on the uniformly distributed random numbers with a distribution, we get back that distribution. But in this case the identity distribution has structure in it (correlations) that the new distribution inherits.
+
+A 3-D plot looks more interesting. In the Rstudio graphics device window we can the roll the cube around to see into the relationships among the random variables. Try this at home for an interactive experience.
+
+```{r threed, eval = FALSE}
+#uses library(rgl)
+plot3d(u[,1],u[,2],u[,3],pch=20,col='orange')
+```
+
+Now, we only need to select the marginal probabilities of the risks we are assessing and apply them to the dependently related 'u' variates. 
+
+Suppose management believes that revenue growth has a 10\% mean and 20\% standard deviation. Management also likes the various shapes the gamma distribution can simulate for revenue growth. The `gamma` is distributed with shape parameter $\alpha$ and scale parameter $\beta$. The mean $\mu$ of a gamma variate is $\alpha \beta$. The variance $\sigma^2$ of the gamma variate is $\alpha \beta^2$.  Thus in terms of $\mu$ and $\sigma^2$ we have
+
+$$
+\alpha = \frac{\mu^2}{\sigma^2} = \frac{0.10^2}{0.20^2} = `r 0.10^2 / 0.20^2`
+$$
+
+and
+
+$$
+\beta = \frac{\sigma^2}{\mu} = \frac{0.20^2}{0.10} = `r 0.20^2 / 0.10`
+$$
+Gamma distributions generate only positive variates. Management uses its believes around positive and negative growth asymmatrically. Today management is pessimistic.
+
+We will model the variable expense ratio as `beta`, and the fixed expense ratio is Student's t distributed with these parameters, with some modifications. Run the transformations and 
+
+```{r simvariates, exercise = TRUE}
+p <- 0.3 #probability that revenue growth is positive
+growth_gamma <- qgamma(u[,1],shape=0.25, scale=0.4)
+growth <- ifelse(rbinom(u[,1], 1, p) > 0, growth_gamma, -growth_gamma)
+vc_ratio <- qbeta(u[,2],3,2) # variable cost / revenue
+fc_ratio <- abs(qt(u[,3],df=5))
+```
+
+<div id="simvariates-hint">
+
+**Hint:** Be sure to make a data frame so we can use `ggpairs()`.
+
+```{r simvariates-ex, eval = FALSE, echo = TRUE}
+factors <- cbind(growth, vc_ratio, fc_ratio)
+colnames(factors) <- c("Revenue", "Variable Cost", "Fixed Cost")
+factors_df <- as_data_frame(factors)
+ggpairs(factors_df)
+```
+
+</div>
+
+1. Explain the behavior of costs and revenue growth.
+
+2. How would you interpret the relationship between fixed and variable cost?
+
+3. What happened to the corrrelations?
+
+Nice outliers! Starting from a multivariate normal distribution we created dependent uniform variates. Using the dependent uniform variates we created dependent distributions of our choosing.
+
+## Analyze that...
+
+Now we use all of this simulation to project revenue, expense, and margin. Let's assume an initial revenue of `r rev_0`. Let's review the projection of potential ways in which operating margin can evolve.
+
+```{r margin, exercise = TRUE}
+rev_0 <- 1000
+revenue <- rev_0*(1+factors_df[,1])
+variable_cost <- revenue * factors_df[,2]
+fixed_cost <- revenue * factors_df[,3]
+total_cost  <- variable_cost + fixed_cost
+operating_margin  <- revenue - variable_cost - fixed_cost
+analysis  <- cbind(revenue, total_cost, operating_margin)
+colnames(analysis) <- c("Revenue", "Cost", "Margin")
+```
+
+<div id="margin-hint">
+
+**Hint:* Again, we make a data frame review results with `ggpairs()`.
+
+```{r margin-ex, eval = FALSE, echo = TRUE}
+analysis_df <- as_data_frame(analysis)
+ggpairs(analysis_df)
+```
+
+</div>
+
+What do we see?
+
+1. What do variable and fixed cost aggregate into?
+
+2. Margin? Are we good or in trouble?
+
+3. What would a more optimistic view of revenue growth produce?
+
+## Risk measures
+
+We are not yet done. The whole point of this analysis is to get consistent and coherent measures of risk to a consumer of the analysis, namely, the decision maker who is the CFO in this case.  Margin is heavily negatively skewed.
+
+We define the value at risk, $VaR$, as the $\alpha$ quantile of the performance metric of interest. Higher $\alpha$ means lower risk tolerance. Here is the relationship: 
+\[
+Q(x,\alpha) = F(x; Prob[X] > \alpha).
+\]
+The metric $x$ in this case is margin. Expected Shortfall, $ES$, is then the mean of the margin beyond $VaR$. The parameter $\alpha$ is the level of organizational risk tolerance. If $\alpha = 0.99$, then the organization would want risk capital to cover a potential loss of $VaR$, and more conservatively, $ES$. The organization is even more conservative the higher the $\alpha$.
+
+We purloin the R code from the market risk material here. Let's also review our results visually.
+
+```{r risk, exercise = TRUE}
+### Simple Value at Risk
+expected_margin <- 400
+## Center margin loss on expected margin
+loss_rf <- -operating_margin[operating_margin < 0] 
+## Assign metric of interest to reusable code
+data_moments(as.matrix(loss_rf, nrow =1)) 
+## Always review a key variable's content
+alpha_tolerance <- .99 
+## Very intolerant!
+## Remember that putting a variable assignment in parentheses also prints the result
+(VaR_hat <- quantile(loss_rf, probs=alpha_tolerance, names=FALSE))
+### Just as simple Expected shortfall
+(ES_hat <- mean(loss_rf[loss_rf > VaR_hat]))
+### Margin loss retention
+(retention <- quantile(loss_rf, probs=0.75, names=FALSE))
+```
+
+
+<div id="risk-hint">
+
+**Hint:** We use our pent up knowledge of ggplot2 to visualize our results.
+
+```{r risk-ex, eval = FALSE, echo = TRUE}
+loss_df <- as_data_frame(loss_rf)
+MaR_text <- paste0("Margin at Risk\n", round(VaR_hat, 2))
+ES_text <- paste0("Margin Shortfall\n", round(ES_hat, 2))
+retention_text <- paste0("Loss Retention\n", round(retention, 2))
+ggplot(loss_df, aes(x = loss_rf)) + geom_histogram(alpha = 0.4) + geom_vline(xintercept = retention, linetype = "dashed", color = "red") + annotate("text", x = retention + 100, y = 150, label = retention_text)+ geom_vline(xintercept = VaR_hat, linetype = "dashed", color = "red") + annotate("text", x = VaR_hat - 50, y = 125, label = MaR_text) + geom_vline(xintercept = ES_hat, linetype = "solid", color = "red") + annotate("text", x = ES_hat + 50, y = 100, label = ES_text) + xlab("Lost Margin (USDmillions)") + ggtitle("Margin Loss Simulation: pessimism reigns")
+```
+
+</div>
+
+1. How might we interpret the retention level?
+
+2. If we reach the low levels of margin that might be indicated here how can we attribute that to cost management, revenue management or some combination of the two?
+
+## What else can we do?
+
+We can...
+
+1. Experiment with different degrees of freedom to sensitize ourselves to the random numbers generated.
+
+2. Parameterize correlations. This means assign correlations to a variable and place that variable into the `sigma` matrix. This might get into trouble with an error. It would mean we would have to reassign the correlation. The mathematical problem is finding a **positive definite** variance-covariance matrix.
+
+3. How different are the value at risk and expected shortfall measures between the use of the Gaussian (normal) copula and the t-copula? Why should a decision maker care?
+
+All of that experimentation begs for an interactive decision tool.
+
+Let's try different innovations, say from the Student-t Distribution. This might give us thicker tales and more outliers.
+
+```{r simt, exercise = TRUE}
+
+```
+
+<div id="simt-hint">
+
+```{r simt-ex, eval = FALSE, echo = TRUE}
+#
+# t copula
+#
+set.seed(1016) ## Freezes the random seed to reproduce results exactly
+n_risks <- 3 ## Number of risk factors
+m <- n_risks
+n_sim <- 1000
+sigma <- matrix(c(1, 0.4, 0.2,
+                  0.4, 1, -0.8,
+                  0.2, -0.8, 1), 
+                nrow = m)
+t <- rmvt(n_sim, delta = rep(0, nrow(sigma)),sigma = sigma, df = 6, type = "shifted")
+u_t <- pt(t, df = 6)
+#
+# Reshape
+#
+p <- 0.3 #probability that revenue growth is positive
+growth_gamma_t <- qgamma(u[,1],shape=0.25, scale=0.4)
+growth_t <- ifelse(rbinom(u[,1], 1, p) > 0, growth_gamma_t, -growth_gamma_t)
+vc_ratio_t <- qbeta(u[,2],3,2) # variable cost / revenue
+fc_ratio_t <- abs(qt(u[,3],df=5))
+factors_t <- cbind(growth, vc_ratio, fc_ratio)
+colnames(factors_t) <- c("Revenue", "Variable Cost", "Fixed Cost")
+factors_t_df <- as_data_frame(factors)
+ggpairs(factors_t_df)
+#
+rev_0
+revenue_t <- rev_0*(1+factors_t_df[,1])
+variable_cost_t <- revenue * factors_t_df[,2]
+fixed_cost_t <- revenue_t * factors_t_df[,3]
+total_cost_t  <- variable_cost_t + fixed_cost_t
+operating_margin_t  <- revenue_t - variable_cost_t - fixed_cost_t
+analysis_t  <- cbind(revenue_t, total_cost_t, operating_margin_t)
+colnames(analysis_t) <- c("Revenue", "Cost", "Margin")
+#
+loss_rf_t <- -operating_margin[operating_margin < 0] 
+## Assign metric of interest to reusable code
+data_moments(as.matrix(loss_rf_t, nrow =1)) 
+## Always review a key variable's content
+alpha_tolerance_t <- .99 
+## Very intolerant!
+## Remember that putting a variable assignment in parentheses also prints the result
+(VaR_hat_t <- quantile(loss_rf_t, probs=alpha_tolerance, names=FALSE))
+### Just as simple Expected shortfall
+(ES_hat_t <- mean(loss_rf[loss_rf_t > VaR_hat]))
+### Margin loss retention
+(retention_t <- quantile(loss_rf_t, probs=0.75, names=FALSE))
+```
+</div>
+
+Any difference? Lot's of hunting and pecking to do as we continue to model our way through complexity, uncertainty, and the vagaries of finance and computing platforms.

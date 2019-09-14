@@ -1,0 +1,251 @@
+---
+title: "Live Session 1"
+runtime: shiny_prerendered
+output:
+  html_document:
+    df_print: paged
+  learnr::tutorial:
+    allow_skip: yes
+    df_print: default
+    progressive: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+# save working directory
+wd <- getwd()
+# use saved wd to reset working directory to this source file while in shiny
+# setwd(wd)
+# read data frame from csv file
+house_prices <- read.csv("data/HousePrices.csv")
+# subset the data
+hp <- house_prices[, c(1,2,4)]
+```
+
+## Welcome
+
+These live session break-outs will provide practice with `R` variables, arrays, calculations, basic descriptive statistics, and plotting. 
+
+You will practice to
+
+1. Examine the structure of the data.
+
+2. Summarize the data using descriptive statistics.
+
+3. Plot data along time and density dimensions.
+
+4. Compare and contrast three subsets of the data using descriptive statistics.
+
+## Data structure
+
+Let's see if the `house_prices` object has been loaded into this workspace by typing `ls()` below. 
+
+```{r ls-inspection, exercise = TRUE}
+ls()
+```
+
+Type `str(house_prices)` to see the structure of the data. View the first and last few lines of the dataset with `head()` and `tail()` (variable name in the parentheses). The price and number of bedrooms for observation 42 can be found using `house_prices[42, c(1, 3)]`. 
+
+```{r inspection, exercise = TRUE}
+
+```
+
+<div id="inspection-hint">
+**Hint:** If you are unsure about a function you can use the `?` help operator to get more information and documentation. For example `?tail()` will raise a browser page with documentation about the tail function. Be sure to use the `()` or else you will get a laundry list of anything in `R` that has the characters `tail` in it. At the end of the documentation there are examples of usage.
+</div>
+
+**Report**
+
+1. The type of object and its interpretation, number of rows and columns, the data types for price and driveway
+
+2. Is this data a time series or cross-section?
+
+3. What is the lotsize for observation 42?
+
+4. By the way, what is the content of object `wd`?
+
+
+## Descriptive statistics
+
+Type `summary()` below for three columns in `house_prices` including columns 1, 2, and 4. Use the `c()` function to subset the columns. Read the hint too.
+
+```{r summary, exercise = TRUE}
+
+```
+
+<div id="summary-hint">
+**Hint:** It is good practice to subset the data first, then input the data into a function like `summary()`. This way you also have the data ready for further analysis. We will call this data set `hp`. Also remember that the `[]` subsetting follows the `[row, column]` convention (as in matrix algebra and Excel).
+</div>
+
+For the same three columns plot the scatter matrix using `pairs.panels()` from the already loaded `psych` package. Lookup `?pairs.panels()` in the R console for help, especially the illustrative examples.
+
+```{r scatter, exercise = TRUE}
+
+```
+ 
+Calculate the skewness `skew()` and kurtosis `kurtosi()` ( _not mispelled!_ ) for price as well. This will summarize information about the tails of the distribution of price we observed in the scatter matrix.
+ 
+```{r tails, exercise = TRUE}
+
+```
+
+<div id="tails-hint">
+A kurtosis greater than 3 indicates frequent tail events. In finance this means that the volatility of the financial variable is itself volatile. Positive skew means that there is data in the right tail, but most of the observations are massed at the lower end of the distribution.
+</div>
+
+***More Reporting***
+
+5. What information does `summary()` convey that `pairs.panels()` does not? 
+
+6. ... and vice-versa?
+
+7. How are the skewness and kurtosis measures consistent with the price density histogram?
+
+## Subsets of the data
+
+So that was interesting! We summarized the entire set of observations. A market analyst might wonder if there are any differences between low and high price houses. We can split the data set neatly using `quantile()`.
+
+Look up `quantile()` using the `?` help operator.
+
+```{r quantile, exercise = TRUE}
+
+```
+
+<div id="quantile-hint">
+The 50\% quantile is the median. Another interpretation is possible. Suppose that we have a set of observations called $X$. One observation in this set is $x$. The probability that an observation $x$ is below this quantile $Q = Q(X, 0.50)$ or $Prob[x < Q]$ is 0.50.
+</div>
+
+Now that you know the syntax and recall the meaning of a _quantile_, let's subset the data by rows for the three columns you chose. Let's use the 25\%tile and the 75\%tile quantiles to split the data into three states: low, medium, and high price. 
+
+Use the quantiles computed below to define three new house price (`hp`) data sets: `hp_low`, `hp_med`, `hp_high`. 
+
+- The low set is data such that prices are less than or equal to the 25\%tile.
+
+- The middle set is an intersection of all data that has prices greater than the 25\%tile and less or equal to than the 75\%tile. You can use the logical `and` operator `&` for the intersection.
+
+- The high set is data such that prices are greater than the 75\%tile.
+
+variable object names have been stubbed in. Complete the subsetting with these names.
+
+```{r subset, exercise = TRUE}
+hp <- house_prices[, c(1,2,4)]
+price_low <- quantile(hp$price, 0.25)
+price_high <- quantile(hp$price, 0.75) 
+hp_low <- ""
+hp_medium <- ""
+hp_high <- ""
+summary(hp_low) #and medium and high
+pairs.panels(hp_low) #and medium and high
+```
+
+<div id="subset-hint">
+**Hint:** Subset `hp` using `[]`. For example with data frame `data` and subsetting on the `x` column for all data with `x < 12` we would use: `data[(data$x < 12), ]`. Don't forget the comma before the right bracket!
+</div>
+
+***Yes! More Reporting***
+
+7. What are the high and low price state thresholds?
+
+8. What are the salient differences among the three price states?
+
+## Two plots
+
+"Does lotsize drive prices?" the CFO asks. Maybe bathrooms, stories, location drive prices as well. Let's delve into the lotsize driving price question here. We will construct (really re-construct) density and scatter plots using the `ggplot2` package.
+
+First, build a canvas on which to plot. Run this code.
+
+```{r plot1, exercise = TRUE}
+hp <- house_prices[, c(1,2,4)]
+price_low <- quantile(hp$price, 0.25)
+price_high <- quantile(hp$price, 0.75)
+p <- ggplot(data = hp, aes(x = lotsize, y = price)) + xlab("lotsize") + ylab("price") + ggtitle("Lotsize drives price")
+p
+```
+
+We assign the `ggplot` call to an object called `p`. This will allow us to add more layers to the plot. You see what `xlab`, `ylab`, and `ggtitle` do. Plus signs add layers to the basic gray canvas. 
+Now lets increment the graphics with a new line of code that puts a scatter plot onto this canvas called `p`. We will make the points blue.
+
+```{r plot2, exercise = TRUE}
+hp <- house_prices[, c(1,2,4)]
+price_low <- quantile(hp$price, 0.25)
+price_high <- quantile(hp$price, 0.75)
+p <- ggplot(data = hp, aes(x = lotsize, y = price)) + xlab("lotsize") + ylab("price") + ggtitle("Lotsize drives price")
+p <- p + geom_point(color = "blue") # New Line of Code
+p
+```
+
+Now let's visualize the three price states. We will do this by adding the 25\%tile and 75\%tile price lines onto the plot.
+
+```{r plot3, exercise = TRUE}
+hp <- house_prices[, c(1,2,4)]
+price_low <- quantile(hp$price, 0.25)
+price_high <- quantile(hp$price, 0.75)
+p <- ggplot(data = hp, aes(x = lotsize, y = price)) + xlab("lotsize") + ylab("price") + ggtitle("Lotsize drives price")
+p <- p + geom_point(color = "blue") 
+p <- p + geom_hline(yintercept = price_low, color = "red") + geom_hline(yintercept = price_high, color = "red") # New Line of Code
+p
+```
+
+Let's go one step further (at our peril!). Let's divide the lotsize axis into three states and look at the intersections of price and lotsize across a three by three grid. Use `geom_vline()` and `xintercept =` in this next layer.
+
+We will factor the data into the number of bathrooms with `as.factor()`. This makes the variable categorical. we will color each level of bathroom differently. To visualize the scatter more easily we will assign different shapes as well.
+
+```{r plot4, exercise = TRUE}
+hp <- house_prices[, c(1,2,4)]
+hp$bathrooms <- as.factor(hp$bathrooms)
+price_low <- quantile(hp$price, 0.25)
+price_high <- quantile(hp$price, 0.75)
+p <- ggplot(data = hp, aes(x = lotsize, y = price, color = bathrooms)) + xlab("lotsize") + ylab("price") + ggtitle("Lotsize drives price")
+p <- p + geom_point(shape = hp$bathrooms)
+p <- p + geom_hline(yintercept = price_low, color = "blue") + geom_hline(yintercept = price_high, color = "blue")
+lotsize_low <- quantile(hp$lotsize, 0.25)
+lotsize_high <- quantile(hp$lotsize, 0.75)
+p <- p + geom_vline(xintercept = lotsize_low, color = "blue") + geom_vline(xintercept = lotsize_high, color = "blue")
+p
+```
+
+***Report again...***
+
+9. Given this plot, how do you reply to the CFO's question?
+
+One more plot! Let's build a really interesting matrix of plots using the `GGally` package built on top of `ggplot2`. Rescale the two continuous variables `price` and `lotsize` so we can see the values more clearly on the scatter matrix. 
+
+We will build a graph that groups each of the variables by the number of `bathrooms`. This is an integer variable (how can we tell?). We need to make it a categorical variable using the `as.factor()` function. 
+
+```{r plot5, exercise = TRUE}
+library(GGally)
+hp$price <- hp$price / 1000 # scale for graphics
+hp$lotsize <- hp$lotsize / 1000 # scale for graphics
+hp$bathrooms <- as.factor(hp$bathrooms)
+ggpairs(hp, aes(colour = bathrooms), alpha = 0.4)
+```
+
+Why didn't we do this before?! Why the `NA`s? `4` what? Some cleaning to do. But let's handle that in another session. Boxplots? Very interesting indeed!
+
+***Last Report***
+
+10. Do the number of bathrooms matter? How?
+
+#### Congratulations!
+
+We made it through our first set of break-outs. 
+
+- You've now met R's basic table structures, data frames
+
+- You practiced how to inspect their contents
+
+- You began an exploration of the statistical properties of the data
+
+- You built a scatter grid to visualize the relationship between two variables
+
+- You used financial data to build a story
+
+More R next week: we will focus on pivots, lookups, merges, and functions.

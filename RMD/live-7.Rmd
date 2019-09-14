@@ -1,0 +1,537 @@
+---
+title: "Workbook: Cash and Loss Tolerance"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+options(digits = 4, scipen = 999999)
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+#stocks_env <- new.env()
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+
+price_tbl <- tq_get(symbols) %>% select(date, symbol, price = adjusted)
+# long format ("TIDY") price tibble for possible other work
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+#str(return_tbl)
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+r_corr <- apply.monthly(r_2, FUN = cor)[,c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+r_vols <- apply.monthly(r_2, FUN = colSds)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30)
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) 
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+#
+# convert prices from tibble to xts
+price_etf <- price_tbl %>% spread(symbol, price)
+price_etf <- xts(price_etf, price_etf$date)
+storage.mode(price_etf) <- "numeric" #select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_etf <- price_etf[, -1]
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+#price_last <- price_etf[length(price_etf$TAN), 3:5] #(TAN, ICLN, PBW) %>% as.vector()
+w <- as.numeric(shares * price_0)
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+summary(ES_sim)
+#
+#summary(ES_sim)
+#
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss_rf) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid_0 <- numeric(nint)    # grid store
+e <- grid_0                # store mean exceedances e
+upper <- grid_0            # store upper confidence interval
+lower <- grid_0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+  }
+mep_df <- data.frame(threshold = u, threshold_exceedances = e, lower = lower, upper = upper)
+loss_excess <- loss_rf[loss_rf > u] - u
+quantInv <- function(distr, value) ecdf(distr)(value)
+u_prob <- quantInv(loss_rf, 200000)
+ES_mep <- mean(loss_rf[loss_rf > u_prob])
+stat_fun <- function(x, na.rm = TRUE, ...) {
+  library(moments)
+    # x     = numeric vector
+    # na.rm = boolean, whether or not to remove NA's
+    # ...   = additional args passed to quantile
+    c(mean     = mean(x, na.rm = na.rm),
+      stdev    = sd(x, na.rm = na.rm),
+      skewness = skewness(x, na.rm = na.rm),
+      kurtosis = kurtosis(x, na.rm = na.rm),
+      quantile(x, na.rm = na.rm, ...)) 
+}
+#
+contract <- 1 # billion
+working <- 0.100 # billion
+sigma_wc <- 0.025 # billion
+sigma <- 0.25
+threshold <- -0.12 # percentage return
+alpha <- 0.05 # tolerance
+risky <- 0.1 # percentage return on the risky asset
+riskless <- 0.02 # time value of cash -- no risk
+z_star <- qnorm(alpha)
+w <- (threshold-riskless) / (risky - riskless + sigma*z_star)
+```
+
+## Welcome
+
+This workbook provides practice with modeling financial choices under uncertainity. You will review concepts of portfolio risks and returns, as well as one way to characterize risky decisions. 
+
+You will practice to
+
+1. Use cash and a risky asset to meet risk tolerance goals.
+
+2. Model risk tolerances and returns in the context of a decision to hold a risky asset, as well as collateral against this asset, using a probability statement.
+
+2. Construct and analyze the risk-return trade-off for a balance sheet of cash (marketable and very liquid securities) and a risky asset (here, a contract in a new market).
+
+Be ready for some light algebra (from first year high school) and a simple straight line simulation with lots of interpretative power in R.
+
+## Imagine this scenario
+
+You work for an energy services company that provides control systems, consulting, and equipment finance to companies that produce distillates and electric power. The company is just about to sign a contract to provide energy services in Spain and Portugal with two Spanish companies and one British company operating on the Iberian peninsula. In the end the company's earnings seem to revolve around working capital. The CFO needs answers around why it is so big and always seems to bulge when the economic fortunes of our customers are in peril of deteriorating. She knows that there are three culprits: the euro rate, the Sterling rate, and Brent crude. She commissions you and your team to figure out the ultimate combination of these factors that contributes to a \$`r working*1000` million working capital position with a volatility of over \$`r sigma*1000` million this past year.
+
+Suppose management wants to achieve a targeted value at risk on new contracts:
+
+- Value at risk (VaR) is the $\alpha$ quantile of portfolio value of loss where $\alpha$ ("alpha") is the organization's tolerance for risk.
+
+- VaR is the maximum amount of tolerable loss. But more loss is possible.
+
+Let's apply this criterion to this data:
+
+- Management is considering a \$`r contract` billion contract. 
+
+- This contract will be two Iberian companies and one United Kingdom-based (UK) company working in Spain.
+
+- Only \$`r working*1000` million in working capital reserves are available to cover any losses.
+
+- The Board wants some comfort that no more than a `r threshold*100`\% loss (the average "return" $\mu$) would occur.
+
+- The Board has set the organization's tolerance for risk at `r alpha*100`\%: that is, a maximum of \% of the time could losses exceed `r threshold*100`\%.
+
+- To keep things simple: losses are normally distributed for this exercise.
+
+What is the right question?
+
+## Let's build a model
+
+What management needs to figure out is **what combination of cash (high quality marketable securitiesd should do for liquidity) and risky contract asset** to have on the balance sheet of this venture to satisfy risk requirements.
+
+Let perform a "back of the envelope" analysis. We let $R$ stand for returns, so that $-R$ is a loss. Our management team wants 
+
+$$
+Prob(R < `r threshold`) = `r alpha`,
+$$
+
+that is, the probability of a loss worse than `r threshold*100`\% is no more than `r alpha*100`\%. 
+
+We start with the unknown to be solved for:
+
+- Let $w$ be the "weight" invested in the risky contract.
+
+- The rest, $1-w$ in high quality collateral assets like treasury bonds. 
+
+- The weight $w$ can take on any value. 
+
+- No collateral (cash) means $w = 1$; no contract means $w = 0$.
+
+### Return
+
+The average return, $\mu_p$, on the contract with collateral is the weighted average return on the portfolio of cash earning $r_f$ and risky asset earning $\mu$. The return on the risky contract asset is its contribution to working capital or `r working` / `r contract` or `r risky*100`\%. 
+
+Suppose that cash earns `r riskless*100`\%.
+
+$$
+\mu_p = w(`r risky`) + (1-w)(`r riskless`).
+$$
+
+This is the weighted average return of the contract at `r risky*100`\% and collateral at `r riskless*100`\%. 
+1. Compute the portfolio average return is when $w = 1.1$
+
+2. What is the weight on the riskless asset? Do you have an interpretation?
+
+
+### Risk
+
+The average level of risk for the cash plus risky contract portfolio (balance sheet) is given by the standard deviation of the combination of risky contract and default-free collateral.
+
+We can calculate the risk using the standard deviation of the return on the portfolio of risky and riskless assets. Suppose in general that 
+
+- $w$ is the fraction of portfolio value in the risky asset, so that $1-w$ must be the fraction of the portfolio in the collateral, riskless, asset
+
+- The riskless asset earns at any given point in time $r_f$ while the risky asset earns $r$
+
+- The portfolio earns $R = (1-w)r_f + wr$, the weighted average return
+
+- The expected risk free rate is just the risk free rate, $r_f$ since this does not vary, while the expected risky rate of return is $\mu$, then the expected porfolio return is $\mu_p = (1-w)r_f + w\mu$
+
+Portfolio expected variance is expected value of the squared deviation of portfolio return $R$ abount its mean value $\mu_p$.
+
+$$
+variance_p = E[R-\mu_p]^2 = E[(1-w)r_f + wr - (1-w)r_f - w\mu]^2
+$$
+Gathering terms in $(1-w)$ and $w$ we have
+
+$$
+E[R-\mu_p]^2 = E[(1-w)(r_f-r_f) + w(r-\mu)]^2 = E[w(r-\mu)]^2 = E[w^2(r-\mu)^2]
+$$
+We can factor $w^2$ outside of the expectations sign since it is a constant, that is, not varying with movements in $r$ to get the square of the portfolio standard deviation of return $\sigma_p^2$
+
+$$
+E[R-\mu_p]^2 = \sigma_p^2 = w^2E[(r-\mu)^2] = w^2\sigma^2
+$$
+The expectation of the squared deviations of risky return $r$ from its mean $\mu$ is the square of the standard deviation of the risky asset's return $\sigma$.
+
+Thus the portfolio expected return and standard deviation are:
+
+- Expected return: $\mu_p = (1-w)r_f + w\mu$
+
+- Expected risk: $\sigma_p = w\sigma$
+
+Questions:
+
+1. Does portfolio risk depend on the cash asset? If so, how?
+
+2. If 100\% of the portfolio is in cash, what are portfolio risk and return?
+
+3. If 100\% of the portfolio is in the risky asset, what are portfolio risk and return?
+
+4. If 110\% of the portfolio is in the risky asset, what are portfolio risk and return?
+
+
+## The trade-off
+
+Is there a risk-return tradeoff? How can we characterize the way portfolio return and portfolio risk interact?
+
+We can express $\mu_p$ in terms of $\sigma_p$ by solving for $w$
+
+$$
+w = \frac{\sigma_p}{\sigma}
+$$
+
+and substituting this expression into $\mu_p$
+
+$$
+\mu_p = (1-w)r_f + w\mu = r_f + (\mu - r_f)w
+$$
+$$
+\mu_p = r_f + (\mu - r_f)(\sigma_p / \sigma)
+$$
+or even better
+
+$$
+\mu_p = r_f + \left[\frac{\mu - r_f}{\sigma}\right]\sigma_p
+$$
+
+We can simulate the relationship by constructing a grid of $\sigma_p$ and calculating $\mu_p$ for each point on the $\sigma_p$ grid.
+
+```{r tradeoff, exercise = TRUE}
+
+```
+
+<div id="tradeoff-hint">
+
+Here is some interesting code.
+
+```{r tradeoff-ex, eval = FALSE, echo = TRUE}
+options(digits = 2, scipen = 99999)
+#
+r_f <- 0.02
+mu <- 0.1
+sigma <- 0.25
+#
+sigma_p <- (0:99)*(.3/100) #seq(0, .3, 100)
+mu_p <- r_f + (mu - r_f)*sigma_p/sigma
+#
+threshold <- -0.12
+alpha <- 0.05
+z_star <-  qnorm(alpha)
+w_star <- 0.50 # meet us in the middle
+sim_df <- data_frame(sigma_p = sigma_p, mu_p = mu_p, w = w)
+#
+label_42 <- paste(round(w_star*100, 2), "% risky asset", sep = "")
+label_0 <- paste(0*100, "% risky asset", sep = "")
+label_100 <- paste(1.00*100, "% risky asset", sep = "")
+p <- ggplot(sim_df, aes(x = sigma_p, y = mu_p)) + 
+  geom_line(color = "blue", size = 1.1) +
+  geom_point(aes(x = 0.0 * sigma, y = r_f + (mu-r_f)*0.0), color = "red", size = 3.0) + 
+  annotate("text", x = 0.2 * sigma, y = r_f + (mu-r_f)*0.0 + 0.01, label = label_0) +
+  geom_point(aes(x = w_star * sigma, y = r_f + (mu-r_f)*w_star), shape = 21, color = "red", fill = "white", size = 4, stroke = 4) + 
+  annotate("text", x = w_star * sigma, y = r_f + (mu-r_f)*w_star + 0.01, label = label_42) +
+  geom_point(aes(x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00), color = "red", size = 3.0) + 
+  annotate("text", x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00 + 0.01, label = label_100) +
+  xlab("standard deviation of portfolio return") +
+  ylab("mean of portfolio return") +
+  ggtitle("Risk-return tradeoff of cash and risky asset")
+p
+```
+
+</div>
+
+## Cash anyone?
+
+Management currently believes that a `r sigma*100`\% standard deviation, $\sigma$, is reasonable. The standard deviation of portfolio return is
+
+$$
+\sigma_p = `r sigma` w
+$$
+
+Collateral is not "risky" in this scenario.
+
+- We now try to figure out what $w$ is, and by implication what $1-w$ is to collateralize the risky asset. 
+
+- More precisely, we solve for the percentage of total assets as investment in this contract, that will make losses happen no greater than `r alpha*100`\% of the time. 
+
+We form a normalizing "z-score" to help us. We start with our policy
+
+$$
+Prob(R < `r threshold`) = `r alpha`,
+$$
+
+
+In the $Prob[.]$ expression we subtract $\mu_p$ and divide by $\sigma_p$ on both sidezs of the $<$ sign to standardize portfolio returns at the threshold:
+
+$$
+Prob\left[\frac{R - \mu_p}{\sigma_p}<  \frac{`r threshold` - \mu_p}{\sigma_p}\right] = `r alpha`
+$$
+
+- This is the ratio of potential deviation of loss from the mean maximum loss per unit of risk
+
+- On the left-hand side in the probability expression are the z-scores for realized portfolio returns,
+
+- On the right-hand side are the $z^*$-scores for the threshold.
+
+- We assume that returns, and their $z$-scores are normally distributed.
+
+- Our job is to find $w$ such that the threshold $z^*$-score under the normal distribution cannot exceed `r alpha*100`\%.
+
+$$
+Prob[] = Normal[z^*(w)] = `r alpha`,
+$$
+
+where $Normal$ is the cumulative normal distribution (you might know this as =Norm.S.Dist() in Excel or `qnorm()` in `R`).
+
+Using our models of $\mu_p$ and $\sigma_p$ we get
+
+$$
+z^*(w) = \frac{`r threshold` - `r risky` w - `r riskless` (1-w)}{`r sigma` w},
+$$
+
+After combining constant terms and terms in $w$ and putting this into the target probability, we have:
+
+$$
+Normal \left[ \frac{`r threshold-riskless` - `r risky - riskless` w}{`r sigma` w} \right] = `r alpha`.
+$$
+
+Finally, we solve for $w$ in a few more steps. 
+
+1. Take the inverse of the normal distribution on both sides of the equation. On the left hand side this means that we are left with the $z$ score as a function of $w$, the percentage of all wealth in the risky contract.
+
+$$
+NormalInverseNormal \left[ \frac{`r threshold-riskless` - `r risky - riskless` w}{`r sigma` w} \right] = NormalInverse(`r alpha`).
+$$
+
+We can calculate $NormalInverse(`r alpha`)$ using `R`
+
+```{r zstar, exercise = TRUE}
+alpha <- 0.05
+qnorm(alpha)
+```
+
+or in Excel with `=norm.s.inv(`r alpha`)`.
+
+2. This means that loss cannot exceed `r abs(z_star)` times the portfolio standard deviation in the direction of loss ("negative" or less than the mean). Inserting this value in
+
+$$
+\left[ \frac{`r threshold-riskless` - `r risky - riskless` w}{`r sigma` w} \right] = `r z_star`
+$$
+
+multiplying each side by $`r sigma` w$, combining terms in $w$ and dividing by the coefficient of that last combined $w$ we get
+
+$$
+[`r threshold-riskless` - `r risky - riskless` w] = (`r sigma`) (`r z_star`) w
+$$
+
+$$
+`r threshold-riskless` = [`r risky - riskless` + (`r sigma`) (`r z_star`)] w
+$$
+and we have, finally,
+
+$$
+w = \frac{`r threshold-riskless`}{`r risky - riskless` + (`r sigma`) (`r z_star`)} = `r (threshold-riskless) / (risky - riskless + sigma*z_star)`
+$$
+
+In `R`:
+
+```{r w, exercise = TRUE}
+risky <-  0.10
+riskless <- 0.02
+sigma <- 0.25
+threshold <- -0.12
+alpha <- 0.05
+z_star <-  qnorm(alpha)
+w_star <- (threshold-riskless) / (risky - riskless + sigma*z_star)
+w_star
+```
+
+- Try different thresholds and tolerances. Do the optimal weights line up with our intuition?
+
+Plot this solution using the simulation of the trade-off between risk and return.
+
+```{r plot, exercise = TRUE}
+
+```
+
+<div id="plot-hint">
+
+Just change the middle `geom_point()` to 0.4227. Better yet, and for different thresholds and tolerances, make the weight a variable, `w_star`.
+
+```{r plot-ex, eval = FALSE, echo = TRUE}
+options(digits = 2, scipen = 99999)
+#
+r_f <- 0.02
+mu <- 0.1
+sigma <- 0.25
+#
+sigma_p <- (0:99)*(.3/100) #seq(0, .3, 100)
+mu_p <- r_f + (mu - r_f)*sigma_p/sigma
+w <- sigma_p / sigma
+threshold <- -0.12
+alpha <- 0.05
+z_star <-  qnorm(alpha)
+w_star <- (threshold-riskless) / (risky - riskless + sigma*z_star)
+sim_df <- data_frame(sigma_p = sigma_p, mu_p = mu_p, w = w)
+#
+label_42 <- paste(alpha*100, "% alpha, ", threshold*100, "% threshold, \n", round(w_star*100, 2), "% risky asset", sep = "")
+label_0 <- paste(alpha*100, "% alpha, ", threshold*100, "% threshold, \n", 0*100, "% risky asset", sep = "")
+label_100 <- paste(alpha*100, "% alpha, ", threshold*100, "% threshold, \n", 1.00*100, "% risky asset", sep = "")
+p <- ggplot(sim_df, aes(x = sigma_p, y = mu_p)) + 
+  geom_line(color = "blue", size = 1.1) +
+  geom_point(aes(x = 0.0 * sigma, y = r_f + (mu-r_f)*0.0), color = "red", size = 3.0) + 
+  annotate("text", x = 0.2 * sigma, y = r_f + (mu-r_f)*0.0 + 0.01, label = label_0) +
+  geom_point(aes(x = w_star * sigma, y = r_f + (mu-r_f)*w_star), shape = 21, color = "red", fill = "white", size = 4, stroke = 4) + 
+  annotate("text", x = w_star * sigma, y = r_f + (mu-r_f)*w_star + 0.01, label = label_42) +
+  geom_point(aes(x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00), color = "red", size = 3.0) + 
+  annotate("text", x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00 + 0.01, label = label_100) +
+  xlab("standard deviation of portfolio return") +
+  ylab("mean of portfolio return") +
+  ggtitle("Risk-return tradeoff of cash and risky asset")
+p
+```
+
+</div>
+
+1. Consider the intercept and slope of the risk-return tradeoff. What drives the slope up or down?
+
+2. Why choose one point on this tradeoff or another?
+
+The slope has a technical name: the [Sharpe Ratio](https://www.investopedia.com/terms/s/sharperatio.asp), named for Nobel laureate William F. Sharpe who wrote this interesting article on [adaptive asset allocation](http://web.stanford.edu/~wfsharpe/aaap/wfsaaap.pdf).
+
+## Implications?
+
+- Objective: To fund the new contract at this tolerance for risk and with these reserves.
+
+- Risky contract + collateral = portfolio value.
+
+- `r w*100`\% of portfolio value = risky contract value.
+
+- Portfolio value = \$`r contract` billion / `r w` = \$`r contract / w` billion.
+
+- Collateral value = \$`r contract / w` billion - \$`r contract` billion = \$`r contract / w - contract` billion or `r (1-w)*100`\% of portfolio value.
+
+We just found the notorious "tangency" portfolio. This portfolio, when combined with a risk-free (really "default-free" asset), will yield the best mix of risky and risk-free assets. "Best" here is in the sense of not violating the organization's risk tolerance policy.
+
+Here is an approach:
+
+1. Find the optimal combination of risky assets, the tangency portfolio.
+
+2. Then find the optimal mix of tangency assets and the risk-free asset.
+
+3. Working capital's "risk-free" asset is the cash account and the process of getting there is the cash-conversion cycle.
+
+## Exercises
+
+Perform a table top exercise to assist management in its decision. To do this, 
+
+- Build tables and plots of sensitivities to the size of loss, the level of organization tolerance for risk, and the risk and return characteristics of the risky contract and the risk-free rate. 
+
+- Draw the relationship between risk and return for possible combinations of this portfolio. 
+
+- Interpret the results for management.

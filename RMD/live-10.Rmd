@@ -1,0 +1,840 @@
+---
+title: "Workbook: All in"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    source_code: embed
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, warning=FALSE, message=FALSE)
+library(flexdashboard)
+#
+options(digits = 4, scipen = 999999)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+library(plotly)
+library(quadprog)
+#
+#stocks_env <- new.env()
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+
+price_tbl <- tq_get(symbols) %>% select(date, symbol, price = adjusted)
+# long format ("TIDY") price tibble for possible other work
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+#str(return_tbl)
+r_2 <- return_tbl %>% select(symbol, date, daily_return) %>% spread(symbol, daily_return)
+r_2 <- xts(r_2, r_2$date)[-1, ]
+storage.mode(r_2) <- "numeric"
+r_2 <- r_2[, -1]
+r_corr <- apply.monthly(r_2, FUN = cor)[,c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+r_vols <- apply.monthly(r_2, FUN = colSds)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30)
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) 
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+#
+# convert prices from tibble to xts
+price_etf <- price_tbl %>% spread(symbol, price)
+price_etf <- xts(price_etf, price_etf$date)
+storage.mode(price_etf) <- "numeric" #select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_etf <- price_etf[, -1]
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+#price_last <- price_etf[length(price_etf$TAN), 3:5] #(TAN, ICLN, PBW) %>% as.vector()
+w <- as.numeric(shares * price_0)
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+summary(ES_sim)
+#
+#summary(ES_sim)
+#
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss_rf) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid_0 <- numeric(nint)    # grid store
+e <- grid_0                # store mean exceedances e
+upper <- grid_0            # store upper confidence interval
+lower <- grid_0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+  }
+mep_df <- data.frame(threshold = u, threshold_exceedances = e, lower = lower, upper = upper)
+loss_excess <- loss_rf[loss_rf > u] - u
+quantInv <- function(distr, value) ecdf(distr)(value)
+u_prob <- quantInv(loss_rf, 200000)
+ES_mep <- mean(loss_rf[loss_rf > u_prob])
+stat_fun <- function(x, na.rm = TRUE, ...) {
+  library(moments)
+    # x     = numeric vector
+    # na.rm = boolean, whether or not to remove NA's
+    # ...   = additional args passed to quantile
+    c(mean     = mean(x, na.rm = na.rm),
+      stdev    = sd(x, na.rm = na.rm),
+      skewness = skewness(x, na.rm = na.rm),
+      kurtosis = kurtosis(x, na.rm = na.rm),
+      quantile(x, na.rm = na.rm, ...)) 
+}
+#
+contract <- 1 # billion
+working <- 0.100 # billion
+sigma_wc <- 0.025 # billion
+sigma <- 0.25
+threshold <- -0.12 # percentage return
+alpha <- 0.05 # tolerance
+risky <- 0.1 # percentage return on the risky asset
+riskless <- 0.02 # time value of cash -- no risk
+z_star <- qnorm(alpha)
+w <- (threshold-riskless) / (risky - riskless + sigma*z_star)# Tukey-Box-Hunter fence analysis of outliers
+#
+k <- 1:20 # days in a business month
+col_names <- paste0("lag_", k)
+#
+# remove abs_return the fourth column
+return_lags <- return_tbl[, -4] %>%
+  tq_mutate(
+  select     = daily_return,
+  mutate_fun = lag.xts,
+  k          = k,
+  col_rename = col_names
+  )
+return_autocors <- return_lags %>%
+  gather(key = "lag", value = "lag_value", -c(symbol, date, daily_return)) %>%
+  mutate(lag = str_sub(lag, start = 5) %>% as.numeric) %>%
+  group_by(symbol, lag) %>%
+  summarize(
+    cor = cor(x = daily_return, y = lag_value, use = "pairwise.complete.obs"),
+    upper_95 = 2/(n())^0.5,
+    lower_95 = -2/(n())^0.5
+  )
+return_absautocors <- return_autocors %>%
+  ungroup() %>%
+  mutate(
+    lag = as_factor(as.character(lag)),
+    cor_abs = abs(cor)
+  ) %>%
+  select(lag, cor_abs) %>%
+  group_by(lag)
+#
+## INPUTS: r vector
+## OUTPUTS: list of scalars (mean, sd, median, skewness, kurtosis)
+data_moments <- function(data){
+  library(moments)
+  library(matrixStats)
+  mean <- colMeans(data)
+  median <- colMedians(data)
+  sd <- colSds(data)
+  IQR <- colIQRs(data)
+  skewness <- skewness(data)
+  kurtosis <- kurtosis(data)
+  result <- data.frame(mean = mean, median = median, std_dev = sd, IQR = IQR, skewness = skewness, kurtosis = kurtosis)
+  return(result)
+}
+#
+#
+port_sample <- function(return, n_sample = 252, stat = "mean")
+{
+  R <-  return # daily returns
+  n <- dim(R)[1]
+  N <- dim(R)[2]
+  R_boot <-  R[sample(1:n, n_sample),] # sample returns
+  r_free <- 0.03 / 252 # daily
+  mean_vect <-  apply(R_boot,2,mean)
+  cov_mat <-  cov(R_boot)
+  sd_vect <-  sqrt(diag(cov_mat))
+  A_mat <-  cbind(rep(1,N),mean_vect) 
+  mu_P <-  seq(-.01,.01,length=300)                              
+  sigma_P <-  mu_P 
+  weights <-  matrix(0,nrow=300,ncol=N) 
+  for (i in 1:length(mu_P))  
+  {
+    b_vec <-  c(1,mu_P[i])  
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=A_mat,bvec=b_vec,meq=2)
+    sigma_P[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+  }
+  sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+  ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+  ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+  ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient fr(aes(x = 0, y = r_free), colour = "red")ontier
+  result <- switch(stat,
+    "mean"  = mu_P[ind_max],
+    "sd"    = sigma_P[ind_max]
+    )
+  return(result)
+}
+#
+```
+
+Context
+==============================================
+
+column{.tabset}
+------------------------------------------------------
+
+### The business situation
+
+Our aluminum recyling company just bought a renewable energy manufacturing and services company to expand its earnings opportunities. The renewables devision dabbles in wind, clean energy technologies (very similar to the aluminum recycling clean technologies), and solar, a very new field for the company. The CFO would like to measure the  impact of this new market on the earnings of the renewables division. To do this she commissions a project team.
+
+**Complications**
+
+- The company has experienced very high volatility of earnings in aluminum and input energy markets. There is increased competition in these and their substitute and complementary markets. New technology is outpacing the efficiency and cost per unit of existing facilities in the company's fleet of plants. The company continues to violate levels of risk tolerance and thresholds for total return set by the board of directors,
+
+
+***Key questions***
+
+Your CFO has a few questions for us:
+
+1. How do we characterize renewables variability and the impact of one market on another? 
+
+2. What are the best combinations of renewables drivers?
+
+3. How much capital is needed to support a renewables earnings stream?
+
+4. How should the company plan to meet risk tolerances and thresholds for losses?
+
+### Data and workflow
+
+For the renewables sector we select [exchange traded funds (ETF)](https://www.investopedia.com/terms/e/etf.asp) fromm the [global renewables sector](https://www.etf.com/channels/renewable-energy-etfs): 
+
+- TAN for solar, 
+
+- ICLN for clean technologies, and 
+
+- PBW for wind. 
+
+These funds act as indices to effectively summarize the inputs, process, management, decisions, and outputs of various aspects of the renewables sector. Examining and analyzing this series will go a long way to helping the CFO understand the riskiness of these markets. 
+
+We load historical data on three ETFs, tranform prices into returns, and then further transform the returns into within-month correlations and standard deviations.
+
+Our process includes 
+
+- Review the stylized facts of volatility and relationships among three repesentative markets.
+
+- Develop market risk measures for each driver of earnings.
+
+- Apply corporate risk tolerances and thresholds to determine optimal collateral positions for each driver of earnings.
+
+- Determine optimal combinations of the drivers for maximum excess portfolio return relative to portfolio risk as well as the minimization of risk
+
+- Given the optimal maximum excess return per risk portfolio, determine the probable range of collateral needed to satisfy corporate risk tolerance and thresholds.
+
+Returns
+=======================================================================
+
+column {.sidebar}
+----------------------------------------------------
+
+<h3> Summary </h3>
+
+#### Overall
+
+Notes
+
+#### Persistence
+
+Notes
+
+#### Outliers
+
+Notes
+
+column {.tabset}
+----------------------------------------------------
+
+### Renewables
+
+```{r moments}
+return_plot <- return_tbl %>% select(date, symbol, daily_return) %>% spread(symbol, daily_return)
+ggpairs(return_plot)
+```
+
+### TAN
+
+```{r}
+ggtsdisplay(return_plot$TAN, plot.type = "histogram", main = "TAN daily returns")
+```
+
+### ICLN
+
+```{r}
+ggtsdisplay(return_plot$ICLN, plot.type = "histogram", main = "ICLN daily returns")
+```
+
+### PBW
+
+```{r}
+ggtsdisplay(return_plot$PBW, plot.type = "histogram", main = "PBW daily returns")
+```
+
+### Return persistence
+
+```{r plotreturnabscors, exercise = TRUE}
+# Tukey's fence
+upper_bound <- 1.5*IQR(return_absautocors$cor_abs) %>% signif(3)
+p <- return_absautocors %>%    
+      ggplot(aes(x = fct_reorder(lag, cor_abs, .desc = TRUE) , y = cor_abs)) +
+      # Add boxplot
+      geom_boxplot(color = palette_light()[[1]]) +
+      # Add horizontal line at outlier break point
+      geom_hline(yintercept = upper_bound, color = "red") +
+      annotate("text", label = paste0("Outlier threshold = ", upper_bound), 
+        x = 24.5, y = upper_bound + .03, color = "red") +
+      # Aesthetics
+      expand_limits(y = c(0, 0.5)) +
+      theme_tq() +
+      labs(
+        title = paste0("Absolute Autocorrelations: Lags ", rlang::expr_text(k)),
+        x = "Lags"
+        ) +
+      theme(
+        legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1)
+        )
+ggplotly(p)
+```
+
+
+Volatility
+====================================================
+
+column {.sidebar}
+----------------------------------------------------
+
+<h3> Summary </h3>
+
+### Monthly volatility
+
+Notes
+
+### Monthly Correlation
+
+Notes
+
+column {.tabset}
+----------------------------------------------------
+
+### TAN
+
+```{r}
+ggtsdisplay(r_vols$TAN, plot.type = "histogram", main = "TAN monthly volatility")
+```
+
+### PBW
+```{r}
+ggtsdisplay(r_vols$ICLN, plot.type = "histogram", main = "ICLN monthly volatility")
+```
+
+### ICLN
+
+```{r}
+ggtsdisplay(r_vols$PBW, plot.type = "histogram", main = "PBW monthly volatility")
+```
+
+column {.tabset}
+----------------------------------------------------
+
+### TAN-ICLN
+
+```{r}
+ggtsdisplay(r_corr$TAN_ICLN, plot.type = "histogram", main = "TAN-ICLN monthly correlation")
+```
+
+Notes:
+
+- Interesting
+
+- Very interesting
+
+### TAN-PBW
+
+```{r}
+ggtsdisplay(r_corr$TAN_PBW, plot.type = "histogram", main = "TAN-PBW monthly correlation")
+```
+
+### ICLN-PBW
+
+```{r}
+ggtsdisplay(r_corr$ICLN_PBW, plot.type = "histogram", main = "ICLN-PBW monthly correlation")
+```
+
+### TAN-ICLN market spillover
+
+```{r rqplot-TAN-ICLN}
+p <- ggplot(corr_vols_tbl,  aes(x = ICLN, y = TAN_ICLN)) +
+    geom_point() + 
+    ggtitle("TAN-ICLN Interaction") + 
+    geom_quantile(quantiles = c(0.10, 0.90)) + 
+    geom_quantile(quantiles = 0.5, linetype = "longdash") +
+    geom_density_2d(colour = "red")  
+ggplotly(p)
+```
+
+### TAN-PBW market spillover
+
+```{r rqplot-TAN-PBW}
+p <- ggplot(corr_vols_tbl,  aes(x = PBW, y = TAN_PBW)) +
+    geom_point() + 
+    ggtitle("TAN-PBW Interaction") + 
+    geom_quantile(quantiles = c(0.10, 0.90)) + 
+    geom_quantile(quantiles = 0.5, linetype = "longdash") +
+    geom_density_2d(colour = "red")  
+ggplotly(p)
+```
+
+### ICLN-PBW market spillover
+
+```{r rqplot-ICLN-PBW}
+p <- ggplot(corr_vols_tbl,  aes(x = PBW, y = ICLN_PBW)) +
+    geom_point() + 
+    ggtitle("ICLN-PBW Interaction") + 
+    geom_quantile(quantiles = c(0.10, 0.90)) + 
+    geom_quantile(quantiles = 0.5, linetype = "longdash") +
+    geom_density_2d(colour = "red")  
+ggplotly(p)
+```
+
+
+Loss
+============================================
+
+column {.sidebar}
+----------------------------------------------------
+
+<h3> Pure plays </h3>
+
+### TAN only
+
+Notes
+
+### ICLN only
+
+Notes
+
+### PBW only
+
+Notes
+
+
+column {.tabset}
+--------------------------------------------
+
+### TAN 
+
+```{r TANloss}
+#
+shares <- c(-215000, 0, 0)
+price_last <- c(1, 0, 0) * price_0 #(TAN, ICLN, PBW) %>% as.vector()
+w <- as.numeric(shares * price_last)
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+#
+sim <- ES_sim
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "TAN: Expected Shortfall simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(binwidth = 1000, aes(y = 1000*(..density..)), alpha = 0.4)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low, y = 0.01, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 0.01, label = paste("U = ", round(high, 2))) + ylab("density") + xlab("expected shortfall") + theme_bw()
+ggplotly(p)
+```
+
+### ICLN
+
+```{r ICLNloss}
+#
+shares <- c(0, 284000, 0)
+price_last <- c(0, 1, 0) * price_0
+w <- as.numeric(shares * price_last)
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+#
+sim <- ES_sim
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "ICLN: Expected Shortfall simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(binwidth = 1000, aes(y = 1000*(..density..)), alpha = 0.4)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low, y = 0.01, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 0.01, label = paste("U = ", round(high, 2))) + ylab("density") + xlab("expected shortfall") + theme_bw()
+ggplotly(p)
+```
+
+### PBW
+
+```{r PBWloss}
+#
+shares <- c(0, 0, 12500)
+price_last <- c(0, 0, 1) * price_0
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+#
+sim <- ES_sim
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "PBW: Expected Shortfall simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(binwidth = 1000, aes(y = 1000*(..density..)), alpha = 0.4)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low, y = 0.01, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 0.01, label = paste("U = ", round(high, 2))) + ylab("density") + xlab("expected shortfall") + theme_bw()
+ggplotly(p)
+```
+
+Allocation
+============================================
+
+column {.sidebar}
+--------------------------------------------
+
+```{r eff-frontier-calc}
+R <-  r_2 # daily returns
+n <- dim(R)[1]
+N <- dim(R)[2]
+R_boot <-  R[sample(1:n, 252),] # sample returns
+r_free <- 0.03 / 252 # daily
+mean_vect <-  apply(R_boot,2,mean)
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+A_mat <-  cbind(rep(1,N),mean_vect) 
+mu_P <-  seq(-.01,.01,length=300)                              
+sigma_P <-  mu_P 
+weights <-  matrix(0,nrow=300,ncol=N) 
+for (i in 1:length(mu_P))  
+  {
+    b_vec <-  c(1,mu_P[i])  
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=A_mat,bvec=b_vec,meq=2)
+    sigma_P[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+} 
+# make a data frame of the mean and standard deviation results
+sigma_mu_df <- data_frame(sigma_P = sigma_P, mu_P = mu_P)
+names_R <- c("TAN", "ICLN", "PBW")
+# sharpe ratio and minimum variance portfolio analysis
+sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient fr(aes(x = 0, y = r_free), colour = "red")ontier
+w_max <- weights[ind_max,]
+w_min <- weights[ind_min,]
+value <- 1000000
+```
+
+### Optimal weights
+
+We use these maximum Sharpe Ratio weights to form a risky asset loss series:
+
+TAN: `r round(w_max[1] * 100, 2)`%, ICLN: `r round(w_max[2] * 100, 2)`%, PBW: `r round(w_max[3] * 100, 2)`% of total portfolio value of USD `r value` with a daily return of `r round(mu_P[ind_max]*100, 2)`% and standard deviation of `r round(sigma_P[ind_max]*100, 2)`% 
+
+These weights will produce a minimum variance portfolio:
+
+TAN: `r round(w_min[1] * 100, 2)`%, ICLN: `r round(w_min[2] * 100, 2)`%, PBW: `r round(w_min[3] * 100, 2)`% of total portfolio value of USD `r value` with a daily portfolio return of `r round(mu_P[ind_min]*100, 2)`% and standard deviation of `r round(sigma_P[ind_min]*100, 2)`%
+
+### Thresholds
+
+- overall
+
+### Loss range
+
+
+### Collateral concerns
+
+How much collateral do we need to meet company risk tolerances and thresholds?
+
+
+column {.tabset}
+--------------------------------------------
+
+### Efficient frontier
+
+```{r eff-frontier}
+col_P <- ifelse(mu_P > mu_P[ind_min], "blue", "grey") # discriminate efficient and inefficient portfolios
+sigma_mu_df$col_P <- col_P
+p <- ggplot(sigma_mu_df, aes(x = sigma_P, y = mu_P, group = 1))
+p <- p + geom_line(aes(colour=col_P, group = col_P), size = 1.1) + scale_colour_identity() 
+p <- p + geom_abline(intercept = r_free, slope = (mu_P[ind_max]-r_free)/sigma_P[ind_max], color = "red", size = 1.1)
+p <- p + geom_point(aes(x = sigma_P[ind_max], y = mu_P[ind_max]), color = "green", size = 4) 
+p <- p + geom_point(aes(x = sigma_P[ind_min], y = mu_P[ind_min]), color = "red", size = 4) ## show min var portfolio
+#p
+ggplotly(p)
+```
+
+### Sharpe mean CI
+
+```{r sampledmean-ex}
+port_mean <- replicate(1000, port_sample(R, n_sample = 252, stat = "mean"))
+sim <- port_mean * 252
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "Tangency portfolio sampled mean simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(alpha = 0.7)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low + 0.01, y = 200, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 200, label = paste("U = ", round(high, 2))) + ylab("density") + xlab("daily mean: max Sharpe Ratio") + theme_bw()
+ggplotly(p)
+```
+
+### Sharpe standard deviation CI
+
+```{r sampledsd-ex}
+port_mean <- replicate(1000, port_sample(R, n_sample = 252, stat = "sd"))
+sim <- port_mean * 252
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "Tangency portfolio sampled standard deviation simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(alpha = 0.7)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low + 0.1, y = 200, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 200, label = paste("U = ", round(high, 2))) + ylab("density") + xlab("daily mean: max Sharpe Ratio") + theme_bw()
+ggplotly(p)
+```
+
+### Max Sharpe Ratio loss thresholds
+
+```{r mepcalc}
+price_last <- price_0
+value <- 1000000 # portfolio value
+w_0 <- w_max # wwights -- e.g., min variance or max sharpe
+shares <- value * (w_0/price_last)
+w <- as.numeric(shares * price_last)
+return_hist <- r_2
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+data <- as.vector(loss_rf[loss_rf > 0]) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid_0 <- numeric(nint)    # grid store
+e <- grid_0                # store mean exceedances e
+upper <- grid_0            # store upper confidence interval
+lower <- grid_0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+  }
+mep_df <- data.frame(threshold = u, threshold_exceedances = e, lower = lower, upper = upper)
+```
+
+
+```{r loss-mep}
+# Voila the plot => you may need to tweak these limits!
+p <- ggplot(mep_df, aes( x= threshold, y = threshold_exceedances)) + geom_line() + geom_line(aes(x = threshold, y = lower), colour = "red") + geom_line(aes(x = threshold,  y = upper), colour = "red") + annotate("text", x = mean(mep_df$threshold), y = max(mep_df$upper)+100, label = "upper 95%") + annotate("text", x = mean(mep_df$threshold), y = min(mep_df$lower) - 100, label = "lower 5%") + ggtitle("Mean Excess Plot: maximum Sharpe Ratio portfolio") + ylab("threshold exceedances")
+ggplotly(p)
+```
+
+
+### Risky capital
+
+```{r loss-capital}
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+#
+sim <- ES_sim
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- paste0("Loss Capital Simulation: alpha =  ", alpha*100, "% bounds")
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(alpha = 0.4)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low, y = 100, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 100, label = paste("U = ", round(high, 2))) + ylab("density") + xlab("expected shortfall") + theme_bw()
+ggplotly(p)
+```
+
+### Collateral
+
+```{r collateral}
+options(digits = 2, scipen = 99999)
+#
+r_f <- 0.03 # per annum
+mu <- mu_P[ind_max] * 252 # pull mu and sigma for tangency portfolio
+sigma <- sigma_P[ind_max] * sqrt(252)
+#
+sigma_p <- seq(0, sigma + 0.25, length.out = 100)
+mu_p <- r_f + (mu - r_f)*sigma_p/sigma
+w <- sigma_p / sigma
+threshold <- -0.12
+alpha <- 0.05
+z_star <-  qnorm(alpha)
+w_star <- (threshold-r_f) / (mu - r_f + sigma*z_star)
+sim_df <- data_frame(sigma_p = sigma_p, mu_p = mu_p, w = w)
+#
+label_42 <- paste(alpha*100, "% alpha, ", threshold*100, "% threshold, \n", round(w_star*100, 2), "% risky asset", sep = "")
+label_0 <- paste(0*100, "% risky asset", sep = "")
+label_100 <- paste(1.00*100, "% risky asset", sep = "")
+p <- ggplot(sim_df, aes(x = sigma_p, y = mu_p)) + 
+  geom_line(color = "blue", size = 1.1) +
+  geom_point(aes(x = 0.0 * sigma, y = r_f + (mu-r_f)*0.0), color = "red", size = 3.0) + 
+  annotate("text", x = 0.2 * sigma, y = r_f + (mu-r_f)*0.0 + 0.01, label = label_0) +
+  geom_point(aes(x = w_star * sigma, y = r_f + (mu-r_f)*w_star), shape = 21, color = "red", fill = "white", size = 4, stroke = 4) + 
+  annotate("text", x = w_star * sigma + .2, y = r_f + (mu-r_f)*w_star + 0.1, label = label_42) +
+  geom_point(aes(x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00), color = "red", size = 3.0) + 
+  annotate("text", x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00 + 0.01, label = label_100) +
+  xlab("standard deviation of portfolio return") +
+  ylab("mean of portfolio return") +
+  ggtitle("Risk-return tradeoff of cash and risky asset")
+ggplotly(p)
+```
+
+
+Summary
+============================================
+
+column {.sidebar}
+--------------------------------------------
+
+### Overall
+
+Notes
+
+column {.tabset}
+--------------------------------------------
+
+### Minnie: TAN
+
+- TAN by it self
+
+- TAN-ICLN
+
+- TAN-PBW
+
+
+### Donald: ICLN
+
+- ICLN
+
+### Goofy: PBW
+
+- PBW
+
+References
+============================================
+

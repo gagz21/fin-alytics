@@ -100,8 +100,21 @@ mean(sim_df$kurtosis <= 3)
 ecdf(sim_df$kurtosis)(3)
 
 set.seed(1016)
-quantile_95_sim <- replicate(10000, quantile(sample(exrates.r[, 1], size = 100, replace = FALSE), 0.95))
-quantile_99_sim <- replicate(10000, quantile(sample(exrates.r[, 1], size = 100, replace = FALSE), 0.99))
-quantile_df <- data.frame(quantile_95_sim = quantile_95_sim, quantile_99_sim = quantile_99_sim)
-data_moments(as.matrix(quantile_df))
-
+exrates <- na.omit(read.csv("data/exrates.csv", header = TRUE))
+exrates.r <- diff(log(as.matrix(exrates[, -1]))) * 100
+ES_calc <- function(data, prob){
+  data <- as.matrix(data)
+  return(mean(data[data > quantile(data, prob),]))
+}
+bootstrap_resample <- function (data) {
+  sample(data, length(data), replace=TRUE)
+}
+replicate(5, bootstrap_resample (6:10))
+ES_1 <- ES_calc(exrates.r[,1], 0.95)
+bootstrap_resample <- function (data, n_sample) sample(data, n_sample, replace=TRUE) 
+t(replicate(5, bootstrap_resample (6:10, 3)))
+ES_sample <- replicate(1000, ES_calc(bootstrap_resample (exrates.r[,1], 250), 0.95))
+hist(ES_sample)
+q_0.025 <- quantile(ES_sample, 0.025)
+q_0.975 <- quantile(ES_sample, 0.975)
+q_0.500 <- quantile(ES_sample, 0.500)

@@ -1,0 +1,991 @@
+---
+title: "Workbook 8"
+subtitle: "Tangency Assets"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+options(digits = 4, scipen = 999999)
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(quantreg)
+library(forecast)
+library(tidyquant)
+library(timetk)
+library(quantmod)
+library(matrixStats)
+library(quadprog)
+library(plotly)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+#stocks_env <- new.env()
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+getSymbols(symbols) #, env = stocks_env) # using quantmod
+data <- TAN
+data <- data[ , 6] # only adjusted close  
+colnames(data) <- "TAN"
+r_TAN <- diff(log(data))[-1] 
+# convert xts object to a tibble or data frame
+p_TAN <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])
+# repeat
+data <- ICLN
+data <- data[ , 6]  
+colnames(data) <- "ICLN"
+r_ICLN <- diff(log(data))[-1]
+p_ICLN <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])
+# and again
+data <- PBW
+data <- data[ , 6]  
+colnames(data) <- "PBW"
+r_PBW <- diff(log(data))[-1]
+p_PBW <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])#rate_IYM <- data %>% mutate(diff(log(p_IYM))[-1])
+# merge by date (as row name)
+price <- merge(p_TAN, p_ICLN)
+price <- merge(price, p_PBW)
+return <- merge(TAN = r_TAN, ICLN = r_ICLN, PBW = r_PBW, all = FALSE)
+# calculute within month correlations and choose lower triangle of correlation matrix
+r_corr <- apply.monthly(return, FUN = cor)[, c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+# calculate within month standard deviations using MatrixStats
+r_vols <- apply.monthly(return, FUN = colSds)
+# long format ("TIDY") price tibble for possible other work
+price_tbl <- price %>% as_tibble() %>% gather(k = symbol, value = price, TAN, ICLN, PBW ) %>% select(symbol, date, price)
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+str(return_tbl)
+# 
+corr_tbl <- r_corr %>% as_tibble() %>% mutate(date = index(r_corr)) %>% gather(key = assets, value = corr, -date)
+vols_tbl <- r_vols %>% as_tibble() %>% mutate(date = index(r_vols)) %>% gather(key = assets, value = vols, -date) 
+#
+corr_vols <- merge(r_corr, r_vols)
+corr_vols_tbl <- corr_vols %>% as_tibble() %>% mutate(date = index(corr_vols))
+#
+## data_moments function
+## INPUTS: r vector
+## OUTPUTS: list of scalars (mean, sd, median, skewness, kurtosis)
+data_moments <- function(data){
+  library(moments)
+  library(matrixStats)
+  mean <- colMeans(data)
+  median <- colMedians(data)
+  sd <- colSds(data)
+  IQR <- colIQRs(data)
+  skewness <- skewness(data)
+  kurtosis <- kurtosis(data)
+  result <- data.frame(mean = mean, median = median, std_dev = sd, IQR = IQR, skewness = skewness, kurtosis = kurtosis)
+  return(result)
+}
+#
+
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30)
+garch_sim_t <- function(n = 1000, df = 30, omega = 0.1, alpha = 0.8, phi = 0.05, mu = 0.01){
+  n <- n # lots of trials, each a "day" or an "hour"
+  # set.seed(seed)
+  z <- rt(n, df = df) # using Stuent t innovations with thicker tails than Gaussian
+  e <-  z # store variates
+  y <-  z # returns: store again in a different place
+  sig2 <-  z^2 # create volatility series
+  omega <-  omega #base variance
+  alpha <-  alpha #vols Markov dependence on previous variance
+  phi <-  phi # returns Markov dependence on previous period
+  mu <-  mu # average return
+  for (t in 2:n) { # Because of lag start at second
+    e[t] <- sqrt(sig2[t])*z[t]           # 1. e is conditional on sig
+    y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+    sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2
+    }
+  return <- list(
+    sim_df_vbl <- data_frame(t = 1:n, z = z, y = y, e = e, sig = sqrt(sig2)[-(n+1)] ),
+    sim_df_title <- data_frame(t = 1:n, "1. Unconditional innovations" = z, "4. Conditional returns" = y, "3. Conditional innovations" = e, "2. Conditional volatility" = sqrt(sig2)[-(n+1)] )
+  )
+}
+#
+price_etf <- price %>% select(TAN, ICLN, PBW) # 3 risk factors (rf)
+price_0 <- as.numeric(tail(price_etf, 1))
+shares <- c(60000, 75000, 50000)
+price_last <- price[length(price$TAN), 3:5] #(TAN, ICLN, PBW) %>% as.vector()
+w <- as.numeric(shares * price_last)
+return_hist <- apply(log(price[, 3:5]), 2, diff)
+# Fan these across the length and breadth of the risk factor series
+weights_rf <- matrix(w, nrow=nrow(return_hist), ncol=ncol(return_hist), byrow=TRUE)
+## We need to compute exp(x) - 1 for very small x: expm1 accomplishes this
+loss_rf <- -rowSums(expm1(return_hist) * weights_rf)
+loss_df <- data_frame(loss = loss_rf, distribution = rep("historical", each = length(loss_rf)))
+#
+ES_calc <- function(data, prob){
+  threshold <- quantile(data, prob)
+  result <- mean(data[data > threshold])
+}
+#
+n_sim <- 1000
+n_sample <- 100
+prob <- 0.95
+ES_sim <- replicate(n_sim, ES_calc(sample(loss_rf, n_sample, replace = TRUE), prob))
+#
+#summary(ES_sim)
+#
+# mean excess plot to determine thresholds for extreme event management
+data <- as.vector(loss_rf) # data is purely numeric
+umin <-  min(data)         # threshold u min
+umax <-  max(data) - 0.1   # threshold u max
+nint <- 100                # grid length to generate mean excess plot
+grid_0 <- numeric(nint)    # grid store
+e <- grid_0                # store mean exceedances e
+upper <- grid_0            # store upper confidence interval
+lower <- grid_0            # store lower confidence interval
+u <- seq(umin, umax, length = nint) # threshold u grid
+alpha <- 0.95                  # confidence level
+for (i in 1:nint) {
+    data <- data[data > u[i]]  # subset data above thresholds
+    e[i] <- mean(data - u[i])  # calculate mean excess of threshold
+    sdev <- sqrt(var(data))    # standard deviation
+    n <- length(data)          # sample size of subsetted data above thresholds
+    upper[i] <- e[i] + (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # upper confidence interval
+    lower[i] <- e[i] - (qnorm((1 + alpha)/2) * sdev)/sqrt(n) # lower confidence interval
+  }
+mep_df <- data.frame(threshold = u, threshold_exceedances = e, lower = lower, upper = upper)
+loss_excess <- loss_rf[loss_rf > u] - u
+quantInv <- function(distr, value) ecdf(distr)(value)
+u_prob <- quantInv(loss_rf, 200000)
+ES_mep <- mean(loss_rf[loss_rf > quantile(loss_rf, u_prob)])
+#
+data_moments <- function(data){
+  library(moments)
+  library(matrixStats)
+  mean <- colMeans(data)
+  median <- colMedians(data)
+  sd <- colSds(data)
+  IQR <- colIQRs(data)
+  skewness <- skewness(data)
+  kurtosis <- kurtosis(data)
+  result <- data.frame(mean = mean, median = median, std_dev = sd, IQR = IQR, skewness = skewness, kurtosis = kurtosis)
+  return(result)
+}
+#
+
+contract <- 1 # billion
+working <- 0.100 # billion
+sigma_wc <- 0.025 # billion
+sigma <- 0.25
+threshold <- -0.12 # percentage return
+alpha <- 0.05 # tolerance
+risky <- 0.1 # percentage return on the risky asset
+riskless <- 0.02 # time value of cash -- no risk
+z_star <- qnorm(alpha)
+w <- (threshold-riskless) / (risky - riskless + sigma*z_star)
+#
+# 2 risky assets and a risk-free asset
+# per annum returns
+port_stats <- data_moments(return)
+#port_stats
+rho_all <- cor(return)
+#rho_all
+mu_1 <- abs(port_stats[1, 1] * 252)  #TAN
+mu_2 <- abs(port_stats[3, 1] * 252)  #PBW
+sig_1 <- port_stats[1, 3] * sqrt(252)
+sig_2 <- port_stats[3, 3] * sqrt(252)
+rho <- rho_all[3, 1]
+#mu_1 <-  0.14
+#mu_2 <-  0.08
+#sig_1 <-  0.2
+#sig_2 <-  0.15
+#rho <-  -.5
+r_f <-  0.03
+w <-  seq(0, 5, len = 500)
+means <-  mu_2 + (mu_1 - mu_2) * w
+var <-  sig_1^2 * w^2 + sig_2^2 * (1 - w)^2 +2*w*(1-w)*rho*sig_1*sig_2
+risk <-  sqrt(var)
+# plotting
+sigma_mu_df <- data_frame(sigma_P = risk, mu_P = means )
+names_R <- c("TAN", "PBW")
+mean_R <- c(mu_1, mu_2)
+sd_R <- c(sig_1, sig_2)
+mu_P <- sigma_mu_df$mu_P
+sigma_P <- sigma_mu_df$sigma_P
+r_free <-  r_f ## input value of risk-free interest rate
+# sharpe ratio and minimum variance portfolio analysis
+sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient frontier
+col_P <- ifelse(mu_P > mu_P[ind_min], "blue", "grey") # discriminate efficient and inefficient portfolios
+sigma_mu_df$col_P <- col_P
+# now plot it up
+p <- ggplot(sigma_mu_df, aes(x = sigma_P, y = mu_P, group = 1)) + geom_line(aes(colour=col_P, group = col_P)) + scale_colour_identity() # + xlim(0, max(sd_R*1.1))  + ylim(0, max(mean_R)*1.1) + 
+p <- p + geom_point(aes(x = 0, y = r_free), colour = "red")
+options(digits=4)
+p <- p + geom_abline(intercept = r_free, slope = (mu_P[ind_max]-r_free)/sigma_P[ind_max], colour = "red")
+p <- p + geom_point(aes(x = sigma_P[ind_max], y = mu_P[ind_max])) 
+p <- p + geom_point(aes(x = sigma_P[ind_min], y = mu_P[ind_min])) ## show min var portfolio
+p <- p + annotate("text", x = sd_R[1], y = mean_R[1], label = names_R[1]) + annotate("text", x = sd_R[2], y = mean_R[2], label = names_R[2]) #+ annotate("text", x = sd_R[3], y = mean_R[3], label = names_R[3])
+#ggplotly(p)
+#
+# Many assets now
+#
+#R <-  (dat[2:n, -1]/dat[1:(n-1), -1] - 1) # or
+#R <-  log(dat[2:n, -1]/dat[1:(n-1), -1])
+R <-  return # daily returns from line 148?
+n <- dim(R)[1]
+N <- dim(R)[2]
+R_boot <-  R[sample(1:n, 252),] # sample returns and lightning does not strike twice
+r_free <- 0.03 / 252 # daily
+mean_vect <-  apply(R_boot,2,mean)
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+A_mat <-  cbind(rep(1,N),mean_vect) 
+mu_P <-  seq(-.01,.01,length=300)                              
+sigma_P <-  mu_P 
+weights <-  matrix(0,nrow=300,ncol=N) 
+for (i in 1:length(mu_P))  
+  {
+    b_vec <-  c(1,mu_P[i])  
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=A_mat,bvec=b_vec,meq=2)
+    sigma_P[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+} 
+# make a data frame of the mean and standard deviation results
+sigma_mu_df <- data_frame(sigma_P = sigma_P, mu_P = mu_P)
+names_R <- c("TAN", "ICLN", "PBW")
+# sharpe ratio and minimum variance portfolio analysis
+sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient fr(aes(x = 0, y = r_free), colour = "red")ontier
+col_P <- ifelse(mu_P > mu_P[ind_min], "blue", "grey") # discriminate efficient and inefficient portfolios
+sigma_mu_df$col_P <- col_P
+# plot it up
+p <- ggplot(sigma_mu_df, aes(x = sigma_P, y = mu_P, group = 1))
+p <- p + geom_line(aes(colour=col_P, group = col_P), size = 1.1) + scale_colour_identity() 
+p <- p + geom_abline(intercept = r_free, slope = (mu_P[ind_max]-r_free)/sigma_P[ind_max], color = "red", size = 1.1)
+p <- p + geom_point(aes(x = sigma_P[ind_max], y = mu_P[ind_max]), color = "green", size = 4) 
+p <- p + geom_point(aes(x = sigma_P[ind_min], y = mu_P[ind_min]), color = "red", size = 4) ## show min var portfolio
+p
+ggplotly(p)
+#
+# helper function for bootstrapping tangency portfolio mean and sd
+#
+port_sample <- function(return, n_sample = 252, stat = "mean")
+{
+  R <-  return # daily returns
+  n <- dim(R)[1]
+  R_boot <-  R[sample(1:n, n_sample),] # sample returns
+  r_free <- 0.03 / 252 # daily
+  mean_vect <-  apply(R_boot,2,mean)
+  cov_mat <-  cov(R_boot)
+  sd_vect <-  sqrt(diag(cov_mat))
+  A_mat <-  cbind(rep(1,N),mean_vect) 
+  mu_P <-  seq(-.01,.01,length=300)                              
+  sigma_P <-  mu_P 
+  weights <-  matrix(0,nrow=300,ncol=N) 
+  for (i in 1:length(mu_P))  
+  {
+    b_vec <-  c(1,mu_P[i])  
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=A_mat,bvec=b_vec,meq=2)
+    sigma_P[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+  }
+  sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+  ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+  ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+  ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient fr(aes(x = 0, y = r_free), colour = "red")ontier
+  result <- switch(stat,
+    "mean"  = mu_P[ind_max],
+    "sd"    = sigma_P[ind_max]
+    )
+  return(result)
+}
+port_mean <- replicate(1000, port_sample(return, n_sample = 252, stat = "mean"))
+sim <- port_mean * 252
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "Tangency portfolio sampled mean simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(binwidth = .1, aes(y = .1*(..density..)), alpha = 0.7)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low + 0.1, y = 0.005, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 0.005, label = paste("U = ", round(high, 2))) + ylab("density") + xlim(0, 5) + ylim(0, 0.01) + xlab("daily mean: max Sharpe Ratio") + theme_bw()
+p
+#
+options(digits = 2, scipen = 99999)
+#
+port_mean <- replicate(1000, port_sample(return, stat = "mean"))
+port_sd <- replicate(1000, port_sample(return, stat = "sd"))
+r_f <- 0.03
+# choose one tangency portfolio scenario
+mu <-  quantile((port_mean[port_mean*252 > r_f]*252), 0.05)
+sigma <- quantile((port_sd*sqrt(252)), 0.05)
+threshold <- -0.12
+alpha <- 0.05
+z_star <-  qnorm(alpha)
+w_star <- (threshold-r_f) / (mu - r_f + sigma*z_star)
+sigma_p <- seq(0, sigma * (1.1*w_star), length.out = 100)
+mu_p <- r_f + (mu - r_f)*sigma_p/sigma
+w <- sigma_p / sigma
+sim_df <- data_frame(sigma_p = sigma_p, mu_p = mu_p, w = w)
+#
+label_42 <- paste(round(w_star*100, 2), "% risky asset", sep = "")
+label_0 <- paste(alpha*100, "% alpha, ", threshold*100, "% threshold")
+label_100 <- paste(1.00*100, "% risky asset \n mu = ", round(mu*100,2), "%\n sigma = ", round(sigma*100,2), "%", sep = "")
+options(digits = 4)
+p <- ggplot(sim_df, aes(x = sigma_p, y = mu_p)) + 
+  geom_line(color = "blue", size = 1.1)
+p <- p + geom_point(aes(x = 0.0 * sigma, y = r_f + (mu-r_f)*0.0), color = "red", size = 3.0) +
+  geom_point(aes(x = w_star * sigma, y = r_f + (mu-r_f)*w_star), shape = 21, color = "red", fill = "white", size = 4, stroke = 4) + 
+  annotate("text", x = w_star * sigma, y = r_f + (mu-r_f)*w_star + 0.01, label = label_42) +
+  geom_point(aes(x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00), color = "red", size = 3.0) + 
+  annotate("text", x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00 + 0.01, label = label_100) +
+  xlab("standard deviation of portfolio return") +
+  ylab("mean of portfolio return") +
+  ggtitle(label_0)
+p
+
+```
+
+## Welcome
+
+This workbook provides more practice with modeling financial choices under uncertainty. You will review concepts of portfolio risks and returns, as well as one way to characterize risky decisions. 
+
+You will practice to
+
+1. Combine multiple risky assets into efficient portfolios.
+
+2. Identify the risky asset portfolio that provides the largest excess return per unit of risk (the maximum Sharpe ratio).
+
+3. Examine the confidence intervals for the Sharpe ratio, tangency portfolio weights, and resulting mean and standard deviation of the tangency portfolio.
+
+4. Fold the tangency portfolio results into the decision to hold collateral given the organization's thresholds and tolerances for risk.
+
+Continue to be ready for some light, and not so light, algebra (straight lines from first year high school and parabolas from third year high school) and a more simulations of efficient portfolios and confidence intervals.
+
+## Imagine this scenario
+
+You work for an energy services company that provides control systems, consulting, and equipment finance to companies that produce distillates and electric power in the global renewable energy sector. The company is just about to sign a contract to provide energy services in Spain and Portugal with two Spanish companies and one British company operating on the Iberian peninsula. In the end the company's earnings seem to revolve around working capital. The CFO needs answers around why it is so big and always seems to bulge when the economic fortunes of our customers are in peril of deteriorating. She knows that there are several culprits ranging from the euro rate, the Sterling rate, with Brexit fears, Brent crude as a bellweather, and the development of solar, wind, and clean energy technologies. She commissions you and your team to figure out the ultimate combination of these factors that contributes to a \$`r working*1000` million working capital position with a volatility of over \$`r sigma*1000` million this past year.
+
+Suppose management wants to achieve a targeted value at risk on new contracts:
+
+- Value at risk (VaR) is the $\alpha$ quantile of portfolio value of loss where $\alpha$ ("alpha") is the organization's tolerance for risk.
+
+- VaR is the maximum amount of tolerable loss. But more loss is possible.
+
+Let's apply this criterion to this data:
+
+- Management is considering a \$`r contract` billion contract. 
+
+- This contract will be two Iberian companies and one United Kingdom-based (UK) company working in Spain.
+
+- Only \$`r working*1000` million in working capital reserves are available to cover any losses.
+
+- The Board wants some comfort that no more than a `r threshold*100`\% loss (the average "return" $\mu$) would occur.
+
+- The Board has set the organization's tolerance for risk at `r alpha*100`\%: that is, a maximum of \% of the time could losses exceed `r threshold*100`\%.
+
+With this context, management now delves into the question of the optimal combination of drivers of the risky contract. 
+
+
+## A  little light data
+
+Management runs this code to build a risky asset data base around the renewable energy sector drivers of volatility. As a matter of policy, management checks the returns data using `str()` and `head()` and `summary()`.
+
+```{r data, exercise = TRUE}
+library(quantmod)
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+getSymbols(symbols) #, env = stocks_env) # using quantmod
+data <- TAN
+data <- data[ , 6] # only adjusted close  
+colnames(data) <- "TAN"
+r_TAN <- diff(log(data))[-1] 
+# convert xts object to a tibble or data frame
+p_TAN <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])
+# repeat
+data <- ICLN
+data <- data[ , 6]  
+colnames(data) <- "ICLN"
+r_ICLN <- diff(log(data))[-1]
+p_ICLN <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])
+# and again
+data <- PBW
+data <- data[ , 6]  
+colnames(data) <- "PBW"
+r_PBW <- diff(log(data))[-1]
+p_PBW <- data %>% as_tibble() %>% mutate(date = index(data), month = month.abb[month(index(data))])#rate_IYM <- data %>% mutate(diff(log(p_IYM))[-1])
+# merge by date (as row name)
+price <- merge(p_TAN, p_ICLN)
+price <- merge(price, p_PBW)
+return <- merge(TAN = r_TAN, ICLN = r_ICLN, PBW = r_PBW, all = FALSE)
+# calculute within month correlations and choose lower triangle of correlation matrix
+r_corr <- apply.monthly(return, FUN = cor)[, c(2, 3, 6)]
+colnames(r_corr) <- c("TAN_ICLN", "TAN_PBW", "ICLN_PBW")
+# calculate within month standard deviations using MatrixStats
+r_vols <- apply.monthly(return, FUN = colSds)
+# long format ("TIDY") price tibble for possible other work
+price_tbl <- price %>% as_tibble() %>% gather(k = symbol, value = price, TAN, ICLN, PBW ) %>% select(symbol, date, price)
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+```
+
+<div id="data-hint">
+Use the `return` data frame.
+</div>
+
+## Two are better than one
+
+To introduce the notion of a risky asset portfolio, our team investigates a simple two asset portfolio with statistics from two of the three renewable energy drivers. Gathered from our inventoried `data_moments()` function and the `cor()` function as well are
+
+- Two means from summary
+
+- Two standard deviations
+
+- One correlation
+
+We upgraded the `data_moments()` function to handle columns of data using the `matrixStats` package. We focus on the solar `TAN` and wind `PBW` drivers using annualized returns and standard deviations.
+
+```{r stats2, exercise = TRUE}
+# mU_1 <-
+# mu_2 <- 
+# sig_1 <- 
+# sig_2 <- 
+# rho <- 
+```
+ 
+<div id="stats2-hint">
+We can run this function to harvest the statistics for mean and standard deviation. We recall that `cor()` will return a correlation matrix using the `return` input.
+
+```{r stats2-ex, eval = FALSE, echo = TRUE}
+data_moments <- function(data){
+  library(moments)
+  library(matrixStats)
+  mean <- colMeans(data)
+  median <- colMedians(data)
+  sd <- colSds(data)
+  IQR <- colIQRs(data)
+  skewness <- skewness(data)
+  kurtosis <- kurtosis(data)
+  result <- data.frame(mean = mean, median = median, std_dev = sd, IQR = IQR, skewness = skewness, kurtosis = kurtosis)
+  return(result)
+}
+port_stats <- data_moments(return)
+port_stats
+rho_all <- cor(return)
+rho_all
+```
+
+Since we are working in continuous time compounding with daily returns. we must convert the daily returns to annual returns. We can simply multiply the daily returns by 252 business days. To get the annualized variance of returns we multiply the square of the standard deviation by 252 business days, then take the square root to yield the annualized standard deviation of returns.
+
+```{r stats22-ex, eval = FALSE, echo = TRUE}
+str(port_stats)
+mu_1 <- port_stats[1, 1] * 252  #TAN
+mu_2 <- port_stats[3, 1] * 252  #PBW
+sig_1 <- port_stats[1, 3] * sqrt(252)
+sig_2 <- port_stats[3, 3] * sqrt(252)
+rho <- rho_all[3, 1]
+```
+</div>
+
+
+## The two asset portfolio model
+
+Our goal is to depict risky asset combinations that are
+
+- Efficient, that is, the best risk-return portfolioss
+
+- Simulated across several possible combinations of risky assets
+
+From these simulated combinations, we then pick the one combination that maximizes the excess return per unit of risk, the Sharpe's ratio.
+
+In a mathematical nutshell we are formally (more tractable version to follow...) solving the problem of minimizing working capital factors risk, subject to target returns and a budget that says it all has to add up to our working capital position. We define weights as percentages of the total working capital position. Thus the weights need to add up to one.
+
+$$
+\begin{array}{c}
+min_w w_T \Sigma w \\
+subject \, to \\
+1^T w = 1\\
+w^T \mu = \mu_0
+\end{array}
+$$
+
+where 
+
+- $w$ are the weights in each instrument. 
+- $\Sigma$ is the variance-covariance matrix we just estimated, `cov.R`.
+- $1$ is a vector of ones's with length equal to the number of instruments. 
+- $\mu$ are the mean returns we just estimated, `mean.R`. 
+- $\mu_0$ is the target portfolio return. 
+- $T$ is the matrix transpose.
+- $min_w$ means to find weights $w$ that minimizes portfolio risk.
+
+(Well some English here...) The expression $w_T \Sigma w$ is our measure of portfolio risk and is a quadratic form that looks like this for our two risk drivers where we index `TAN` with 1 and `PBW` with 2:
+
+$$
+\left[ \begin{array}{cc} w_1 & w_2 \end{array} \right] \left[ \begin{array}{cc} \sigma_1^2 & \sigma_{12} \\ \sigma_{21} & \sigma_2^2 \end{array} \right] \left[ \begin{array}{c} w_1 \\ w_2 \end{array} \right]
+$$
+
+Multiplied out we get the following quadratic formula for portfolio variance:
+
+$$
+\sigma_P^2 = w_1^2 \sigma_1^2 + w_2^2 \sigma_2^2 + w_1 w_2 \sigma_{12} + w_2 w_1 \sigma_{21}  
+$$
+
+and because $\sigma_{12} = \sigma_{21} = \rho \sigma_1 \sigma_2$ this reduces a bit to
+
+$$
+\sigma_P^2 = w_1^2 \sigma_1^2 + w_2^2 \sigma_2^2 + 2 w_1 w_2 \rho \sigma_1 \sigma_2
+$$
+
+Definitely tedious, but useful to explain the components of portfolio risk:
+
+1. Two dashes of own asset risk $w_1^2 \sigma_1^2 + w_2^2 \sigma_2^2$, and
+2. Two dashes of relational risk $2 w_1 w_2 \sigma_{12}$
+
+When $\sigma_{12} < 1$, which also means that the correlation $\rho < 1$, we have _diversification_.
+
+Let's put this together into package to show others. We fond that annualized returns are negative with high doses of annualized standard deviation. In a first experiment we build a scenario where the returns are positive, and large. 
+
+```{r twoasset, exercise = TRUE}
+# 2 risky assets and a risk-free asset
+# per annum returns
+port_stats <- data_moments(return)
+rho_all <- cor(return)
+mu_1 <- abs(port_stats[1, 1] * 252)  #TAN
+mu_2 <- abs(port_stats[3, 1] * 252)  #PBW
+sig_1 <- port_stats[1, 3] * sqrt(252)
+sig_2 <- port_stats[3, 3] * sqrt(252)
+rho <- rho_all[3, 1]
+r_f <-  0.03
+w <-  seq(0, 5, len = 500)
+means <-  mu_2 + (mu_1 - mu_2) * w
+var <-  sig_1^2 * w^2 + sig_2^2 * (1 - w)^2 +2*w*(1-w)*rho*sig_1*sig_2
+risk <-  sqrt(var)
+# plotting
+sigma_mu_df <- data_frame(sigma_P = risk, mu_P = means )
+names_R <- c("TAN", "PBW")
+mean_R <- c(mu_1, mu_2)
+sd_R <- c(sig_1, sig_2)
+mu_P <- sigma_mu_df$mu_P
+sigma_P <- sigma_mu_df$sigma_P
+r_free <-  r_f ## input value of risk-free interest rate
+# sharpe ratio and minimum variance portfolio analysis
+sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient frontier
+col_P <- ifelse(mu_P > mu_P[ind_min], "blue", "grey") # discriminate efficient and inefficient portfolios
+sigma_mu_df$col_P <- col_P
+
+library(ggplot2)
+library(plotly)
+p <- ggplot(sigma_mu_df, aes(x = sigma_P, y = mu_P, group = 1)) + geom_line(aes(colour=col_P, group = col_P)) + scale_colour_identity() # + xlim(0, max(sd_R*1.1))  + ylim(0, max(mean_R)*1.1) + 
+p <- p + geom_point(aes(x = 0, y = r_free), colour = "red")
+options(digits=4)
+p <- p + geom_abline(intercept = r_free, slope = (mu_P[ind_max]-r_free)/sigma_P[ind_max], colour = "red")
+p <- p + geom_point(aes(x = sigma_P[ind_max], y = mu_P[ind_max])) 
+p <- p + geom_point(aes(x = sigma_P[ind_min], y = mu_P[ind_min])) ## show min var portfolio
+p <- p + annotate("text", x = sd_R[1], y = mean_R[1], label = names_R[1]) + annotate("text", x = sd_R[2], y = mean_R[2], label = names_R[2]) #+ annotate("text", x = sd_R[3], y = mean_R[3], label = names_R[3])
+ggplotly(p)
+#
+```
+
+In a second experiment we prognosticate that the correlation is highly negative. We might need to modify the sequence of weights to a maximum of much less than `5`.
+
+```{r second, exercise = TRUE}
+# 2 risky assets and a risk-free asset
+# per annum returns
+port_stats <- data_moments(return)
+rho_all <- cor(return)
+mu_1 <- port_stats[1, 1] * 252  #TAN
+mu_2 <- port_stats[3, 1] * 252  #PBW
+sig_1 <- port_stats[1, 3] * sqrt(252)
+sig_2 <- port_stats[3, 3] * sqrt(252)
+rho <- rho_all[3, 1] # experiment two: negative correlation
+k <- 0.5 # of standard deviations
+mu_1 <- mu_1 + k * sig_1
+mu_2 <- mu_2 + k * sig_2
+r_f <-  0.03
+w <-  seq(0, 1.2, len = 500)
+means <-  mu_2 + (mu_1 - mu_2) * w
+var <-  sig_1^2 * w^2 + sig_2^2 * (1 - w)^2 +2*w*(1-w)*rho*sig_1*sig_2
+risk <-  sqrt(var)
+# plotting
+sigma_mu_df <- data_frame(sigma_P = risk, mu_P = means )
+names_R <- c("TAN", "PBW")
+mean_R <- c(mu_1, mu_2)
+sd_R <- c(sig_1, sig_2)
+mu_P <- sigma_mu_df$mu_P
+sigma_P <- sigma_mu_df$sigma_P
+r_free <-  r_f ## input value of risk-free interest rate
+# sharpe ratio and minimum variance portfolio analysis
+sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient frontier
+col_P <- ifelse(mu_P > mu_P[ind_min], "blue", "grey") # discriminate efficient and inefficient portfolios
+sigma_mu_df$col_P <- col_P
+#
+p <- ggplot(sigma_mu_df, aes(x = sigma_P, y = mu_P, group = 1)) + geom_line(aes(colour=col_P, group = col_P)) + scale_colour_identity() # + xlim(0, max(sd_R*1.1))  + ylim(0, max(mean_R)*1.1) + 
+p <- p + geom_point(aes(x = 0, y = r_free), colour = "red")
+options(digits=4)
+p <- p + geom_abline(intercept = r_free, slope = (mu_P[ind_max]-r_free)/sigma_P[ind_max], colour = "red")
+p <- p + geom_point(aes(x = sigma_P[ind_max], y = mu_P[ind_max])) 
+p <- p + geom_point(aes(x = sigma_P[ind_min], y = mu_P[ind_min])) ## show min var portfolio
+p <- p + annotate("text", x = sd_R[1], y = mean_R[1], label = names_R[1]) + annotate("text", x = sd_R[2], y = mean_R[2], label = names_R[2]) #+ annotate("text", x = sd_R[3], y = mean_R[3], label = names_R[3])
+ggplotly(p)
+#
+```
+
+We compare and contrast the two experiments.
+
+1. The red line is our cash-risky asset line. Where does the red line touch the blue line?
+
+2. Identify the tangency portfolio from the results.
+
+3. What are the risk and return characteristics of the tangency portfolio under various assumptions about future risk and return?
+
+
+
+## Then there were three
+
+We now include a third asset into the mix with `ICLN`. We endow our high school algebra with a full blown matrix view of the problem at hand. We us the same representation we used for the two asset case to start.
+
+We solve the problem of minimizing working capital factors risk, subject to target returns and a budget that says it all has to add up to our working capital position. We define weights as percentages of the total working capital position. Thus the weights need to add up to one.
+
+$$
+\begin{array}{c}
+min_w w_T \Sigma w \\
+subject \, to \\
+1^T w = 1\\
+w^T \mu = \mu_0
+\end{array}
+$$
+
+where 
+
+- $w$ are the weights in each instrument. 
+- $\Sigma$ is the variance-covariance matrix we just estimated, `cov.R`.
+- $1$ is a vector of ones's with length equal to the number of instruments. 
+- $\mu$ are the mean returns we just estimated, `mean.R`. 
+- $\mu_0$ is the target portfolio return. 
+- $T$ is the matrix transpose.
+- $min_w$ means to find weights $w$ that minimizes portfolio risk.
+
+To perform the optimization task we turn to the `quadprog` quadratic programming package (yes, parabolas are indeed very useful). We worked out a two-asset example that showed us clearly that the objective function has squared terms (and interactive product terms too). These are the tell-tale signs that mark the portfolio variance as quadratic...in the weights.
+
+***
+After all of our wrangling above it is useful to define our portfolio optimization problem again here:
+
+\[
+\begin{array}{c}
+min_w w_T \Sigma w \\
+subject \, to \\
+1^T w = 1\\
+w^T \mu = \mu_0
+\end{array}
+\]
+
+***
+Here is what `quadprog` does
+$$
+\begin{array}{c}
+min_d \, [-d^T x +\frac{1}{2} x^T D x] \\
+subject \, to \\
+A_{neq}^T x \geq b_{neq} \\
+A_{eq}^T x = b_{eq}
+\end{array}
+$$
+
+where the $neq$ subscript indicates inequality constraints and $eq$ are equality constraints. Now we need to transform these equations to solve our portfolio problem.
+
+We do this by setting
+
+$$
+A_{eq}^T = \left[ 
+\begin{array}{c}
+1^T \\
+\mu^T
+\end{array}
+\right]
+$$
+
+This gives us a stack of equality constraints that looks like:
+
+$$
+\left[ \begin{array}{c}
+1^T w \\
+\mu^T w
+\end{array}
+\right]
+=
+\left[ \begin{array}{c}
+1 \\
+\mu_0
+\end{array}
+\right]
+$$
+
+with the $b$ vector on the right hand side of the equal sign. We will allow short positions. So far we will not impose inequality constraints like $w \geq 0$ (no short sales).
+
+Let's put all of this into practice with the following code. We start by sampling returns from our database.
+
+```{r portfolio, exercise = TRUE}
+R <-  return # daily returns
+n <- dim(R)[1]
+N <- dim(R)[2]
+R_boot <-  R[sample(1:n, 252),] # sample returns
+r_free <- 0.03 / 252 # daily
+mean_vect <-  apply(R_boot,2,mean)
+cov_mat <-  cov(R_boot)
+sd_vect <-  sqrt(diag(cov_mat))
+A_mat <-  cbind(rep(1,N),mean_vect) 
+mu_P <-  seq(-.01,.01,length=300)                              
+sigma_P <-  mu_P 
+weights <-  matrix(0,nrow=300,ncol=N) 
+for (i in 1:length(mu_P))  
+  {
+    b_vec <-  c(1,mu_P[i])  
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=A_mat,bvec=b_vec,meq=2)
+    sigma_P[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+} 
+# make a data frame of the mean and standard deviation results
+sigma_mu_df <- data_frame(sigma_P = sigma_P, mu_P = mu_P)
+names_R <- c("TAN", "ICLN", "PBW")
+# sharpe ratio and minimum variance portfolio analysis
+sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient fr(aes(x = 0, y = r_free), colour = "red")ontier
+col_P <- ifelse(mu_P > mu_P[ind_min], "blue", "grey") # discriminate efficient and inefficient portfolios
+sigma_mu_df$col_P <- col_P
+p <- ggplot(sigma_mu_df, aes(x = sigma_P, y = mu_P, group = 1))
+p <- p + geom_line(aes(colour=col_P, group = col_P), size = 1.1) + scale_colour_identity() 
+p <- p + geom_abline(intercept = r_free, slope = (mu_P[ind_max]-r_free)/sigma_P[ind_max], color = "red", size = 1.1)
+p <- p + geom_point(aes(x = sigma_P[ind_max], y = mu_P[ind_max]), color = "green", size = 4) 
+p <- p + geom_point(aes(x = sigma_P[ind_min], y = mu_P[ind_min]), color = "red", size = 4) ## show min var portfolio
+p
+ggplotly(p)
+#
+```
+
+Some searching questions.
+
+1. What happens when we annualize the returns? Are there any changes needed in the code?
+
+2. What happens when the number of sampled returns is increased or decreased?
+
+3. Are there any annotations we might like to include?
+
+4. what is the cash and risky asset combination that meets with our threshold and tolerance given this sample of returns?
+
+
+## Give it the boot
+
+It behooves us to report ranges of results for planning and projection purposes. Again confidence intervals can serve us well. Let's make a function out of the optimization results for a single sampled set of returns.
+
+```{r sampled, exercise = TRUE}
+port_sample <- function(return, stat = "mean")
+{
+  R <-  return # daily returns
+  n <- dim(R)[1]
+  N <- dim(R)[2]
+  R_boot <-  R[sample(1:n, 252),] # sample returns and lightning never strikes twice
+  r_free <- 0.03 / 252 # daily
+  mean_vect <-  apply(R_boot,2,mean)
+  cov_mat <-  cov(R_boot)
+  sd_vect <-  sqrt(diag(cov_mat))
+  A_mat <-  cbind(rep(1,N),mean_vect) 
+  mu_P <-  seq(-.01,.01,length=300)                              
+  sigma_P <-  mu_P 
+  weights <-  matrix(0,nrow=300,ncol=N) 
+  for (i in 1:length(mu_P))  
+  {
+    b_vec <-  c(1,mu_P[i])  
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=A_mat,bvec=b_vec,meq=2)
+    sigma_P[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+  }
+  sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+  ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+  ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+  ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient fr(aes(x = 0, y = r_free), colour = "red")ontier
+  result <- switch(stat,
+    "mean"  = mu_P[ind_max],
+    "sd"    = sigma_P[ind_max]
+    )
+  return(result)
+}
+port_sample(return, stat = "mean")
+```
+
+Some more questions and thoughts ensue.
+
+1. Run this for "mean" and "sd" or standard deviation a few times.
+
+2. Try replicate with a few thousand runs, store the result, and then use `data_moments()` on the result. What do you see?
+
+3. Alter the `port_sample()` function to vary the sample size.
+
+<div id="sampled-hint">
+Here's some code we might use.
+
+```{r sampled-ex, eval = FALSE, echo = TRUE}
+port_sample <- function(return, n_sample = 252, stat = "mean")
+{
+  R <-  return # daily returns
+  n <- dim(R)[1]
+  N <- dim(R)[2]
+  R_boot <-  R[sample(1:n, n_sample),] # sample returns
+  r_free <- 0.03 / 252 # daily
+  mean_vect <-  apply(R_boot,2,mean)
+  cov_mat <-  cov(R_boot)
+  sd_vect <-  sqrt(diag(cov_mat))
+  A_mat <-  cbind(rep(1,N),mean_vect) 
+  mu_P <-  seq(-.01,.01,length=300)                              
+  sigma_P <-  mu_P 
+  weights <-  matrix(0,nrow=300,ncol=N) 
+  for (i in 1:length(mu_P))  
+  {
+    b_vec <-  c(1,mu_P[i])  
+    result <-  
+      solve.QP(Dmat=2*cov_mat,dvec=rep(0,N),Amat=A_mat,bvec=b_vec,meq=2)
+    sigma_P[i] <-  sqrt(result$value)
+    weights[i,] <-  result$solution
+  }
+  sharpe <- (mu_P - r_free)/sigma_P ## compute Sharpe's ratios
+  ind_max <-  (sharpe == max(sharpe)) ## Find maximum Sharpe's ratio
+  ind_min <-  (sigma_P == min(sigma_P)) ## find the minimum variance portfolio
+  ind_eff <-  (mu_P > mu_P[ind_min]) ## finally the efficient fr(aes(x = 0, y = r_free), colour = "red")ontier
+  result <- switch(stat,
+    "mean"  = mu_P[ind_max],
+    "sd"    = sigma_P[ind_max]
+    )
+  return(result)
+}
+port_mean <- replicate(1000, port_sample(return, n_sample = 252, stat = "mean"))
+data_moments(as.matrix(port_mean*252, nrow = 1000, ncol = 1))
+```
+</div>
+
+Of course we want to display our handiwork. We can of course re-purpose code from our prior work.
+
+```{r sampleddisplay, exercise = TRUE}
+
+```
+
+<div id="sampleddisplay-hint">
+```{r sampleddisplay-ex, eval = FALSE, echo = TRUE}
+port_mean <- replicate(1000, port_sample(return, n_sample = 252, stat = "mean"))
+sim <- port_mean * 252
+low <- quantile(sim, 0.025)
+high <- quantile(sim, 0.975)
+sim_df <- data_frame(sim = sim)
+title <- "Tangency portfolio sampled mean simulation"
+p <- ggplot(data = sim_df, aes(x = sim))
+p <- p + geom_histogram(binwidth = .1, aes(y = .1*(..density..)), alpha = 0.7)
+p <- p + ggtitle(title)
+p <- p + geom_vline(xintercept = low, color = "red", size = 1.5 ) + geom_vline(xintercept = high, color = "red", size = 1.5)
+p <- p + annotate("text", x = low + 0.1, y = 0.005, label = paste("L = ", round(low, 2))) + annotate("text", x = high, y = 0.005, label = paste("U = ", round(high, 2))) + ylab("density") + xlim(0, 5) + ylim(0, 0.01) + xlab("daily mean: max Sharpe Ratio") + theme_bw()
+p
+```
+</div>
+
+## Dare we?
+
+What management needs to figure out is **what combination of cash (high quality marketable securitiesd should do for liquidity) and risky contract asset** to have on the balance sheet of this venture to satisfy risk requirements.
+
+Let's perform our back of the envelope analysis using results from our confidence intervals. "back of the envelope" analysis. We let $R$ stand for returns, so that $-R$ is a loss. Our management team wants 
+
+$$
+Prob(R < `r threshold`) = `r alpha`,
+$$
+
+that is, the probability of a loss worse than `r threshold*100`\% is no more than `r alpha*100`\%. 
+
+```{r w, exercise = TRUE}
+port_mean <- replicate(1000, port_sample(return, stat = "mean"))
+port_sd <- replicate(1000, port_sample(return, stat = "sd"))
+risky <-  median(port_mean*252)
+riskless <- 0.03
+sigma <- median(port_sd*sqrt(252))
+threshold <- -0.12
+alpha <- 0.05
+z_star <-  qnorm(alpha)
+w_star <- (threshold-riskless) / (risky - riskless + sigma*z_star)
+w_star
+```
+
+- Try different thresholds and tolerances. Do the optimal weights line up with our intuition?
+
+Plot this solution using the simulation of the trade-off between risk and return.
+
+```{r plot, exercise = TRUE}
+
+```
+
+<div id="plot-hint">
+
+**Hint:** In this example we simulate several tangency portfolio mean and standard deviation scenarios. We then pick the 5\% quantiles of mean and standard deviation as our risk asset return and risk measures.
+
+```{r plot-ex, eval = FALSE, echo = TRUE}
+options(digits = 2, scipen = 99999)
+#
+port_mean <- replicate(1000, port_sample(return, stat = "mean"))
+port_sd <- replicate(1000, port_sample(return, stat = "sd"))
+r_f <- 0.03
+# choose one tangency portfolio scenario
+mu <-  quantile((port_mean[port_mean*252 > r_f]*252), 0.05)
+sigma <- quantile((port_sd*sqrt(252)), 0.05)
+threshold <- -0.12
+alpha <- 0.05
+z_star <-  qnorm(alpha)
+w_star <- (threshold-r_f) / (mu - r_f + sigma*z_star)
+sigma_p <- seq(0, sigma * (1.1*w_star), length.out = 100)
+mu_p <- r_f + (mu - r_f)*sigma_p/sigma
+w <- sigma_p / sigma
+sim_df <- data_frame(sigma_p = sigma_p, mu_p = mu_p, w = w)
+#
+label_42 <- paste(round(w_star*100, 2), "% risky asset", sep = "")
+label_0 <- paste(alpha*100, "% alpha, ", threshold*100, "% threshold")
+label_100 <- paste(1.00*100, "% risky asset \n mu = ", round(mu*100,2), "%\n sigma = ", round(sigma*100,2), "%", sep = "")
+options(digits = 4)
+p <- ggplot(sim_df, aes(x = sigma_p, y = mu_p)) + 
+  geom_line(color = "blue", size = 1.1)
+p <- p + geom_point(aes(x = 0.0 * sigma, y = r_f + (mu-r_f)*0.0), color = "red", size = 3.0) +
+  geom_point(aes(x = w_star * sigma, y = r_f + (mu-r_f)*w_star), shape = 21, color = "red", fill = "white", size = 4, stroke = 4) + 
+  annotate("text", x = w_star * sigma, y = r_f + (mu-r_f)*w_star + 0.01, label = label_42) +
+  geom_point(aes(x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00), color = "red", size = 3.0) + 
+  annotate("text", x = 1.0 * sigma, y = r_f + (mu-r_f)*1.00 + 0.01, label = label_100) +
+  xlab("standard deviation of portfolio return") +
+  ylab("mean of portfolio return") +
+  ggtitle(label_0)
+p
+```
+
+</div>
+
+1. Consider the intercept and slope of the risk-return tradeoff. What drives the slope up or down?
+
+2. Why choose one point on this tradeoff or another?
+
+## Exercises
+
+Perform a table top exercise to assist management in its decision. To do this, 
+
+- Build tables and plots of sensitivities to the size of loss, the level of organization tolerance for risk, and the risk and return characteristics of the risky contract and the risk-free rate. 
+
+- Draw the relationship between risk and return for possible combinations of this portfolio. 
+
+- Interpret the results for management.

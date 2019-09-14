@@ -1,0 +1,508 @@
+---
+title: "Live Session 3"
+output: 
+  learnr::tutorial:
+    progressive: true
+    allow_skip: true
+    df_print: default
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#
+library(learnr)
+library(psych)
+library(ggplot2)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(tidyquant)
+library(timetk)
+#
+tutorial_options(exercise.timelimit = 30)
+#
+# save working directory
+wd <- getwd()
+# use saved wd to reset working directory to this source file while in shiny
+# setwd(wd)
+# read data frame from csv file
+data <- read.csv("USO.csv")
+data$date <- as_date(data$Date)
+#data_OIL <- data %>% filter(hub == "nepool")
+#data_ng <- data %>% filter(hub == "algonquin")
+#data_all <- merge(data_ele, data_ng, by.x = "date", by.y = "date")
+data <- data[ , c("date", "Adj.Close")]
+colnames(data) <- c("date", "USO")
+price_USO <- data %>% as_tibble()
+data <- read.csv("IYM.csv")
+data$date <- as_date(data$Date)
+data <- data[ , c("date", "Adj.Close")]
+colnames(data) <- c("date", "IYM")
+price_IYM <- data %>% as_tibble()#price$week <- as.factor(epiweek(price$date))
+#rate_IYM <- data %>% mutate(diff(log(p_IYM))[-1])
+price <- merge(price_USO, price_IYM, by.x = "date", by.y = "date")
+# long format ("TIDY") price tibble
+price_tbl <- price %>% gather(k = symbol, value = price, USO, IYM ) %>% select(symbol, date, price)
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+str(return_tbl)
+k <- 1:20 # days in a business month
+col_names <- paste0("lag_", k)
+#
+# remove abs_return the fourth column
+return_lags <- return_tbl[, -4] %>%
+  tq_mutate(
+  select     = daily_return,
+  mutate_fun = lag.xts,
+  k          = k,
+  col_rename = col_names
+  )
+return_autocors <- return_lags %>%
+  gather(key = "lag", value = "lag_value", -c(symbol, date, daily_return)) %>%
+  mutate(lag = str_sub(lag, start = 5) %>% as.numeric) %>%
+  group_by(symbol, lag) %>%
+  summarize(
+    cor = cor(x = daily_return, y = lag_value, use = "pairwise.complete.obs"),
+    upper_95 = 2/(n())^0.5,
+    lower_95 = -2/(n())^0.5
+  )
+return_absautocors <- return_autocors %>%
+  ungroup() %>%
+  mutate(
+    lag = as_factor(as.character(lag)),
+    cor_abs = abs(cor)
+  ) %>%
+  select(lag, cor_abs) %>%
+  group_by(lag)
+
+```
+
+## Welcome
+
+This live session will provide practice with the core methodology of macrofinancial analysis: time series description and inference. 
+
+You will practice to
+
+1. Build and visualize a time series object. Inside of this object you will Summarize the data using descriptive statistics.
+
+2. Estimate and visualize the lagged relationship of current and past realizations of the time series.
+
+3. Interpret autocorrelation and cross autocorrelation as indications of the styled facts of various financial markets.
+
+We continue our working example to help out the CFO of your aluminum recycling company:
+
+Our aluminum recyling company uses natural gas to melt collected aluminum objects into ingots for sale to the metal market. The CFO has raised concerns over the risk of aluminum prices and more broadly the metals and basic materials markets in the presence of major recent movements in oil prices.
+
+Your CFO has three questions for us:
+
+1. How do past prices affect current prices?
+
+2. Does one market affect another? 
+
+3. What stylized facts of these markets matter?
+
+For the oil and metals/basic materials markets we can look at Brent Crude Oil prices and aluminum, steel, copper, and chemimcal prices. Another approach is to use -exchange-traded funds (ETF)](https://www.investopedia.com/terms/e/etf.asp) that manage the fund's per share value of a portfolio of crude oil and basic materials - related stocks. The [long crude oil USO ETF](http://www.uscfinvestments.com/uso) and the [basic materials IYM ETF](https://www.ishares.com/us/products/239503/ishares-us-basic-materials-etf) are such funds. These indices effectively summarize the inputs, process, management, decisions, and outputs of the crude oil market. Examining and analyzing this series will go a long way to helping the CFO understand the riskiness of these markets. 
+
+## Data and returns
+
+> How do past prices affect current prices?
+
+We collected price data into the `price_tbl` tibble and further converted this into a time series of daily log price returns. Returns give us a good idea of the investment gain and loss from one time to another that is comparable across investment opportunities. For ticker symbol $x$ the log price return is calculated as
+
+$$
+r_x = ln\left(\frac{p_{x,t}}{p_{x,t-1}}\right) = ln(p_{x,t}) - ln(p_{x,t-1})
+$$
+For example if today's ($t$) price is $p_{x,t} = 100.05$ and yesterday's ($t-1$) price is $p_{-1} = 100.00$, then
+
+$$
+r_x = ln\left(\frac{p_{x,t}}{p_{x,t-1}}\right) = ln(p_{x,t}) - ln(p_{x,t-1}) = ln(100.05) - ln(100) = `r log(100.05)` -`r log(100.00)` = `r log(100.05) - log(100.00)`
+$$
+or `r (log(100.05) - log(100.00))*100`\% per day if $t$ is marked by days. Calculate the percentage change in price for comparison.
+
+$$
+r_x = \frac{p_{x,t} - p_{x,t-1}}{p_{x,t-1}} = \frac{100.05 - 100}{100} = `r (100.05-100)/100`
+$$
+
+If this is the daily rate of return on the value of the financial instrument, what is the annualized return compounded across 365 days? We are in $ln()$ and $exp()$ land now. $rT$ is the rate times the number of days. When we use $exp(rT)$ we get a \$1 plus that rate continuously compounded over a year. Traders use continuous compounding to replicate the possibility that they can trade at any instant. Subtract the \$1 principal to get the compounding gain or loss.
+
+$$
+exp(r_x T) - 1 = exp(`r log(100.05) - log(100.00)` \times 365) - 1 = `r exp((log(100.05) - log(100.00))*365) - 1`
+$$
+Pretty good for a nickel reinvested consecutive 365 times. 
+
+We use this code to shape two [long format tibbles in a process called gathering](https://r4ds.had.co.nz/tidy-data.html): one is for prices, the other for daily log price returns.
+
+```{r data-all, eval = FALSE, echo = TRUE}
+# read data frame from csv file
+data <- read.csv("USO.csv")
+data$date <- as_date(data$Date)
+data <- data[ , c("date", "Adj.Close")]
+colnames(data) <- c("date", "USO")
+price_USO <- data %>% as_tibble()
+# process another series
+data <- read.csv("IYM.csv")
+data$date <- as_date(data$Date)
+data <- data[ , c("date", "Adj.Close")]
+colnames(data) <- c("date", "IYM")
+price_IYM <- data %>% as_tibble()
+# merge the two by date
+price <- merge(price_USO, price_IYM, by.x = "date", by.y = "date")
+# make separate price columns one price column in a long format ("TIDY") price tibble
+price_tbl <- price %>% gather(k = symbol, value = price, USO, IYM ) %>% select(symbol, date, price)
+str(price_tbl)
+# use tidyquant and quantmod to calculate daily log price returns
+return_tbl <- price_tbl %>% group_by(symbol) %>% tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% mutate(abs_return = abs(daily_return))
+k <- 1:20 # for starters
+```
+
+```{r check, exercise = TRUE}
+
+```
+
+1. Check out the data using `str()`, `head()`, `summary()`.
+
+2. Look up `gather()` and `select()` for reshaping the data.
+
+3. How can `abs_return` help us understand volatility?
+
+## How often and when
+
+Two more questions:
+
+- How often does a return or volatility of return occur?
+
+- When do returns and volatility occur?
+
+### So dense
+
+Let's look at this data with density curves to answer the frequency question and line plots to answer the timing question. We will pose another timing question later.
+
+Similar to histograms, densities visualize the shape of the data. They depict the frequency (count or `n()`) of intervals of the data arranged from lowest to highest. They allow us to find ranges of highs, lows, and visualize how often those ranges might occur with probability. In the tails they help us think about how frequent extreme events might occur. This helps us plan our business actions and reactions accordingly and relative to the strength and frequency of decision events.
+
+- `geom_density()` runs a smooth line through an underlying histogram
+
+- `theme_tq()` is a CSS enabled formatting from the tidyquant package
+
+- `scale_fill_tq` directs the filling in of the area under each density curve
+
+- `facet-wrap()` works on the `symbol` grouping (with a "by" `~` (tilde) just like in the `lm()` function) to arrange (`ncol = 2`) separate plots on a grid
+
+Run the code. Add 2.5\% and 97.5\% vertical lines using `quantile()` as the x-intercept.
+
+```{r density1, exercise = TRUE}
+# daily returns (frequency-domain)
+return_q <- return_tbl %>% group_by(symbol) %>% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# density (frequency-domain)
+p1 <- ggplot(return_tbl, aes(x = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Daily Log Price Returns",
+    x = "Daily Returns", y = "Density") +
+  theme_tq() +
+  scale_fill_tq()
+p1
+# volatility (frequency-domain)
+abs_return_q <- return_tbl %>% group_by(symbol) %>% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# volatility density
+p2 <- ggplot(return_tbl, aes(x = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Daily Log Price Returns",
+    x = "Daily Returns", y = "Density") +
+  theme_tq() +
+  scale_fill_tq()
+p2
+```
+
+<div id="density1-hint">
+**Hint:** Always examine the structure, a summary, and the first few rows. Try this code:
+```{r density-hint, eval = FALSE, echo = TRUE}
+# create a quantile pivot tibble
+return_q <- return_tbl %>% group_by(symbol) %>% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# density (frequency-domain)
+p1 <- ggplot(return_tbl, aes(x = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Daily Log Price Returns",
+    x = "Daily Returns", y = "Density") +
+  geom_vline(data = return_q, aes(xintercept = q_025), color = "red", size = 1.10) +
+  geom_vline(data = return_q, aes(xintercept = q_975), color = "red", size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p1
+## for abs_return (frequeqncy-domain)
+abs_return_q <- return_tbl %>% group_by(symbol) %>% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# density
+p2 <- ggplot(return_tbl, aes(x = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Daily Log Price Return Volatility",
+    x = "Daily Returns", y = "Density") +
+  geom_vline(data = abs_return_q, aes(xintercept = q_025), color = "red", size = 1.10) +
+  geom_vline(data = abs_return_q, aes(xintercept = q_975), color = "red", size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p2
+```
+</div>
+
+For returns and volatility of returns some "how often does it happen" questions:
+
+1. Thick tails? (frequent enough large high and low returns)
+
+2. Skewed? (lots of high versus low)
+
+3. Most frequent?
+
+### Line it up
+
+Line plots begin to address timing and the evolution of returns. The times here are calendar dates, very raw for us. Later we will examine timing from the point of  view of "how long ago".
+
+- `geom_line()` constructs a line plot of returns by time
+
+Run the code. Add 2.5\% and 97.5\% horizontal lines using `quantile()` as the y-intercept.
+
+```{r line1, exercise = TRUE}
+# create a quantile pivot tibble
+return_q <- return_tbl %>% group_by(symbol) %>% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# line plot (time-domain)
+p1 <- ggplot(return_tbl, aes(x = date, y = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = "blue") +
+  labs(title = "Daily Log Price Returns", x = "Date", y = "Daily returns") +
+  theme_tq() +
+  scale_fill_tq()
+p1
+## for abs_return (frequeqncy-domain)
+abs_return_q <- return_tbl %>% group_by(symbol) %>% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# line plot (time-domain)
+p4 <- ggplot(return_tbl, aes(x = date, y = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = "blue") +
+  labs(title = "Daily Log Price Return Volatility", x = "Date", y = "Daily return volatility (absolute value)") +
+  theme_tq() +
+  scale_fill_tq()
+p4
+```
+
+
+1. Which one seems more volatile than the other?
+
+2. Interpret the clumps of returns.
+
+3. As an exercise: construct a new series for the spread long IYM and short USO, and the `max(0, spread)`. Then review the density and line plots.
+
+<div id="line1-hint">
+
+**Hint:** Always examine the structure, a summary, and the first few rows. Try this code:
+
+```{r line-ex, eval = FALSE, echo = TRUE}
+# create a quantile pivot tibble
+return_q <- return_tbl %>% group_by(symbol) %>% summarize(q_025 = quantile(daily_return, 0.025), q_975 = quantile(daily_return, 0.975))
+# line plot (time-domain)
+p1 <- ggplot(return_tbl, aes(x = date, y = daily_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = "blue") +
+  labs(title = "Daily Log Price Returns", x = "Date", y = "Daily returns") +
+  geom_hline(data = return_q, aes(yintercept = q_025), color = "red", size = 1.10) +
+  geom_hline(data = return_q, aes(yintercept = q_975), color = "red", size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p1
+## for abs_return (frequeqncy-domain)
+abs_return_q <- return_tbl %>% group_by(symbol) %>% summarise(q_025 = quantile(abs_return, 0.025), q_975 = quantile(abs_return, 0.975))
+# line plot (time-domain)
+p2 <- ggplot(return_tbl, aes(x = date, y = abs_return, fill = symbol)) +
+  facet_wrap(~ symbol, ncol = 2) +
+  geom_line(color = "blue") +
+  labs(title = "Daily Log Price Return Volatility", x = "Date", y = "Daily return volatility (absolute value)") +
+  geom_hline(data = abs_return_q, aes(yintercept = q_025), color = "red", size = 1.10) +
+  geom_hline(data = abs_return_q, aes(yintercept = q_975), color = "red", size = 1.10) +  
+  theme_tq() +
+  scale_fill_tq()
+p2
+```
+
+</div>
+
+## How persistent? 
+
+We see lots of volatility clustering in the clumps of returns in the line plots and the thickness of the tails of the densities. An external event, such as a series of poor earnings announcements or negatively surprising economic reports, will cause a rapid spike higher in volatility, which then stays at elevated levels for anywhere from a week to as long as six months. A new volatility spike can occur in the middle of a current Volatility Cluster, since they are often triggered by external events in the economy such as monetary policy or geopolitical changes. This can make it hard to identify any one Volatility Cluster's start and end point. The opposite can happen with no significant news, good or bad.
+
+We now delve into the relationship between today's returns and the past. Here we need to build a data set of current returns and their daily lags by ticker symbol.
+
+- Use `tq_mutate()` to build lags of returns to feed the possibility that the past affects today.
+
+- `lag.xts()` is from the xts package, very useful for building time series object with dates as rownames.
+
+- Specify the number of lags `k` and use `paste0()` to concatenate character and numeric data.
+
+```{r returnsautocors, exercise = TRUE}
+k <- 1:20 # days in a business month
+col_names <- paste0("lag_", k)
+#
+# remove abs_return the fourth column
+return_lags <- return_tbl[, -4] %>%
+tq_mutate(
+select     = daily_return,
+mutate_fun = lag.xts,
+k          = k,
+col_rename = col_names
+)
+```
+
+1. Inspect with `str()`, etc.
+
+2. How are lags related to one another in the structure of the tibble?
+
+Let's build this house next.
+
+- Use `gather()` to stack columns into rows by lag.
+
+- Pivot `symbol`, then `lag`, with `group_by()`.
+
+- `summarize()` to build vector column of correlations and upper and lower bounds
+
+To understand the relationship of the current and lagged prices we correlate each of the lags to the current price column.
+
+- Use `gather()` to pivot each of the lagged columns into a [long format]() data frame, and also we exclude "date" from the pivot.
+
+- Convert the new "lag" column from a character string (e.g. "lag_1") to numeric (e.g. 1) using mutate(), which will make ordering the lags much easier.
+
+- Group the long data frame by lag. This allows us to calculate pairwise correlations using subsets of lag.
+
+- Apply the correlation to each group of lags. The summarize() function can be used to implement cor(), which takes x = `p_USO` and y = lagged values. Make sure to pass use = "pairwise.complete.obs", which is almost always desired. 
+
+- Approximate the 95% upper and lower bounds by:
+
+$$
+CI = \pm \frac{2}{\sqrt{N}}
+$$
+
+with $N$ the number of observations.
+
+```{r returnautocor, exercise = TRUE}
+return_autocors <- return_lags %>%
+  gather(key = "lag", value = "lag_value", -c(symbol, date, daily_return)) %>%
+  mutate(lag = str_sub(lag, start = 5) %>% as.numeric) %>%
+  group_by(symbol, lag) %>%
+  summarize(
+    cor = cor(x = daily_return, y = lag_value, use = "pairwise.complete.obs"),
+    upper_95 = 2/(n())^0.5,
+    lower_95 = -2/(n())^0.5
+    )
+```
+
+1. Why exclude symbol, date, daily_return in `gather()`?
+
+2. What does `use = "pairwise.complete.obs"` mean?
+
+Finally we have something to show!
+
+```{r plotreturnautocors, exercise = TRUE}
+k <- 1:20
+p <- return_autocors %>%
+  ggplot(aes(x = lag, y = cor, color = symbol, group = symbol)) +
+  # Add horizontal line a y=0
+    geom_hline(yintercept = 0) +
+    # Plot autocorrelations
+    geom_point(size = 2) +
+    geom_segment(aes(xend = lag, yend = 0), size = 1) +
+    # Add cutoffs
+    geom_line(aes(y = upper_95), color = "blue", linetype = 1, size = 1.1) +
+    geom_line(aes(y = lower_95), color = "blue", linetype = 1, size = 1.1) +
+    # Add facets
+    facet_wrap(~ symbol, ncol = 3) +
+    # Aesthetics
+    #expand_limits(y = c(-1, 1)) +
+    scale_color_tq() +
+    theme_tq() +
+    labs(
+      title = paste0("Returns ACF Plot: Lags ", rlang::expr_text(k)),
+    subtitle = "This market has little or no memory",
+    x = "Daily Log Price Return Lags",
+    y = "Correlations and Confidence Interval") +
+    theme(
+      legend.position = "none",
+      axis.text.x = element_text(angle = 45, hjust = 1)
+      )
+p
+```
+
+1. What does `geom_segment()` do for our visualization?
+
+2. Any discernible patterns?
+
+## The past matters (or not)
+
+Next we conder about the lags that matter. Why? These will help us plan operational decisions like the timing of receivables and payables. When do they persist and how volatile a range of persistence might there be? If there is persistence, then such patterns are actionable intelligence.
+
+More reshaping is needed here to get at a visualization of all of those 20 days of potential persistence modeled as correlated lags of each of the returns in these markets.
+
+- Check out as usual `str()`, etc.
+
+- Convert lag names into levels
+
+- Make absolute values (just the sizes, not the direction) of those correlations
+
+- Focus on the new lags as factors and the absolute values of correlations
+
+- Another pivot but only by `lag`. This will help us time the persistence of the spread between input crude oil and output basic materials.
+
+```{r returnabscors, exercise = TRUE}
+return_absautocors <- return_autocors %>%
+  ungroup() %>%
+  mutate(
+    lag = as_factor(as.character(lag)),
+    cor_abs = abs(cor)
+  ) %>%
+  select(lag, cor_abs) %>%
+  group_by(lag) 
+```
+
+Now for the _piece de resistance_: display this plot. It is our outlier analysis. Change the `expand_limits(y = c(0, 0.10))` to zoom in.
+
+```{r plot returnabscors, exercise = TRUE}
+upper_bound <- 1.5*IQR(return_absautocors$cor_abs) %>% signif(3)
+p <- return_absautocors %>%    
+      ggplot(aes(x = fct_reorder(lag, cor_abs, .desc = TRUE) , y = cor_abs)) +
+      # Add boxplot
+      geom_boxplot(color = palette_light()[[1]]) +
+      # Add horizontal line at outlier break point
+      geom_hline(yintercept = upper_bound, color = "red") +
+      annotate("text", label = paste0("Outlier threshold = ", upper_bound), 
+        x = 24.5, y = upper_bound + .03, color = "red") +
+      # Aesthetics
+      expand_limits(y = c(0, 1)) +
+      theme_tq() +
+      labs(
+        title = paste0("Absolute Autocorrelations: Lags ", rlang::expr_text(k)),
+        subtitle = "Weekly pattern is consistently above outlier threshold",
+        x = "Lags"
+        ) +
+      theme(
+        legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1)
+        )
+p
+```
+
+1. What is `IQR`? Why use `1.5`? (**Hint:** [check out this site](https://en.wikipedia.org/wiki/Interquartile_range))
+
+2. Where are the outliers and how volatile is this judgment of "where"?
+
+3. Is there any relationship to the clumps of returns we observed on the line plots? How about the thickness of those returns tails?
+
+4. What about the absolute value of returns? Thoughts for our next review.
+
+## What have we accomplished?
+
+- Only begun to answer the CFO's questions
+
+- Used time series data and examined the data with densities and line plots
+
+- Constructed autocorrelations to understand the persistence of returns (or not)
+
+- Even built a visualization of time series outliers
+
+More to do next time with the `abs_return` series and volatility, as well as cross-correlations and market spill-over. 
