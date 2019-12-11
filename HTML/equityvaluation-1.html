@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Risky Equity Valuation</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/htmlwidgets-1.3/htmlwidgets.js"></script>
+<link href="site_libs/vis-4.20.1/vis.css" rel="stylesheet" />
+<script src="site_libs/vis-4.20.1/vis.min.js"></script>
+<script src="site_libs/visNetwork-binding-2.0.8/visNetwork.js"></script>
+<script src="site_libs/viz-0.3/viz.js"></script>
+<link href="site_libs/DiagrammeR-styles-0.2/styles.css" rel="stylesheet" />
+<script src="site_libs/grViz-binding-1.0.1/grViz.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="styles1.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h2 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h3 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h4 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h5 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.section h6 {
+  padding-top: 65px;
+  margin-top: -65px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Financial Analytics</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="overview.html">Overview</a>
+</li>
+<li>
+  <a href="topics.html">Topics</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">Risky Equity Valuation</h1>
+<h3 class="subtitle">Notes using the binomial option pricing model</h3>
+
+</div>
+
+
+<script>
+function showText(y) {
+    var x = document.getElementById(y);
+    if (x.style.display === "none") {
+        x.style.display = "block";
+    } else {
+        x.style.display = "none";
+    }
+}
+</script>
+<div id="imagine-this" class="section level1">
+<h1>Imagine this</h1>
+<p>You are considering to found an equity fund to track risky investments in privately owned organizations</p>
+<ul>
+<li>You have a history of stock prices</li>
+<li>You know that today’s stock price is the present value of stockholders’ free cashflow for the foreseeable and not-so-foreseeable future</li>
+<li>You need a back of the envelope way to describe how stock prices and value evolve</li>
+<li>You also want to use this evolution to understand how a claim contingent on stock prices also evolves</li>
+<li>And the present value of such a claim</li>
+</ul>
+<p>What do you want to know?</p>
+<ul>
+<li>Is there a distribution you can use to describe the evolution and also price a claim on the stock prices?</li>
+</ul>
+<p>Why?</p>
+<ul>
+<li>So you can acquire or divest an asset, a project, or anything that generates cash flows over time and has the same risk profile as the stock price.</li>
+</ul>
+</div>
+<div id="whats-a-binomial" class="section level1">
+<h1>What’s a binomial?</h1>
+<p>Suppose we know that the current stock price of Ross Stores (NASDQ: ROST) <span class="math inline">\(S\)</span> is $109 per share. We might consider a simple forecast of the uncertain level of the asset’s value in one day, or even several days into the future: it might go up or it might go down. That’s a <strong>binomial</strong>.</p>
+<p>We picture the binomial view of an anticipated stock price <span class="math inline">\(S\)</span> as branches from a root of <span class="math inline">\(S_0=\$109\)</span> per share today at time <span class="math inline">\(t=0\)</span>. How can we forecast asset value at the end of one day <span class="math inline">\(S_1\)</span>? We can do so by supposing that the stock price might simply rise or fall. Both up <span class="math inline">\(u\)</span> and down <span class="math inline">\(d\)</span> stock price outcomes, <span class="math inline">\(S_{1,u}\)</span> and <span class="math inline">\(S_{1,d}\)</span>, might occur in <span class="math inline">\(t=1\)</span> day.</p>
+<p>We might also want to represent our optimisim or pessimism about how often up moves and down moves might occur. Let’s assume just for a minute that we are optimistic about the future so that the probability of any up move in this stock is <span class="math inline">\(p = 0.60\)</span>. If the probability of an up move is 0.60, then the probability of a down move must be</p>
+<br> <button onclick="showText('myDIV1')">show / hide</button>
+<div id="myDIV1" style="display:none;">
+<p><br></p>
+<p>Probability of a down movement is 1 minue the probability of an up movement or <span class="math inline">\(1-p=1-0.06=0.40\)</span>.</p>
+</div>
+<p><br></p>
+<p>We can hover over the diagram below and locate the initial stock price and the up and down possibilities as well as probabilities of an up or down movement.</p>
+<div id="htmlwidget-f04f2484822b8a2b7564" style="width:100%;height:480px;" class="visNetwork html-widget"></div>
+<script type="application/json" data-for="htmlwidget-f04f2484822b8a2b7564">{"x":{"nodes":{"id":[1,2,3],"title":["S(0)=109","S(1,u)","S(1,d)"]},"edges":{"from":[1,1],"to":[2,3],"label":["p=0.60","1-p=1-0.60=0.40"]},"nodesToDataframe":true,"edgesToDataframe":true,"options":{"width":"100%","height":"100%","nodes":{"shape":"dot"},"manipulation":{"enabled":false},"edges":{"arrows":"to"},"layout":{"hierarchical":{"enabled":true,"direction":"LR"}}},"groups":null,"width":"100%","height":null,"idselection":{"enabled":false},"byselection":{"enabled":false},"main":null,"submain":null,"footer":null,"background":"rgba(0, 0, 0, 0)"},"evals":[],"jsHooks":[]}</script>
+<p>Now we can suppose that the stock price grows or declines by an amount. That amount can be learned from the sample standard deviation <span class="math inline">\(\sigma\)</span> of the rate of return of the stock price. Rates of return are just growth (or decline) rates. So that the one day ahead stock price will go up to</p>
+<p><span class="math display">\[
+S_{1,u} = S_0 + S_0 \sigma = S_0(1+\sigma) \approx S_0 e^{\sigma}
+\]</span> Where we use the approximmation <span class="math inline">\((1+\sigma) \approx e^{\sigma}\)</span>. We must keep in mind that this is the one day standard deviation.</p>
+<p>Let’s get this a little more down to earth. We find that over the past 251 trading days that the stock return daily standard deviation is 0.0165 or 1.65% per day. If we multiply this by 251 days a $1 invested today would grow into 62.8970964. This means that after 251 up jumps from today we would get this amount. Intuitively we might feel this is not very likely! Anyway, after just one up jump (a stock price move for one day) and if today’s stock price is $109 per share, then</p>
+<p><span class="math display">\[
+S_{1,u} = S_0 + S_0 \sigma = S_0(1+\sigma) \approx S_0 e^{\sigma} = 109 e^{0.0165} = 110.8134196
+\]</span></p>
+<p>What goes up might just as well go down. If stock returns have a positive <span class="math inline">\(\sigma = 0.0165\)</span>, and since <span class="math inline">\(\sigma = var^{1/2}\)</span>, then it is possible for a negative or down turn in the return. Now the factor is $e^{-0.0165}=0.9836354, a discount to the current stock price of $109 per share.</p>
+<p><span class="math display">\[
+S_{1,d} = S_0 - S_0 \sigma = S_0(1-\sigma) \approx S_0 e^{-\sigma} = 109 e^{-0.0165} = 107.2162564
+\]</span></p>
+<p>If the stock could jump up 251 times it might decline that many times too. In that scenario, the stock price would move from $109 to what level?</p>
+<br> <button onclick="showText('myDIV2')">show / hide</button>
+<div id="myDIV2" style="display:none;">
+<p><br></p>
+<p>1.7329894</p>
+<p>What a decline!</p>
+</div>
+<p><br></p>
+<p>What would be the expected value of the stock price in one day? This question is just a weighted average of the probabilities of up and down with the stock price outcomes, a random variable in one day.</p>
+<br> <button onclick="showText('myDIV3')">show / hide</button>
+<div id="myDIV3" style="display:none;">
+<p><br></p>
+<p><span class="math display">\[
+E(S_1) = p S_{1,u} + (1-p) S_{1,d} = (0.60)(110.81)+(0.40)(107.2163)=109.37
+\]</span></p>
+<p>Just a tad above today’s price.</p>
+</div>
+<p><br></p>
+<div id="then-there-were-two" class="section level2">
+<h2>Then there were two</h2>
+<p>Yes, two draws of stock prices, one after the other, one conditional on the other. Let’s look at this up and down tree.</p>
+<div id="htmlwidget-2022ca0f4c3035fcd53e" style="width:672px;height:480px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2022ca0f4c3035fcd53e">{"x":{"diagram":"digraph {\n\ngraph [layout = \"neato\",\n       outputorder = \"edgesfirst\",\n       bgcolor = \"white\"]\n\nnode [fontname = \"Helvetica\",\n      fontsize = \"7\",\n      shape = \"circle\",\n      fixedsize = \"true\",\n      width = \"0.5\",\n      style = \"filled\",\n      fillcolor = \"aliceblue\",\n      color = \"gray70\",\n      fontcolor = \"gray50\"]\n\nedge [fontname = \"Helvetica\",\n     fontsize = \"8\",\n     len = \"1.5\",\n     color = \"gray80\",\n     arrowsize = \"0.5\"]\n\n  \"1\" [label = \"S(0)\", style = \"filled\", color = \"orange\", shape = \"circle\", fontname = \"Helvetica\", fillcolor = \"#F0F8FF\", fontcolor = \"#000000\", pos = \"1,3!\"] \n  \"2\" [label = \"S(1,d)\", style = \"filled\", color = \"orange\", shape = \"circle\", fontname = \"Helvetica\", fillcolor = \"#F0F8FF\", fontcolor = \"#000000\", pos = \"0.5,2!\"] \n  \"3\" [label = \"S(1,u)\", style = \"filled\", color = \"orange\", shape = \"circle\", fontname = \"Helvetica\", fillcolor = \"#F0F8FF\", fontcolor = \"#000000\", pos = \"1.5,2!\"] \n  \"4\" [label = \"S(2,dd)\", style = \"filled\", color = \"orange\", shape = \"circle\", fontname = \"Helvetica\", fillcolor = \"#F0F8FF\", fontcolor = \"#000000\", pos = \"0,1!\"] \n  \"5\" [label = \"S(2,ud=du)\", style = \"filled\", color = \"orange\", shape = \"circle\", fontname = \"Helvetica\", fillcolor = \"#F0F8FF\", fontcolor = \"#000000\", pos = \"1,1!\"] \n  \"6\" [label = \"S(2,uu)\", style = \"filled\", color = \"orange\", shape = \"circle\", fontname = \"Helvetica\", fillcolor = \"#F0F8FF\", fontcolor = \"#000000\", pos = \"2,1!\"] \n\"1\"->\"2\" [color = \"blue\", arrowsize = \"1\"] \n\"1\"->\"3\" [color = \"blue\", arrowsize = \"1\"] \n\"2\"->\"4\" [color = \"blue\", arrowsize = \"1\"] \n\"2\"->\"5\" [color = \"blue\", arrowsize = \"1\"] \n\"3\"->\"5\" [color = \"blue\", arrowsize = \"1\"] \n\"3\"->\"6\" [color = \"blue\", arrowsize = \"1\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<p>SOme description is in order. At the top is right now, day 0. The second row is day 1. The third row is day 2. If the stock goes up from day 0 to day 1, then the value is <span class="math inline">\(S(1,u)\)</span>. Similarly if the stock goes down. If after the stock goes up at day 1, then the stock can either go up to <span class="math inline">\(S(2,uu)\)</span> (that is, jump up twice) to go down to <span class="math inline">\(S(2,ud)\)</span> (that is, after jumping up it then jumps down). The same thoughts will occur when the stock goes down to <span class="math inline">\(S(1,d)\)</span>.</p>
+<p>How many paths are there to get to the third row where we have forecasted the 2nd day’s stock price?</p>
+<br> <button onclick="showText('myDIV4')">show / hide</button>
+<div id="myDIV4" style="display:none;">
+<p><br></p>
+<p>For <span class="math inline">\(S(2,uu)\)</span> there is only one path, up and up.</p>
+<p>For <span class="math inline">\(S(2,ud=du)\)</span> there are two paths, up and down, and down and up. It does not matter, they both lead to the same node.</p>
+<p>For <span class="math inline">\(S(2,dd)\)</span> there is only one path, down and down.</p>
+</div>
+<p><br></p>
+<div id="how-often" class="section level3">
+<h3>How often?</h3>
+<p>We can compute outcomes all day. But how often does a node occur? We remember that our task is to forecast stock prices in the future. To do that we realize that stock prices occur in a probable range. That means they are random variables, where the adjective <strong>random</strong> has the notion of an indiscriminate sampling of prices. But a random variable is not so colloquially indiscriminate as to not have a notion of a frequency of occurrence. The relative frequency, as we continue to see, is what we measure to be probability. Allowing probability into our lives also admits our beliefs into the analysis.</p>
+<p>So what is the probability of a stock price after one up and one down jump?</p>
+<br> <button onclick="showText('myDIV5')">show / hide</button>
+<div id="myDIV5" style="display:none;">
+<p><br></p>
+<p>This is an example of a both-and event. Both an up and a down jump must occur. The probability of an up jump, according to our analysis is 0.60. The probabiilty of a down jump is then just <span class="math inline">\(1-0.60=0.40\)</span>. Intuitively, if stock prices were to rise, that would account for 60% of our experiments. Then after an up jump, the stock falls, so out of 60 pf a humdred experiments with stock prices, 40% of those might occur.</p>
+<p>Thus the probability of an up jump followed by a down jump is</p>
+<p><span class="math display">\[
+Prob(S(2, ud)) = p^1(1-p)^1 = (0.60)^1(0.40)^1 = 0.24
+\]</span></p>
+<p>THis is the probability of a single up and down combination.</p>
+<p>Hang on! In the stock price tree we just admitted that there are two paths to get to a stock price that experiences both an up and a down jump. Okay, that would then mean there are two mutually exclusive ways of getting to an outcome like that. EIther the stock price jumps up then jumps down, or the stock price jumps down then up. This is thus an either-or event. We must therefore add the independently occurring probabilities.</p>
+<p><span class="math display">\[
+Prob(s(2, ud) \cup S(2, du)) = Prob(S(2, ud)) + Prob(S(2, du)) = 0.24 + 0.24 = 2(0.24) = 0.48
+\]</span></p>
+<p>Thus the complete answer is that 48% of the time we might experience a stock price that jump up one day and down another.</p>
+</div>
+<p><br></p>
+<p>How would we calculate the <span class="math inline">\(S(2,du=ud)\)</span> outcome?</p>
+<br> <button onclick="showText('myDIV6')">show / hide</button>
+<div id="myDIV6" style="display:none;">
+<p><br></p>
+<p>Let’s use the up and down sequence. We already know that</p>
+<p><span class="math display">\[
+S_{1,u} = S_0 + S_0 \sigma = S_0(1+\sigma) \approx S_0 e^{\sigma} = 109 e^{0.0165} = 110.8134196
+\]</span></p>
+<p>Yes, the stock price rises. After the rise to 110.8134196, the stock price now jumps down. We take our up estimate and condition it with a down movement like this</p>
+<p><span class="math display">\[
+S_{2,ud} = S_{1,u} - S_{1.u} \sigma = S_{1,u}(1-\sigma) \approx S_{1,u} e^{-\sigma} = 110.8134196 e^{-0.0165} = 109
+\]</span> Yes, right back where we started. Do we not observe a symmeterical outcome? Yes, indeed we do.</p>
+</div>
+<p><br></p>
+<p>The <span class="math inline">\(S(2, du=ud)\)</span> outcome occurs 48% of the time given our optimism in this market.</p>
+</div>
+</div>
+</div>
+<div id="ups-and-downs" class="section level1">
+<h1>Ups and downs</h1>
+<p>To forecast the up and down movements of the stock price or any asset whose value is <span class="math inline">\(A\)</span> in one year we can use the normal distribution, with a twist: the log normal random variable. Here’s what we will assume over a small interval of time <span class="math inline">\(\Delta t\)</span>:</p>
+<ol style="list-style-type: decimal">
+<li>Use small movements in the present value of assets <span class="math inline">\(A_t\)</span> so that <span class="math inline">\(\Delta A_t = A_{t+\Delta t} - A_t\)</span></li>
+<li>Let the small change in time, <span class="math inline">\(\Delta t\)</span> get as small as you like</li>
+<li>Approximate returns as the log value relative <span class="math inline">\(ln(v_{t+\Delta t} / v_{t}) \approx (v_{t+\Delta t} / v_{t}) - 1\)</span>, and this works well with small movements in value from <span class="math inline">\(t\)</span> to <span class="math inline">\(t + \Delta t\)</span></li>
+<li>In that small interval of time, <span class="math inline">\(\Delta t\)</span> use a constant average rate of return <span class="math inline">\(\mu \Delta t\)</span> and a constant variance of return <span class="math inline">\(\sigma^2 \Delta t\)</span> which is the same as using a constant standard deviation of <span class="math inline">\(\sigma \sqrt{\Delta} t\)</span></li>
+</ol>
+<p>Armed with all of these assumptions we see that from <span class="math inline">\(t=0\)</span> to <span class="math inline">\(t\)</span> we can accumulate value in small time increments <span class="math inline">\(\Delta t\)</span> with this simulation:</p>
+<p><span class="math display">\[
+A_t = A_0 exp((\mu - 0.5 \sigma^2) \Delta t + \sigma \sqrt{\Delta t} \, z)
+\]</span></p>
+<p>where, <span class="math inline">\(z ~ Normal(0,1)\)</span>, the standard normal (mean 0 and variance 1) distribution. Now for the lognormal bit. Divide both sides by <span class="math inline">\(S_0\)</span> and take (natural) logarithms to get</p>
+<p><span class="math display">\[
+ln(A_{t+\Delta t}/A_t) = (\mu - 0.5 \sigma^2) \Delta t + \sigma \sqrt{\Delta} t \, z)
+\]</span></p>
+<p>We thus are simulating asset returns across a time period of <span class="math inline">\(\Delta t = (t+\Delta t) - t\)</span>. For a given initial level of <span class="math inline">\(A_t\)</span> at the beginning of the period, the logarithm of <span class="math inline">\(A_{t+\Delta t}\)</span> is normally distributed. But not only that, we can bifurcate stock price movements at time <span class="math inline">\(t\)</span> in the following way.</p>
+<p>If we let up movement factors <span class="math inline">\(u\)</span> be</p>
+<p><span class="math display">\[
+u = e^{\sigma \sqrt{\Delta t}}
+\]</span> and down movement factors <span class="math inline">\(d\)</span> be symmetrically the inverse of <span class="math inline">\(u\)</span></p>
+<p><span class="math display">\[
+d = e^{-\sigma \sqrt{\Delta t}} = \frac{1}{u}
+\]</span> and along with the future value <span class="math inline">\(R\)</span> of depositing a $1 bill into a bond that yields <span class="math inline">\(r\)</span> per year in a holding period of <span class="math inline">\(\Delta t\)</span></p>
+<p><span class="math display">\[
+R = e^{r \Delta t}
+\]</span> we have all of the pieces we need to forecast movements in <span class="math inline">\(S\)</span>, or whatever variable of our fancy, across whatever time periods we want, daily, monthly, quarterly, semiannually, annually.</p>
+<p>For example supose we estimate <span class="math inline">\(\sigma = 0.40\)</span> in one year (or <em>per annum</em>), and <span class="math inline">\(r = 0.05\)</span> <em>per annum</em>. If we let <span class="math inline">\(t=1\)</span> year and divide the year equally into <span class="math inline">\(n=4\)</span> quarters, then we would compute</p>
+<p><span class="math display">\[
+\Delta t = \frac{t}{n} = \frac{1}{4} = 0.25
+\]</span></p>
+<p>This approach will allow us to calculate quarterly returns and up and down factors. If <span class="math inline">\(n=12\)</span> we could break a <em>per annum</em> estimate into monthly estimates using <span class="math inline">\(\Delta t = 1/12 = 0.0833\)</span>. Using this convention we get</p>
+<p><span class="math display">\[
+u = e^{\sigma \sqrt{\Delta t}} = e^{0.40 \sqrt{0.25}}=1.22
+\]</span> <span class="math display">\[
+d = e^{-\sigma \sqrt{\Delta t}} = \frac{1}{u}=\frac{1}{1.22}=0.82
+\]</span> <span class="math display">\[
+R = e^{r \Delta t} = e^{0.05(0.25)} = 1.013
+\]</span> Now we can grow any stock price (or any asset present value for that matter) trees we might care to. Using our tree branches we have this forecast in general</p>
+<p>and this in particular for one quarter of one year</p>
+
+<p>Now for the pricing magic.</p>
+</div>
+<div id="very-pricey-indeed" class="section level1">
+<h1>Very pricey indeed</h1>
+<p>Suppose we want to value the equity of an organization. We can view equity <span class="math inline">\(E\)</span> as an American call option written on the value of the assets <span class="math inline">\(A\)</span> (working capital plus fixed assets) of an organization with exercise value equal to the long-term debt of the organization. The payoff for equity at some future date <span class="math inline">\(t=T\)</span> is <span class="math inline">\(max(E-D,0)\)</span>. Also suppose that debt <span class="math inline">\(D=35\)</span>.</p>
+<p>Let’s use our forecast of <span class="math inline">\(A\)</span> we worked out above for one quarter again. We can build a tree for Equity contingent on the Asset tree:</p>
+
+<p>Now we build a portfolio of <span class="math inline">\(a\)</span> units of the asset and <span class="math inline">\(b\)</span> units of a riskless bond and find <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> such that this homemade portfolio’s payoff is the same as a the contingent claim called equity. At <span class="math inline">\(t=1\)</span> we have two constraints, one for the up movement in the portfolio and one for the down movement in portfolio. Each $1 of the bonds grows into <span class="math inline">\(\$1.013\)</span> by the end of a quarter.</p>
+<p><span class="math display">\[
+48.80a+1.013b=13.80
+\]</span> <span class="math display">\[
+32.80a+1.013b=0
+\]</span> We can solve these simultaneous equations for <span class="math inline">\(a=0.8625\)</span> and <span class="math inline">\(b=-27.9270\)</span>. At time <span class="math inline">\(t=0\)</span> the portfolio will equal the present value of equity <span class="math inline">\(E\)</span>.</p>
+<p><span class="math display">\[
+40(0.8625)-27.9270 = 6.573
+\]</span> This is the market value of equity. Book value would be <span class="math inline">\(40-35 = 5\)</span> also known as intrinsic value. Thus the market to book ratio is <span class="math inline">\(6.5730/5 = 1.314\)</span>. The amount of market value in excess of book value <span class="math inline">\(6.570-5=1.570\)</span> is called extrinsic value due to the volatility of the underlying asset <span class="math inline">\(A\)</span>. We have just “priced” equity.</p>
+<p>In one more step we can get the risk neutral, market-clearing, probability of an up movement. This probability obeys the risk neutral solution for <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> we just found to value equity. The present expected value of equity <span class="math inline">\(E\)</span> is in one period</p>
+<p><span class="math display">\[
+E = [pE_u + (1-p)E_d]e^{-r\Delta t}
+\]</span> <span class="math display">\[
+6.573 = \frac{p(13.80) + (1-p)(0)}{1.013}
+\]</span> which yields <span class="math inline">\(p = 0.48\)</span>. We can use this probability to value any future up movement and still use the risk free rate to value expectations of forward value. In general if</p>
+<p><span class="math display">\[
+E = Aa + b = \frac{pE_u + (1-p)E_d}{R}
+\]</span> we can show that</p>
+<p><span class="math display">\[
+p = \frac{R - d}{u - d}=\frac{1.013-0.82}{1.22-0.82}=0.48
+\]</span> We will use this relationship in the next section with cash flows, debt, decisions, and more than one period.</p>
+</div>
+<div id="multi-period-valuation" class="section level1">
+<h1>Multi-period valuation</h1>
+<p>Now for the icing on the cake. We have all of the pieces to value contingent claims like equity with multiple periods of cash flow and debt as well. We recall that equity is modeled as an American call option. Let’s extend our example from one quarter to four quarters. The asset tree <span class="math inline">\(A\)</span> now looks like this</p>
+
+<p>We can specify quarterly projected cash flows and debt levels next. The 4th quataer nodes are just eh American call option payoff at the end of the horizon or <span class="math inline">\(max(A-D,0)\)</span>. We work backwards from this last date to the third quarter. The American option decision is between early exercise with payoff <span class="math inline">\(72.88-20\)</span> or keeping the option alive, receiving cash flow of <span class="math inline">\(5\)</span> and the present expected value of waiting until quarter 4 to exercise the option. In this case, the rational thing to do is to keep the option alive.</p>
+<p><span class="math display">\[
+58.14 = max\left(72.88-20, 5 + \frac{0.48(69.02) + (1-0.48)(39.67)}{1.013}\right)
+\]</span></p>
+<p>With these calculations and decisions at each node in the lattice and the asset tree we can develop the following equity value tree.</p>
+
+<p>Equity value is $40.75. Book value is only $20. Market value ends up being more than twice book in this scenario. Now to sensitize ourselves to changes in assumptions to complete this portion of the analysis.</p>
+</div>
+<div id="exercise" class="section level1">
+<h1>Exercise</h1>
+<p>For this exercise we will access the following data:</p>
+<ul>
+<li>daily closing prices for up to five (5) years for a traded stock</li>
+<li>recent balance sheet, income statement, and statement of financial condition for the traded stock’s company</li>
+<li>the Excel spreadsheet <code>equityvalue-1.xlsx</code>.</li>
+</ul>
+<p>Using this work flow we will compute and analyze the followng:</p>
+<ol style="list-style-type: decimal">
+<li><p>We transform balance sheet information in way: Invested capital (assets) = working capital (current assets - current liabilities) + fixed assets (total assets - working capital). This is the book value of invested capital. We will calculate the market value of invested capital later in the process below.</p></li>
+<li><p>Next we calculate Long term debt (debt) = invested capital - book value of equity. Again later we will assumed that the book value of debt is a good approximation for the the market value of debt.</p></li>
+<li><p>We calculate the natural logarithm of closing stock price relatives for each day starting with the observation at day 2 of the data set, that is, for day <span class="math inline">\(t\)</span> and the previous day <span class="math inline">\(t-1\)</span>, daily return is</p></li>
+</ol>
+<p><span class="math display">\[
+r_t^{\,ticker} = ln\left(\frac{P_t}{P_{t-1}}\right) 
+\]</span></p>
+<ol start="4" style="list-style-type: decimal">
+<li>Then we compute the sample daily mean and standard deviation of the <span class="math inline">\(r_t^{\,ticker}\)</span> series. Then annualize the daily return, that is, transform the daily mean to an annual mean return basis by multiplying <span class="math inline">\(\Delta t = 252\)</span> times <span class="math inline">\(r_t^{\,ticker}\)</span> to the daily mean estimate. Similarly transform the daily estimate of the return standard deviation, <span class="math inline">\(r_{sd}\)</span>, by multiplying this estimate by <span class="math inline">\(\sqrt{\Delta t} = \sqrt{252}\)</span>.</li>
+</ol>
+<p><span class="math display">\[
+r_{mean}^{\,\,\,annual} = r_{mean}\Delta t = \left[\sum_{t=2}^T \left(\frac{r_t^{\,ticker}}{T}\right)\right]\Delta t
+\]</span> <span class="math display">\[
+\sigma_{E} = r_{sd}\sqrt{\Delta t} = \left[\sum_{t=2}^T \left(\frac{(r_t^{\,ticker}-r_{mean})^2}{T-1}\right)\right]\sqrt{\Delta t}
+\]</span> The mean and variance can be computed over the entire sample or as a rolling calculation to get a sense of the time varying properties of stock return movements.</p>
+<ol start="5" style="list-style-type: decimal">
+<li>Further transform the annualized equity return volatility estimate into an invested capital (asset) volatility estimate. First, we can model the present value of invested capital (<span class="math inline">\(V\)</span>) as a portfolio of long term debt (<span class="math inline">\(D\)</span>) and equity (<span class="math inline">\(E\)</span>). We remember that the present value of invested capital is implied in the present values of debt and equity. We can observe the present values of debt and equity in the market place; we can’t observe the present value of invested capital. We infer that <span class="math display">\[
+V = D + E
+\]</span> We estimate <span class="math inline">\(E\)</span> from the current market capitalization of equity, that is, the current market (traded) price of shares of stock, <span class="math inline">\(p_E\)</span>, times the number of outstanding shares of stock (ex-dividend), <span class="math inline">\(N_E\)</span>. We will assume that the present value of debt, <span class="math inline">\(D\)</span>, is at current book value. This yields <span class="math display">\[
+V = D + p_E N_E
+\]</span></li>
+<li>We can think of the variance of debt as 0 for this purpose and focus on folding in the variance of stock return <span class="math inline">\(\sigma_{E}^{2}\)</span> on the assumption that there is no correlation between debt and equity returns and with <span class="math inline">\(\sigma_D=0\)</span> we have.</li>
+</ol>
+<p><span class="math display">\[
+\sigma_{V}^2 = \left(\frac{D}{V}\right)^2\sigma_D^2 +   \left(\frac{E}{V}\right)^2\sigma_E^2
+\]</span> <span class="math display">\[
+\sigma_{V} = \left(\frac{E}{V}\right)\sigma_E
+\]</span> where, <span class="math display">\[
+E = p_E N_E
+\]</span> and <span class="math display">\[
+V = D + E
+\]</span> with <span class="math inline">\(D\)</span> at book value.</p>
+<ol start="7" style="list-style-type: decimal">
+<li><p>Next we use <span class="math inline">\(\sigma_V\)</span> to estimate asset return volatility, constant debt, a one year treasury rate, across 4 quarters in a year, with four quarters of estimated future cash flow for equity holders to decide to reinvest in the company (additions to retained earnings) or as dividends to build an invested capital binomial tree, up and down binomial factors, and risk neutral probabilities.</p></li>
+<li><p>We then use the forecasted asset tree, free cash flows to shareholders, and the one year treasury rate to develop an equity valuation modeling equity as an American option.</p></li>
+<li><p>Sensitize the equity valuation by varying input parameters including debt, asset volatility, initial asset value, and the treasury rate.</p></li>
+</ol>
+</div>
+<div id="references" class="section level1">
+<h1>References</h1>
+<p>Brealey, R, Myers, S. and Allen, F. (2016). Principles of Corporate Finance. 12th ed. McGraw-Hill. Chapters</p>
+<p>Haug, E.G. (2007). The Complete Guide to Option Pricing Formulas. 2nd ed. McGraw-Hill.</p>
+<p>Hull, J.C. (2007). Options, Futures, and Other Derivatives. 7th ed. Pearson Education.</p>
+</div>
+
+<p>Copyright &copy; 2018 William G. Foote. All rights reserved.</p>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
