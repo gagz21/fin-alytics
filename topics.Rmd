@@ -35,17 +35,25 @@ The **fix** is to properly set your working directory. In Rstudio on the tool ba
 
 Here are several short tutorials in financial analysis. 
 
+- [Calculating returns](HTML/e-ln-returns.html)
+
 - [Net present value](HTML/npv-1.html)
 
 - [Internal rate of return](HTML/irr-1.html)
 
-- [Exchange rate](HTML/exchange-rates-1.html)
+- [Exchange rates](HTML/exchange-rates-1.html)
 
 - [Expected Shortfall confidence interval estimation](HTML/sampling-ES-1.html)
 
 - [Private placement of capital: deal structure (IRR, PV, option pricing, strategy ROI)](HTML/private-placement-1.html)
 
-- [Equity valuation using the binomial option pricing model](PDF/equityvaluation-1.pdf)
+- [Equity valuation using the binomial option pricing model](HTML/equityvaluation-1.html)
+
+# Statistics tutorials
+
+Modern finance theory and practice benefits greatly from advances in statistics and operations research. Here is a statistics primer that we can use to refresh our understanding and use of basic concepts and models often deployed in finance.
+
+- [Statistical thinking](https://wgfoote.github.io/stat-thinking/)
 
 # Topic 1: R warmups for finance {.tabset}
 
