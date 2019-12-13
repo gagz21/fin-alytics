@@ -266,7 +266,7 @@ Weeks by topics for Summer 2019. For specific details on each topic, weekly work
 
 ## Data
 
-All of the data in the topics comes from R packages or from the zipped file you can [download from here](data/data.zip).
+All of the data in the topics comes from R packages or from the zipped file you can [download from here](HTML/data/data.zip).
 
 Here is a [video that runs through the following data download work flow](https://turing.manhattan.edu/~wfoote01/finalytics/qq/data-download.mp4).
 
