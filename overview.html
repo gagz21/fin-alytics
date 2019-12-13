@@ -7,6 +7,7 @@
 <meta charset="utf-8" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
 
@@ -244,18 +245,6 @@ $(document).ready(function () {
   display: none;
 }
 </style>
-
-<script>
-$(document).ready(function () {
-  window.buildTabsets("TOC");
-});
-
-$(document).ready(function () {
-  $('.tabset-dropdown > .nav-tabs > li').click(function () {
-    $(this).parent().toggleClass('nav-tabs-open')
-  });
-});
-</script>
 
 <!-- code folding -->
 
@@ -532,7 +521,7 @@ $(document).ready(function () {
 </div>
 <div id="data" class="section level2">
 <h2>Data</h2>
-<p>All of the data in the topics comes from R packages or from the zipped file you can <a href="data/data.zip">download from here</a>.</p>
+<p>All of the data in the topics comes from R packages or from the zipped file you can <a href="HTML/data/data.zip">download from here</a>.</p>
 <p>Here is a <a href="https://turing.manhattan.edu/~wfoote01/finalytics/qq/data-download.mp4">video that runs through the following data download work flow</a>.</p>
 <ol style="list-style-type: decimal">
 <li><p>Set up a working directory on your computer. Typically this is located in the user’s documents directory. In this working directory you will save *.Rmd files.</p></li>
@@ -577,6 +566,23 @@ $(document).ready(function () {
 
 
 </script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
 
 <!-- dynamically load mathjax for compatibility with self-contained -->
 <script>
