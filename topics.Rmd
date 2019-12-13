@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Data
 
-All of the data in the topics comes from R packages or from the zipped file you can [download from here](data/data.zip).
+All of the data in the topics comes from R packages or from the zipped file you can [download from here](HTML/data/data.zip).
 
 1. Set up a working directory on your computer. Typically this is located in the user's documents directory. In this working directory you will save *.Rmd files.
 
