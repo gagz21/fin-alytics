@@ -94,7 +94,7 @@ View an [example of a financial web application](https://wgfoote.shinyapps.io/ex
 
 Here are the scripts, data, images, and animation you need to build this application:
 
-- [CSV](data/metaldata.csv)
+- [CSV](HTML/data/metaldata.csv)
 
 - [RMD](RMD/ExtremeFinance-3.Rmd)
 
