@@ -1,0 +1,162 @@
+---
+title: "Gamma in Finance"
+author: "Bill Foote"
+date: "`r Sys.Date()`"
+bibliography: [bibliography.bib]
+biblio-style: apalike
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning=FALSE, message=FALSE)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=36))
+knitr::opts_chunk$set(size = "small")
+knitr::opts_hooks$set(fig.width = function(options) {
+  if (options$fig.width < options$fig.height) {
+    options$fig.width = options$fig.height
+  }
+  options
+})
+knitr::knit_hooks$set(mysize = function(before, options, envir) {
+  if (before) 
+    return(options$size)
+})
+
+library(tidyverse)
+library(tidyquant)
+library(visNetwork)
+library(DiagrammeR)
+
+options(digits = 4, scipen = 99999999)
+```
+
+## Preliminaries
+
+The gamma function and gamma distribution wind their way into a number of financial applications. For example the gamma function can be used to describe the long-lived memory of events in market places. The gamma distribution, using the definition of the gamma function, can model non-catastrophic events such as rates of customer retention, default, losses, price-volume evolution ( see @Rocha2014 ), and asset return volatility.
+
+Let's begin with some mathematics. The factorial $k! = k\times(k-1)\times\ldots\times2\times1$ counts the number of ways $k$ objects can be arranged into a sequence, a permutation. We can express integer factorials using the gamma function as
+
+
+$$
+\Gamma(k)=\displaystyle\int_0^{\infty}t^{k-1}e^tdt
+$$
+such that
+
+$$
+\Gamma(k+1) = k!
+$$
+or as used in many modern works
+
+$$
+\Gamma(k) = (k-1)!
+$$
+and
+
+$$
+\Gamma(k+1) = k\Gamma(k)
+$$
+
+The $\Gamma$ function arose to solve the problem of getting a smooth interpolation between $(k-1)!$ and $k!$ (@Borwein2018). When $\alpha$ is a real number, we can generalize the factorial using gamma functions
+
+$$
+\Gamma(\alpha+1) = \alpha!
+$$
+and using Euler's integrals for $Re(\alpha)>0$
+
+$$
+\Gamma(\alpha)=\displaystyle\int_0^{\infty}t^{\alpha-1}e^tdt
+$$
+
+Here is a plot of the values from 1 to 10 by intervals of 0.10.
+
+```{r}
+alpha <- (1:100) * 0.1
+gamma_a <- gamma(alpha)
+gamma_tbbl <- tibble(alpha = alpha, gamma = gamma_a)
+p <- ggplot(gamma_tbbl, aes(x = alpha, y = gamma)) +
+  geom_line(color = "blue", size = 1.05)
+p
+```
+
+@Borwein2018 has an extensive survey of several papers and results in the mathematics behind the gamma function. In finance, the gamma function above generalizes returns and growth rates to take account of long memories in markets. Volatility measured as the absolute value of returns exhibits such a long memory with a positive and slowly decaying autocorrelation function of past (lags) of volatility. Returns on the other hand typically do not exhibit such a long memory as the autocorrelation function of returns typically very quickly decays into the past. These are well established stylized facts of financial markets. See the exhaustive survey by @Sewell2011.
+
+The gamma distribution can be parameterized by shape $\alpha$ and scale $\theta$ or shape and rate $\beta=1/\theta$. The gamma probability distribution function of a random variable $X=x$ (think of waiting times and non-catastrophic losses)
+
+$$
+\displaystyle \begin{array}{ll} \displaystyle f_X(x)=\frac{1}{\Gamma(\alpha)} \ \biggl(\frac{1}{\theta}\biggr)^\alpha \ x^{\alpha-1} \ e^{-\frac{x}{\theta}} & \ \ \ \ \ \ \ \ \ \ x>0  \\ \text{ } & \text{ } \\ \displaystyle f_Y(y)=\frac{1}{\Gamma(\alpha)} \ \beta^\alpha \ y^{\alpha-1} \ e^{-\beta y} & \ \ \ \ \ \ \ \ \ \ \displaystyle y>0   \end{array}
+$$
+
+
+The gamma (some analysts use the uppercase Gamma) distribution itself is a sum of exponential distributions. Exponential distributions describe the time inbetween Poisson events. Poisson events are random discrete occurrences such as loan defaults and accidents in continuous time intervals such as a day, month, or year. @Rocha2014 uses gamma and the inverse gamma distribution to model price-volume relationships.
+
+## Examples of the gamma distribution
+
+There are several important examples of the gamma distribution. 
+
+- When the shape parameter $\alpha=1$, the gamma distribution becomes the exponential distribution with mean $\theta$ or $\frac{1}{\beta}$ depending on the parametrization. This distribution can model the amount of time between defaults, bear and bull markets, and the occurrence of volatility clusters.
+
+- When the shape parameter $\alpha$ is any positive integer, the resulting gamma distribution is called the Erlang distribution. This distribution can be used to describe the tick-by-tick arrival times of a trade, calls to a call center, and waiting times in lines. 
+
+- A Chi-square distribution is a gamma distribution with shape parameter $\alpha=\frac{k}{2}$ and scale parameter $\theta=2$ where $k$ is a positive integer (the degrees of freedom). In statistics and in finance, the Chi-asquare distribution describes the shape of volatility.
+
+- Gamma functions are often used to model non-catastrophic losses, phystical and financial, called by actuaries a severity. Catastrophic loss is better handled by the Generalized Pareto Distribution.
+
+## Facts about the gamma distribution
+
+Some important facts about the gamma distribution include
+
+1. The mean $\mu=E(X)$ and variance $\sigma^2=Var(X)$ is
+
+$$
+\displaystyle \begin{array}{ll} \displaystyle E(X)=\alpha \ \theta & \ \ \ \ \ \ \ \ \ \ Var(X)=\alpha \ \theta^2  \\ \text{ } & \text{ } \\ \displaystyle E(X)=\frac{\alpha}{\beta} & \ \ \ \ \ \ \ \ \ \ \displaystyle Var(X)=\frac{\alpha}{\beta^2}   \end{array}
+$$
+
+for the two parameterizations of scale $\theta$ and $\beta$. For example, if we ask managers their view of the average and standard deviation of customer retention losses, we can invert these equations to get scale and shape parameters to Gamma simulate customer retention losses.
+
+2. If $X_1$ (we can think of customer retention in Latin America) follows a gamma distribution with the shape parameter $\alpha_1$ and $X_2$ (say, customer retnetion in EMEA) follows a gamma distribution with shape parameter $\alpha_2$ and independent of one another, then the sum $X_1+X_2$ has a gamma distribution with shape parameter $\alpha_1+\alpha_2$.
+
+3. The skewness $\gamma$ of the gamma distribution depends only on the shape parameter $\alpha$.
+
+$$
+\displaystyle \gamma = \frac{2}{\sqrt{\alpha}}
+$$
+The higher the shape parameter, the less skewed and more symmetric is the distribution.
+
+4. The thickness of the gamma distribution tail is measured with its kurtosis:
+
+$$
+\kappa = 3 + \frac{6}{\alpha}
+$$
+
+It turns out that the gamma distribution assigns smaller probabilities to tail events than another popular distribution, the Pareto distribution.  However, the Pareto distribution itself is a convolution of the compound exponential distribution and the gamma distribution. Thus we would typically model positive events (such as revenue) using gamma when we believe that revenues are not expected to be large in the sense of being in the tails. On the other hand if we were to expect spikes in sales we would deploy the Pareto distribution to handle those events. For positive $\alpha$ gamma also gives us thicker tails than the normal distribution.
+
+## A worked example
+
+Suppose line managers agree that the average rate of customer receivables default, a random variable $X$, is 10\% with a standard deviation of 5\% for a new division in a new market. Then
+
+$$
+\begin{align}
+E(X) & = \mu \\
+0.10 & = \alpha \theta \\
+Var(X) & = \sigma^2 \\
+0.05^2 & = \alpha \theta^2
+\end{align}
+$$
+
+Solving for $\alpha = 0.10 / \theta$ in the mean and substituting this expression into the variance we get $\theta = 0.025$. Substituting this back into the expression for $\alpha$ we get $\alpha = 4$. The resulting simulated gamma distribution looks like this plot.
+
+```{r}
+default_rate <- rgamma(1000, shape = 4, scale = 0.025)
+summary(default_rate)
+dr_tbbl <- tibble(default = default_rate)
+p <- ggplot(dr_tbbl, aes(x = default)) +
+  geom_density(color = "blue", size = 1.1)
+p
+```
+
+Some bumps in the road occur in the tail due to the sampling of the distribution. The sample distribution is positively skewed as advertised. The interquartile range (3rd quartile minus 1st quartile) is very nearly the standard deviation. Managers can use this sampled distribution to model anticipated changes in revenues due to customer retention drivers.
+
+## References
