@@ -1,0 +1,173 @@
+---
+title: "ACF-PACF in Finance"
+author: "Bill Foote"
+date: "`r Sys.Date()`"
+bibliography: [book.bib]
+biblio-style: apalike
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(tidyquant)
+library(GGally)
+```
+
+What follows are notes on time series models. By its nature a set of notes is incomplete, may contain a few annoying errors of formulation, organization, and grammar. For deeper dives we should consult the far more extensive time series treatments provided by @ruppert2015statistics and @mcneil2015quantitative (also see their chapter on the empirical characteristics of time series).
+
+## Preliminaries
+
+Autoregressive processes represent the dependence of a current value of a series $y_t$ on past episodes $s$ of $y_{t-s}$. AR(2) would look like this:
+
+$$
+y_t=\phi_0 + \phi_1 y_{t-1} + \phi_2 y_{t-2} + \varepsilon_t
+$$
+
+An AR process can be distinguished from an MA process by its persistence. Since autoregression is an iterative process, values of the random error fade away slowly as each year feeds to the next. The MA process represents correlations only of the random component, so after $q$ periods the random error is no longer in the system. MA(2) looks like this
+
+$$
+y_t=\theta_0 + \theta_1 \varepsilon_{t-1} + \theta_2 \varepsilon_{t-2} + \varepsilon_t
+$$
+
+
+The persistence of lagged terms can be examined through the autocorrelation function
+
+$$
+ACF_s(y_t) = \frac{cov(y_t, y_{t-s})}{\sigma_y^2}
+$$
+The partial autocorrelation function (PACF) are the coefficients $\phi_s$ of the regression of $y_t$ on $y_{t-s}$
+
+$$
+y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \ldots \phi_s y_{t-s} + \varepsilon_t
+$$
+The PACF is used to examine the persistence of error terms as they feed lagged values of a time series variate into the error terms of the time series representation.
+
+## Where do we start?
+
+We often start by first differencing a series to remove non-stationary trends. After a time series has been differenced, the next step is to examine the impact of past values of a series on the current value, and do this for all values of a series. By looking at the autocorrelation function (ACF) and partial autocorrelation (PACF) plots of the differenced series, we can tentatively identify the numbers (lags) of AR and/or MA terms that will explain current values of a series. The ACF plot is typically visualized as a bar chart of the raw coefficients of correlation between a time series and each lag of itself, each taken separately. The PACF plot is a plot of the partial correlation coefficients between the series and lags of itself.
+
+In general, the **partial** correlation between two variables is the amount of correlation between them which is not explained by their mutual correlations with a specified set of other variables. For example, if we are regressing a variable $Y$ on other variables $X_1$, $X_2$, and $X_3$, the partial correlation between $Y$ and $X_3$ is the amount of correlation between $Y$ and $X_3$ that is not explained by their common correlations with $X_1$ and $X_2$. This partial correlation can be computed as the square root of the reduction in variance that is achieved by adding $X_3$ to the regression of $Y$ on $X_1$ and $X_2$.
+
+In a similar way a partial autocorrelation is the amount of correlation between a variable and a lag of itself that is not explained by correlations at all lower order lags. This lack of explanation is none other than the remaining $\varepsilon_{t-s}$ as lags are considered through the PACF process. The autocorrelation of a time series$Y$ at lag 1 is the coefficient of correlation between $Y_t$ and $Y_{t-1}$, which is also the correlation between $Y_{t-1}$ and $Y_{t-2}$, and on average between all one lag pairs of $Y$. But if $Y_{t}$ is correlated with $Y_{t-1}$, and $Y_{t-1}$ has the same correlation with $Y_{t-2}$, then we should also expect to find a correlation between $Y_{t}$ and $Y_{t-2}$. In this scenario, the size of the correlation we should expect at lag 2 is the square of the lag 1 correlation. Thus, the correlation at lag 1 **propagates** to lag 2 and possibly to higher-order lags through the error terms. The partial autocorrelation at lag 2 is therefore the difference between the actual correlation at lag 2 and the expected correlation due to the propagation of correlation at lag 1.
+
+If the PACF displays a sharp cutoff while the ACF decays more slowly (i.e., has significant spikes at higher lags), we say that the stationarized series displays an **AR signature**. This means that the autocorrelation pattern can be explained more easily by adding $p$ AR terms at the PACF cutoff than by adding MA terms. There is thus persistence in the dependence of current values on the past, back to the lag at which the PACF sharply drops off to near zero, that is, statistically insignificant, partial autocorrelations.
+
+Theoretically, autocorrelation patterns can be removed from a stationary series by adding sufficient autoregressive terms (lags of the stationary series) to the equation. It is the role of the PACF to tells us how many lagged terms are likely be needed. However, this is not always the simplest way to explain a pattern of autocorrelation. Sometimes it is more efficient to add MA terms (lags of the forecast errors) instead. The autocorrelation function (ACF) plays the same role for MA terms that the PACF plays for AR terms. The ACF tells you how many MA terms are likely to be needed to remove the remaining autocorrelation from the differenced series. If the autocorrelation is significant at lag k but not at any higher lags, this indicates that $q$ MA terms should be used to represent the series. In the this case, we say that the stationary series displays an **MA signature**. 
+
+This means that the autocorrelation pattern can be explained by adding some MA terms with some AR terms. This is the principle of parsimony in modeling at work. We use only what we need. It can be shown algebraicly that the $AR(1$ process is equivalent to a $MA(\infty)$ process and vice-versa. Parsinomy indicates that we should use a few AR terms when many MA terms might be present and vice-versa.
+
+An MA signature is commonly associated with negative autocorrelation at lag 1. The reason for this is that an MA term can **partially offset** an order of differencing in the process. To see this, we can create a ARIMA(0,1,1) model without constant that is equivalent to an exponential smoothing model. The forecasting equation for this model is
+
+$$
+y_t = \mu + y_{t-1} - \theta_1 \varepsilon_{t-1} + \varepsilon_{t} 
+$$
+
+where the MA(1) coefficient $\theta_$1 corresponds to the term parameter $1- \alpha$ in the exponential smoothing model. If $\theta_1$ is equal to 1, this corresponds to an exponential smoothing model with $\alpha=0$, which is just a constant model as the process is never updated. On the other hand, if the moving-average coefficient is equal to 0, this model reduces to a random walk model where the differencing produces noise only around a constant mean $\mu$.
+
+
+## Autoregressive processes
+
+Let's examine some examples of models with varying characteristics. We focus here on the AR(1) models.
+
+```{r}
+set.seed(7511)
+e <-  rnorm(200)
+x1 = x2 =  x3 =  x4 =  e
+for (t in 2:200){
+  x1[t] = 0.98*x1[t-1]+e[t]
+  x2[t] = -0.6*x2[t-1]+e[t]
+  x3[t] = 1.00*x3[t-1]+e[t]
+  x4[t] = 1.01*x4[t-1]+e[t]
+}
+x1234 <- tibble(x1=x1, x2=x2, x3=x3, x4=x4)
+p <- ggplot(x1234, aes(x=1:200, y = x1)) +
+  geom_line(color="blue") +
+  annotate("text",x=50, y=10, label="x1[t] = 0.98*x1[t-1]+e[t]")
+p
+acf(x1); pacf(x1)
+```
+
+
+We see that there is some trend in this series and that trend results in a slowly decaying ACF. The PACF sharply cuts off at the very first lag of the AR(1) process. The series is persistent and on average exhibits lag one behavior throughout its history.
+
+Here is another AR(1) history. This time the coefficient on the AR(1) term negative.
+
+```{r}
+p <- ggplot(x1234, aes(x=1:200, y = x2)) +
+  geom_line(color="blue") +
+  annotate("text",x=50, y=10, label="x2[t] = -0.6*x2[t-1]+e[t]")
+p
+acf(x1); pacf(x1)
+```
+
+We see this time there is no trend in this series and still a slowly decaying ACF. The PACF again sharply cuts off at the very first lag of the AR(1) process. The series is persistent and on average exhibits lag one behavior throughout its history. This series also exhibits mean-reverting behavior.
+
+Now let's look at an AR(1) history with a unit root. The unit root means that the AR coefficient is statistically no different than one. 
+
+```{r}
+p <- ggplot(x1234, aes(x=1:200, y = x3)) +
+  geom_line(color="blue") +
+  annotate("text",x=50, y=10, label="x3[t] = 1.00*x3[t-1]+e[t]")
+p
+acf(x3); pacf(x3)
+```
+We see this time there is trend in this series with a slowly decaying ACF. The PACF again sharply cuts off at the very first lag of the AR(1) process. The series is persistent and on average exhibits lag one behavior throughout its history. This series also exhibits behavior similar to the first series.
+
+## Moving average processes
+
+Let's look at the ACF and PACF patterns associated with a MA(1) process this time. We will use the mean-reverting model shortly on top of this model.
+
+```{r}
+n <- 180
+set.seed(7511)
+y1 <-  rnorm(n)
+y2 <- rnorm(n)
+e <-  rnorm(n)
+e2 <-  rnorm(n)
+for (t in 9:n) {
+  y1[t] = e[t] + 0.3*e[t-1]
+  y2[t] = -0.6*y2[t-1] + e[t] + 0.3*e[t-1]
+}
+yarma <- tibble(y1ma=y1, y2arma=y2)
+p <- ggplot(yarma, aes(x=1:length(y1ma), y = y1ma)) +
+  geom_line(color="blue") +
+  annotate("text",x=50, y=10, label="y1[t] = e[t] + 0.3*e[t-1]")
+p
+acf(y1); pacf(y1)
+```
+The autocorrelation is statistically nil at all lags. The PACF has a positive correlation at lag one and is clean thereafter. This means that only a MA(1) term is present in the history of this series. This is the hallmark of the MA only model.
+
+Let's add to this very unpersistent model a persistence causing AR(1) term.
+
+```{r}
+p <- ggplot(yarma, aes(x=1:length(y1ma), y = y2arma)) +
+  geom_line(color="blue") +
+  annotate("text",x=50, y=10, label="y2[t] = -0.6*y2[t-1] + e[t] + 0.3*e[t-1]")
+p
+acf(y2); pacf(y2)
+```
+
+We have made out modeling lives difficult again. Introducing the AR(1) term brings back an oscillatory persistence in this mean-reverting model. Significant lags of 1, 2, and 3 periods are present in the ACF. A strong negative spike at lag 1 in the PACF is probably sufficient to represent the impact of the AR(1) term in the simulation of this history. The MA(1) term will represent the spikes evident in the ACF.
+
+## Takeaways
+
+Here are some takeaways from this analysis:
+
+1. AR and MA processes are invertible one into the other. Short AR lags are representable as very long MA lags and vice-versa.
+
+2. Slowly decaying ACF and sharply truncated PACF at lag $p$ means that the series is persistent and $AR(p)$ will represent the series.
+
+3. A very short ACF lag, say $q=1$, and a PACF with a spike near lag 1 will indicate a (nearly) pure $MA(q)$ process at work without any $AR(p)$ influences.
+
+4. Adding an $AR(p)$ to an $MA(q)$ process can produce rich oscillating behavior when the $AR(1)$ coefficient is negative and between 0 and 1. This is classic mean-reverting behavior. 
+
+5. ACF and PACF with no spikes means that the series has no discernible pattern. The series is not predictable. In the case of a returns series we typically see a fast decaying ACF that indicates returns are not predictable. However we should bew care not to stray into a belief that returns are just a random walk. They can be skewed and thick tailed too.
+
+6. In the case of a price series, a slowly decaying ACF means that a single MA term may represent numerous AR lags of persistent dependence. These models indicate that there are patterns of the series that we can recover. 
+
+7. In the case of the volatility of returns, a slowly decaying ACF indicates that there are perhaps several underlying episodes of changing volatility. We should then expect that the kurtosis of the series is also prominent.
+
