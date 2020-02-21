@@ -1,0 +1,309 @@
+---
+title: "Backcasting For Missing Data"
+author: "Bill Foote"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+#---------------------
+library(tidyverse)
+library(forecast)
+library(GGally)
+library(fpp2)
+library(tidyquant)
+rm(list = ls())
+```
+
+## Background
+
+Sometimes we just don't have enough data. For example suppose we are trying to examine the relationships among three time series of daily returns. Two of the series go back 5 years, one only goes back 6 months. Can we compare them?
+
+Yes, we can, with some assumptions and a bit of process. What do we need to be sure about the integrity of the backcast? Three features:
+
+1. The backcast should preserve moments (mean, standard deviation, skewness, kurtosis) of the series.
+
+2. Relative to the other two series, the backcast should also preserve the structure of relationship among the three series.
+
+3. Since returns typically have little memory (pattern), but return volatility does, the backcast should begin by building a backcast of volatility.
+
+## A process
+
+Our backcast will ultimately be a Monte Carlo simulation that embeds a stochastic volatility in the generation of returns. The innovations upon which we simulate volatility and returns will also be correlated with the other series.
+
+- Model the returns and volatility of the past 18 months of the 5 year series.
+
+- Model the returns and volatility of the 6 month series using ARIMA (integer differences) or FARIMA (fractional differences).
+
+- For 6 months of the 3 series, model the correlations.
+
+- Build 3 series of correlated innovations (residuals, error terms) for six months. We will use these to simulate the backcasting series.
+
+- Embed the AR structures into a GARCH simulation using the correlated innovations.
+
+Before we dive into GARCH with correlated innovations, we will first stop by Rob Hyndman's standard approach to backcasting.
+
+## The standard implementation
+
+Here is an [implementation suggested by Rob Hyndman](https://otexts.com/fpp2/backcasting.html), one of the authors of the `forecast` package. The reversed time series is configured as a left to right series with the first observation the most recent. We need to reverse the reversed series to get back to the advance of time from remote to current dates. There are two functions. One reverses a time series and the other reverses the forecast.
+
+```{r hyndsight}
+#------------------------------
+# https://otexts.com/fpp2/backcasting.html
+#------------------------------
+library(forecast)
+# Function to reverse time
+reverse_ts <- function(y)
+{
+  ts(rev(y), start=tsp(y)[1L], frequency=frequency(y))
+}
+# Function to reverse a forecast
+reverse_forecast <- function(object)
+{
+  h <- length(object[["mean"]])
+  f <- frequency(object[["mean"]])
+  object[["x"]] <- reverse_ts(object[["x"]])
+  object[["mean"]] <- ts(rev(object[["mean"]]),
+    end=tsp(object[["x"]])[1L]-1/f, frequency=f)
+  object[["lower"]] <- object[["lower"]][h:1L,]
+  object[["upper"]] <- object[["upper"]][h:1L,]
+  return(object)
+}
+```
+
+Let's apply this approach to backcast ETF returns. We use the `tidyquant` package to get share prices from Yahoo Finance for the past year. Then we transform them to returns and volatiity as the absolute value of returns.
+
+```{r make-returns}
+#------------------------------------------------------------------------
+# load price series, transform prices to returns
+#------------------------------------------------------------------------
+symbols <- c("TAN", "ICLN", "PBW") #c("ENE", "REP", "")
+
+price_tbl <- tq_get(symbols, from = "2018-02-01") %>% 
+  select(date, symbol, price = adjusted)
+# long format ("TIDY") price tibble for possible other work
+return_tbl <- price_tbl %>% group_by(symbol) %>% 
+  tq_transmute(mutate_fun = periodReturn, period = "daily", type = "log", col_rename = "daily_return") %>% 
+  mutate(daily_vol = abs(daily_return))
+#------------------------------------------------------------------------
+# display results
+#------------------------------------------------------------------------
+TAN_r <- return_tbl %>% 
+  select(symbol, daily_return) %>%
+  filter(symbol == "TAN") %>%
+  select(daily_return)
+ggtsdisplay(TAN_r[,2], plot.type = "histogram")
+#------------------------------------------------------------------------
+# prepare for later
+#------------------------------------------------------------------------
+ICLN_r <- return_tbl %>% 
+  select(symbol, daily_return) %>%
+  filter(symbol == "ICLN") %>%
+  select(daily_return)
+PBW_r <- return_tbl %>% 
+  select(symbol, daily_return) %>%
+  filter(symbol == "PBW") %>%
+  select(daily_return)
+```
+
+Similarly we explore TAN volatility.
+
+```{r explore-volatility}
+TAN_vol <- return_tbl %>% 
+  select(symbol, daily_vol) %>%
+  filter(symbol == "TAN") %>% 
+  select(daily_vol)
+ggtsdisplay(TAN_vol[,2], plot.type = "histogram")
+
+```
+
+Let's backcast TAN returns and volatility for six months. First we truncate the first 180 or so days of the `TAN_r` and `TAN_vol` series, then we apply Hyndman's approach.
+
+```{r backcast-hyndsight-TAN}
+TAN_r_180 <- tail(TAN_r$daily_return, 180)
+TAN_r_180 <- ts(TAN_r_180, start = 2019, frequency = 70)# univariate series only
+ggtsdisplay(TAN_r_180)
+TAN_r_180 %>%
+  reverse_ts() %>%
+  auto.arima() %>%
+  forecast() %>%
+  reverse_forecast() -> bc
+autoplot(bc) +
+  ggtitle(paste("Backcasts from",bc[["method"]]))
+#-------------------------------------------------------------------
+TAN_vol_180 <- tail(abs(TAN_r$daily_return), 180)
+TAN_vol_180 <- ts(TAN_vol_180, start = 2019, frequency = 70)# univariate series only
+ggtsdisplay(TAN_vol_180)
+TAN_vol_180 %>%
+  reverse_ts() %>%
+  auto.arima() %>%
+  forecast() %>%
+  reverse_forecast() -> bc
+autoplot(bc) +
+  ggtitle(paste("Backcasts from",bc[["method"]]))
+```
+
+These are interesting, but this general procedure, at least as we eyeball the backcasted series do little to replicate the base series. This is where we might insert a GARCH simulation instead.
+
+## GARCHing a backcast
+
+volatility clustering and market spillover. Let's focus on the one return volatility clustering. We can simulate a  model of returns using thick-tailed Student's-t distribution innovations. Nn innovation is simply a surprise, news: we don't anticipate it, but it is in the class of the known-unknown. It's out there, and indiscriminate, something we might call **random**.
+
+The sort of stylized facts of a return series in the financial markets can be compactly summarized with the terminology of the ARCH model.
+
+*ARCH* stands for 
+
+- *A*uto*r*egressive (lags in volatility)
+- *C*onditional (any new values depend on other variables, including lagged variables)
+- *H*eteroscedasticity (Greek for varying volatility, here time-varying, and stochastic or random)
+
+These models are especially useful for financial time series that exhibit periods of large return movements alongside intermittent periods of relative calm price changes.
+
+An experiment is definitely in order. The simulation will school us in the components of a return as it evolves over time and results in frequencies of return occurrence.
+
+1. The AR+ARCH model can be specified starting with $z(t)$ as a standard normal or Student-t, or practically any other distribution variables and an initial volatility series $\sigma(t)^2 = z(t)^2$ that we will overwrite in the simulation. 
+
+2. We then condition these variates with the square of their variances $\varepsilon_t = (\sigma^2)^{1/2} z_t$. Then we first compute for each date $t = 1 ... n$,
+
+$$
+\varepsilon_t = \omega + (\sigma^2)^{1/2} z_t
+$$
+
+3. Then, using this conditional error term we compute the autoregression (with lag 1 and centered at the mean $\mu$)
+
+$$
+y_t = \mu + \phi(y_{t-1} - \mu) + \varepsilon_t
+$$
+
+4. Now we are ready to compute the new variance term at the next date $t+1$ using the $\varepsilon_t$ from the autogresson as
+
+$$
+\sigma_{t+1}^2 = \omega + \alpha \varepsilon_t^2 
+$$
+where $\omega$ is the average variance of the series and $\sigma_{t+1}^2$ is conditional on $\varepsilon_t^2$ through the parameter $\alpha$.
+
+Let's try this simulation. It all starts with unconditional surprises $z$ in the market. 
+
+```{r arch, exercise = TRUE}
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <- rt(n, df = 30) 
+forecast::ggtsdisplay(z, plot.type = "histogram")
+```
+
+What do  you see about this **news**? We see lots of noise.
+
+Let's use the news as a building block: 
+
+- Our market in the TAN ETF has a base standard deviation of returns of about 3\% per period, quite volatile if this is a day, and the variance is thus `r 0.03^2`. This period's variance is related to last period's by the parameter `alpha` equal to 0.30, and thus somewhat coupled to last period's volatility.
+
+- Average returns are commensurately high at 3\%. This period's return is related to last period's by the parameter `phi` equal to 0.05, and thus hardly coupled to last period's return.
+
+Here is code to generate 180 days of sampled GARCH(1,1) univariate TAN returns and volatilities.
+
+```{r basicsim, exercise = TRUE}
+TAN_r_180 <- tail(TAN_r$daily_return, 180)
+TAN_vol_180 <- tail(TAN_vol$daily_vol, 180)
+n <-  10000 # lots of trials, each a "day" or an "hour"
+z <-  rt(n, df = 30)
+e <-  z # store variates
+y <-  z # returns: store again in a different place
+sig2 <-  z^2 # create volatility series from the innovations
+omega <-  var(TAN_vol_180) #0.03^2 # base variance
+alpha <-  0.30 # from ACF vols Markov dependence on previous variance
+phi <-  0.0 # from ACF returns Markov dependence on previous period
+mu <-  mean(TAN_r_180) # average return
+#omega/(1-alpha) ; sqrt(omega/(1-alpha))
+set.seed("1012")
+for (t in 2:n) # Because of lag start at second date
+{
+  e[t] <- sqrt(sig2[t])*z[t]          # 1. e is conditional on sig
+  y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+  sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2 to feed 1.
+}
+#--------returns------------------------------------------------
+ggtsdisplay(sample(y, 180), plot.type = "histogram", main = "TAN: 180 days of sampled GARCH(1,1) returns")
+#--------volatility---------------------------------------------
+ggtsdisplay(sample(sqrt(sig2), 180), plot.type = "histogram", main = "TAN: 180 days of sampled GARCH(1,1) volatility")
+```
+This simulation sampled 180 days from over 10000 scenarios. Returns and volatility seem to have the desired look and feel. 
+
+So far volatility clustering seems present. But what about market spillover? In order to introduce that effect we use a copula to create $z(t)$ innovations that are correlated with other markets, here the PBW and ICLN ETFs. We then simulate again. We can get the correlations from this scatter matrix.
+
+```{r etf-scatter}
+return_plot <- return_tbl %>% select(date, symbol, daily_return) %>% spread(symbol, daily_return)
+ggpairs(return_plot)
+```
+
+Here is a simulation of normally distributed and correlated innovations. 
+
+```{r correlated}
+library(mvtnorm)
+set.seed(1016)
+n_risks <- 3 ## Number of risk factors
+n_sim <- 10000
+sigma <- matrix(c(1, 0.816, 0.862,
+                  0.816, 1, 0.786,
+                  0.862, 0.786, 1), 
+                nrow = n_risks)
+rownames(sigma) <- c("TAN", "ICLN", "PBW")
+colnames(sigma) <- c("TAN", "ICLN", "PBW")
+sigma
+z <- rmvnorm(n_sim, mean=rep(0, nrow(sigma)),sigma = sigma, method = "svd")
+z_df <- tibble(z_TAN = z[,1], z_ICLN = z[,2], z_PBW = z[,3])
+ggpairs(z_df)
+```
+
+These simulated innovations are fairly close to the correlations in the data. We will us just `z_TAN` in our GARCH simulation.
+
+
+```{r garch-sim-corr}
+TAN_r_180 <- tail(TAN_r$daily_return, 180)
+TAN_vol_180 <- tail(abs(TAN_r$daily_return), 180)
+set.seed(1234)
+z <- z_df$z_TAN
+e <-  z # store variates
+y <-  z # returns: store again in a different place
+sig2 <-  z^2 # create volatility series from the innovations
+omega <-  var(TAN_vol_180) #0.03^2 # base variance
+alpha <-  0.30 # from ACF vols Markov dependence on previous variance
+phi <-  0.0 # from ACF returns Markov dependence on previous period
+mu <-  mean(TAN_r_180) # average return
+#omega/(1-alpha) ; sqrt(omega/(1-alpha))
+for (t in 2:length(z)) # Because of lag start at second date
+{
+  e[t] <- sqrt(sig2[t])*z[t]          # 1. e is conditional on sig
+  y[t] <-  mu + phi*(y[t-1]-mu) + e[t] # 2. generate returns
+  sig2[t+1] <-  omega + alpha * e[t]^2 # 3. generate new sigma^2 to feed 1.
+}
+#--------risk/return--------------------------------------------
+ggpairs(data.frame(risk = sqrt(sig2)[-(length(z)+1)], return = y))
+#--------returns------------------------------------------------
+ggtsdisplay(sample(y, 180), plot.type = "histogram", main = "TAN: 180 days of sampled correlated GARCH(1,1) returns")
+#--------volatility---------------------------------------------
+ggtsdisplay(sample(sqrt(sig2), 180), plot.type = "histogram", main = "TAN: 180 days of sampled correlated GARCH(1,1) volatility")
+```
+
+## Filling in the blanks
+
+We can now concatenate these simulated 180 days worth of TAN returns, correlated with ICLN and PBW, to the truncated TAN series. Our sample has only a year's worth of data (`r length(ICLN_r)` observations). 
+
+```{r strap-together}
+TAN_r_strap <- as.vector(c(sample(y, 180), TAN_r_180))
+ICLN_r_tail <- tail(as.vector(ICLN_r$daily_return), length(TAN_r_strap))
+PBW_r_tail <- tail(as.vector(PBW_r$daily_return), length(TAN_r_strap))
+length(TAN_r_strap)
+length(ICLN_r_tail)
+length(TAN_r_strap) == length(ICLN_r_tail)
+renew_df <- tibble(TAN = TAN_r_strap, ICLN = ICLN_r_tail, PBW = PBW_r_tail)
+ggpairs(renew_df)
+#cor(TAN_r_strap, ICLN_r_tail)
+#cor(TAN_r_strap, PBW_r_tail)
+#cor(ICLN_r_tail, PBW_r_tail)
+
+```
+
+Because we drew a 180 day sample from the 10000 simulations, the correlations will not necessarily match up with the original sample of ETFs. The average parameters used in the GARCH simulation also might throw off correlations. But we are closer to a bootstrapped approach to fill in missing data that preserves to some extent the key stylized facts of volatile volatility and market spillover along with some volatility memory and no return memory.
